@@ -4,7 +4,7 @@ const STATUS_TEXT = {
   idle: 'Ready to record',
   requesting: 'Waiting for microphone permission…',
   recording: 'Recording',
-  processing: 'Transcribing…',
+  processing: 'Transcribing and refining…',
 }
 
 function Recorder({ status, elapsedMs, maxDurationMs, onStart, onStop }) {

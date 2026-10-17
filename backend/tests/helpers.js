@@ -8,8 +8,14 @@ export const AUDIO_SAMPLES = {
   mp4: Buffer.concat([Buffer.from([0, 0, 0, 0x20]), Buffer.from('ftypM4A '), Buffer.alloc(64, 1)]),
 }
 
-export function fakeOpenAI(transcribe = async () => ({ text: 'Hello world.' })) {
-  return { audio: { transcriptions: { create: vi.fn(transcribe) } } }
+export function fakeOpenAI(
+  transcribe = async () => ({ text: 'Hello world.' }),
+  refine = async () => ({ status: 'completed', output_text: 'Hello, world.' }),
+) {
+  return {
+    audio: { transcriptions: { create: vi.fn(transcribe) } },
+    responses: { create: vi.fn(refine) },
+  }
 }
 
 export function createTestApp({ openai = fakeOpenAI(), env = {} } = {}) {

@@ -44,3 +44,11 @@ export function processAudio({ blob, mimeType }, language) {
   form.append('audio', blob, `recording.${EXTENSIONS[baseType] ?? 'webm'}`)
   return send('/api/process', { method: 'POST', body: form })
 }
+
+export function refineTranscript(transcript, language) {
+  return send('/api/refine', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transcript, language }),
+  })
+}

@@ -3,6 +3,7 @@ import cors from 'cors'
 import OpenAI from 'openai'
 import { ApiError } from './lib/errors.js'
 import { createProcessRouter } from './routes/process.js'
+import { createRefineRouter } from './routes/refine.js'
 
 const OPENAI_TIMEOUT_MS = 60_000
 
@@ -17,7 +18,7 @@ export function createApp(config, { openai } = {}) {
   function getOpenAIClient() {
     if (client) return client
     if (!config.openaiApiKey) {
-      throw new ApiError(503, 'service_unavailable', 'Transcription is not configured on the server.')
+      throw new ApiError(503, 'service_unavailable', 'The speech service is not configured on the server.')
     }
     client = new OpenAI({ apiKey: config.openaiApiKey, timeout: OPENAI_TIMEOUT_MS, maxRetries: 1 })
     return client
@@ -35,6 +36,7 @@ export function createApp(config, { openai } = {}) {
   })
 
   app.use('/api', createProcessRouter({ config, getOpenAIClient }))
+  app.use('/api', createRefineRouter({ config, getOpenAIClient }))
 
   app.use('/api', (req, res) => {
     res.status(404).json({ error: 'Not found', code: 'not_found' })

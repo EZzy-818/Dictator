@@ -1,5 +1,5 @@
 // Runs the real OpenAI SDK against a local stand-in server to check the exact
-// multipart request it sends, without network access or an API key.
+// requests it sends, without network access or an API key.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import express from 'express'
 import multer from 'multer'
@@ -20,6 +20,23 @@ beforeAll(async () => {
     received = { path: req.path, auth: req.headers.authorization, body: { ...req.body }, file: req.file }
     res.json({ text: '我们应该用 PostgreSQL。' })
   })
+  mock.post('/v1/responses', express.json(), (req, res) => {
+    received.responses = req.body
+    res.json({
+      id: 'resp_1',
+      object: 'response',
+      status: 'completed',
+      output: [
+        {
+          id: 'msg_1',
+          type: 'message',
+          role: 'assistant',
+          status: 'completed',
+          content: [{ type: 'output_text', text: '我们应该使用 PostgreSQL。', annotations: [] }],
+        },
+      ],
+    })
+  })
   await new Promise((resolve) => {
     server = mock.listen(0, resolve)
   })
@@ -29,11 +46,11 @@ beforeAll(async () => {
 afterAll(() => new Promise((resolve) => server.close(resolve)))
 
 function appWithRealSdk() {
-  const config = loadConfig({ OPENAI_API_KEY: 'sk-test', TRANSCRIPTION_MODEL: 'gpt-4o-transcribe' })
+  const config = loadConfig({ OPENAI_API_KEY: 'sk-test', TRANSCRIPTION_MODEL: 'gpt-4o-transcribe', REFINEMENT_MODEL: 'gpt-4.1' })
   return createApp(config, { openai: new OpenAI({ apiKey: 'sk-test', baseURL, maxRetries: 0 }) })
 }
 
-describe('OpenAI SDK transcription request', () => {
+describe('OpenAI SDK requests', () => {
   it('sends model, language, prompt and the audio file as multipart', async () => {
     const res = await request(appWithRealSdk())
       .post('/api/process')
@@ -42,6 +59,10 @@ describe('OpenAI SDK transcription request', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.rawTranscript).toBe('我们应该用 PostgreSQL。')
+    expect(res.body.polishedTranscript).toBe('我们应该使用 PostgreSQL。')
+    expect(res.body.refinementStatus).toBe('success')
+    expect(received.responses).toMatchObject({ model: 'gpt-4.1', store: false })
+    expect(received.responses.input).toContain('我们应该用 PostgreSQL。')
     expect(received.auth).toBe('Bearer sk-test')
     expect(received.body).toEqual({
       model: 'gpt-4o-transcribe',
