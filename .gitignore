@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-ssr/
+coverage/
+
+# Environment files hold secrets; only the .example templates are committed.
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.local
