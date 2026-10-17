@@ -4,6 +4,7 @@ const STATUS_TEXT = {
   idle: 'Ready to record',
   requesting: 'Waiting for microphone permission…',
   recording: 'Recording',
+  processing: 'Transcribing…',
 }
 
 function Recorder({ status, elapsedMs, maxDurationMs, onStart, onStop }) {
@@ -24,7 +25,7 @@ function Recorder({ status, elapsedMs, maxDurationMs, onStart, onStop }) {
           <button
             type="button"
             onClick={onStart}
-            disabled={status === 'requesting'}
+            disabled={status === 'requesting' || status === 'processing'}
             className="rounded-lg bg-slate-900 px-5 py-2.5 font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Start Recording
