@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "test": "vitest run",
     "test:live": "node scripts/live-transcription.js",
-    "test:live:refine": "node scripts/live-refinement.js"
+    "test:live:refine": "node scripts/live-refinement.js",
+    "eval": "node scripts/eval-accuracy.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
