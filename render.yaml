@@ -1,0 +1,41 @@
+# Render Blueprint for the Dictator backend (https://render.com/docs/yaml-spec).
+# The frontend is deployed separately on Vercel. See docs/deployment.md.
+services:
+  - type: web
+    name: dictator-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # The version the app was built and tested with.
+      - key: NODE_VERSION
+        value: "22"
+      # Secrets and addresses are entered in the Render Dashboard when the Blueprint is created.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      # Checked after the first deploy; see "Visitor addresses behind a proxy" in docs/deployment.md.
+      - key: TRUST_PROXY
+        value: "1"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: dictator-limits
+          property: connectionString
+
+  # Usage counters, so the limits survive restarts and the free web service's sleep.
+  - type: keyvalue
+    name: dictator-limits
+    plan: free
+    region: oregon
+    # Reachable only from Render's private network.
+    ipAllowList: []
+    # When full, refuse new counters (the API then answers 503) rather than evicting existing ones.
+    maxmemoryPolicy: noeviction
