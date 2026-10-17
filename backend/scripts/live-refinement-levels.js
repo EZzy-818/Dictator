@@ -78,6 +78,42 @@ const CASES = [
 
   // Medium: clarity and concision
   {
+    level: 'light', language: 'auto', name: 'Light keeps an English clause in a Chinese sentence',
+    input: '我觉得我们应该用 PostgreSQL，because it handles relational data better.',
+    expected: '我觉得我们应该用 PostgreSQL，because it handles relational data better.',
+    keep: ['我觉得', 'PostgreSQL', 'it handles relational data better'], drop: ['因为它', '关系'], minKept: 0.7,
+  },
+  {
+    level: 'light', language: 'auto', name: 'Light keeps both languages (spec test 2)',
+    input: '我们应该用 React for the frontend，然后用 Python for the backend.',
+    expected: '我们应该用 React for the frontend，然后用 Python for the backend。',
+    keep: ['我们应该用 React', 'for the frontend', 'Python', 'for the backend'], drop: ['前端', '后端'],
+  },
+  {
+    level: 'light', language: 'auto', name: 'Light cross-language correction (spec test 3)',
+    input: '我们应该用 MongoDB，actually no, PostgreSQL is better.',
+    expected: '我们应该用 PostgreSQL，it is better.',
+    keep: ['我们应该用', 'PostgreSQL'], drop: ['MongoDB', 'actually no'], minKept: 0.6,
+  },
+  {
+    level: 'medium', language: 'auto', name: 'Medium keeps an English clause in a Chinese sentence',
+    input: '我觉得我们应该用 PostgreSQL，because it handles relational data better.',
+    expected: '我觉得我们应该用 PostgreSQL，because it handles relational data better.',
+    keep: ['我觉得', 'PostgreSQL', 'it handles relational data better'], drop: ['因为它', '关系'],
+  },
+  {
+    level: 'medium', language: 'auto', name: 'Medium keeps both languages (spec test 2)',
+    input: '我们应该用 React for the frontend，然后用 Python for the backend.',
+    expected: '我们应该用 React for the frontend，然后用 Python for the backend。',
+    keep: ['我们应该用 React', 'for the frontend', 'Python', 'for the backend'], drop: ['前端', '后端'],
+  },
+  {
+    level: 'medium', language: 'auto', name: 'Medium cross-language correction (spec test 3)',
+    input: '我们应该用 MongoDB，actually no, PostgreSQL is better.',
+    expected: '我们应该用 PostgreSQL，it is better.',
+    keep: ['我们应该用', 'PostgreSQL'], drop: ['MongoDB', 'actually no'],
+  },
+  {
     level: 'medium', language: 'en', name: 'Medium spec example',
     input: 'Um, I was thinking that maybe we could potentially have a meeting sometime on Tuesday, actually no, Wednesday at 3 PM, to sort of discuss the project progress.',
     expected: "Let's meet Wednesday at 3 PM to discuss the project's progress.",

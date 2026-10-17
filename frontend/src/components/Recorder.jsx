@@ -17,13 +17,16 @@ const HINT = {
   requesting: 'Waiting for microphone permission…',
   recording: 'Tap to stop',
   processing: 'Transcribing and refining…',
+  refining: 'Refining…',
   error: 'Tap the microphone to try again',
 }
 
 function Recorder({ status, failed, refinementLevel, elapsedMs, maxDurationMs, stream, onStart, onStop }) {
   const isRecording = status === 'recording'
-  const isBusy = status === 'requesting' || status === 'processing'
-  const state = isRecording || status === 'requesting' ? 'recording' : status === 'processing' ? 'processing' : failed ? 'error' : 'idle'
+  // refining: the current transcript is being refined again at a newly selected level.
+  const isWorking = status === 'processing' || status === 'refining'
+  const isBusy = status === 'requesting' || isWorking
+  const state = isRecording || status === 'requesting' ? 'recording' : isWorking ? 'processing' : failed ? 'error' : 'idle'
   const hint =
     status === 'processing' && refinementLevel === 'none'
       ? 'Transcribing…'
@@ -47,7 +50,7 @@ function Recorder({ status, failed, refinementLevel, elapsedMs, maxDurationMs, s
         >
           {isRecording ? (
             <StopIcon className="size-9" />
-          ) : status === 'processing' ? (
+          ) : isWorking ? (
             <SpinnerIcon className="size-9 motion-safe:animate-spin" />
           ) : (
             <MicIcon className="size-10" />

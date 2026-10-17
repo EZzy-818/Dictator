@@ -11,7 +11,14 @@ describe('GET /api/health', () => {
     const res = await request(app).get('/api/health')
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ status: 'ok', openaiConfigured: true })
+    expect(res.body).toEqual({ status: 'ok', openaiConfigured: true, transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-4.1' })
+  })
+
+  it('reports a TRANSCRIPTION_MODEL override', async () => {
+    const app = createApp(loadConfig({ OPENAI_API_KEY: SECRET, TRANSCRIPTION_MODEL: 'gpt-4o-transcribe' }))
+    const res = await request(app).get('/api/health')
+
+    expect(res.body.transcriptionModel).toBe('gpt-4o-transcribe')
   })
 
   it('never includes the API key in the response', async () => {

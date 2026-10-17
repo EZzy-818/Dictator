@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getHealth, processAudio } from './services/api.js'
+import { getHealth, processAudio, refineText } from './services/api.js'
 import { formatDuration, useAudioRecorder } from './hooks/useAudioRecorder.js'
 import RefinementLevelSelector from './components/RefinementLevelSelector.jsx'
 import { DEFAULT_REFINEMENT_LEVEL } from './refinementLevels.js'
@@ -43,6 +43,12 @@ function App() {
   // The level the polished text was made with (or attempted at, after a failure).
   const [outputLevel, setOutputLevel] = useState(null)
   const [refinementError, setRefinementError] = useState(null)
+  // True while the current transcript is being refined again at a newly selected level.
+  const [refining, setRefining] = useState(false)
+  // Polished text per level for the current transcript, so switching back needs no request.
+  const levelResultsRef = useRef({})
+  // The selected level, for code that runs after a later selection change.
+  const selectedLevelRef = useRef(refinementLevel)
   const [copyStatus, setCopyStatus] = useState('idle')
   const requestIdRef = useRef(0)
   const copyTimerRef = useRef(null)
@@ -60,7 +66,47 @@ function App() {
     setPolishedText(null)
     setOutputLevel(null)
     setRefinementError(null)
+    setRefining(false)
+    levelResultsRef.current = {}
     setCopyStatus('idle')
+  }
+
+  // The polished text always matches the selected level. Choosing another level after a recording
+  // (or while it was processing) redoes the current transcript at that level: None shows the raw
+  // transcript as is, Light and Medium refine it again. Without this, the text from the old level
+  // stayed on screen under the new selection, so None could look like Light.
+  const showLevel = useCallback((level, rawTranscript) => {
+    const requestId = ++requestIdRef.current
+    setRefinementError(null)
+    const known = levelResultsRef.current[level]
+    if (known !== undefined) {
+      setRefining(false)
+      setPolishedText(known)
+      setOutputLevel(level)
+      return
+    }
+    setPolishedText(null)
+    setRefining(true)
+    refineText(rawTranscript, level)
+      .then((data) => {
+        if (requestId !== requestIdRef.current) return
+        levelResultsRef.current[level] = data.polishedTranscript
+        setPolishedText(data.polishedTranscript)
+      })
+      .catch((err) => {
+        if (requestId === requestIdRef.current) setRefinementError(err.message ?? REFINEMENT_FAILED)
+      })
+      .finally(() => {
+        if (requestId !== requestIdRef.current) return
+        setOutputLevel(level)
+        setRefining(false)
+      })
+  }, [])
+
+  const changeLevel = (level) => {
+    selectedLevelRef.current = level
+    setRefinementLevel(level)
+    if (transcript && !processing) showLevel(level, transcript.rawTranscript)
   }
 
   const handleRecordingComplete = useCallback(
@@ -71,20 +117,26 @@ function App() {
       // The level is captured here, when processing begins.
       setOutputLevel(refinementLevel)
       setProcessing(true)
+      // Set when the result arrives after another level was selected.
+      let reshow = null
       try {
         const data = await processAudio(recording, refinementLevel, trace)
         if (requestId !== requestIdRef.current) return
         trace.server = data.timings
         setServerUnavailable(false)
+        const level = data.refinementLevel ?? refinementLevel
+        levelResultsRef.current = { none: data.rawTranscript }
         setTranscript({ rawTranscript: data.rawTranscript })
-        setOutputLevel(data.refinementLevel ?? refinementLevel)
+        setOutputLevel(level)
         if (data.refinementStatus === 'success' || data.refinementStatus === 'skipped') {
+          levelResultsRef.current[level] = data.polishedTranscript
           setPolishedText(data.polishedTranscript)
           trace.outcome = 'success'
         } else {
           setRefinementError(REFINEMENT_FAILED)
           trace.outcome = 'refinement_failed'
         }
+        if (selectedLevelRef.current !== level) reshow = { level: selectedLevelRef.current, rawTranscript: data.rawTranscript }
       } catch (err) {
         if (requestId === requestIdRef.current) setProcessError(err.message)
         Object.assign(trace, { server: err.timings, outcome: 'failed', errorCode: err.code ?? 'unknown' })
@@ -96,10 +148,11 @@ function App() {
             pendingLatencyRef.current = trace
             setLatencyCommit((count) => count + 1)
           }
+          if (reshow) showLevel(reshow.level, reshow.rawTranscript)
         }
       }
     },
-    [refinementLevel, latencyEnabled],
+    [refinementLevel, latencyEnabled, showLevel],
   )
 
   // Runs after the result is in the DOM. The browser paints before the next animation frame's
@@ -148,7 +201,7 @@ function App() {
   // idle | recording | processing | completed | error
   const uiState = isRecording
     ? 'recording'
-    : processing
+    : processing || refining
       ? 'processing'
       : error
         ? 'error'
@@ -173,10 +226,10 @@ function App() {
       </header>
 
       <div className="space-y-8 rounded-[28px] border border-white/80 bg-white/85 p-5 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_24px_60px_-24px_rgb(30_41_90/0.18)] backdrop-blur-xl sm:p-10">
-        <RefinementLevelSelector value={refinementLevel} onChange={setRefinementLevel} />
+        <RefinementLevelSelector value={refinementLevel} onChange={changeLevel} />
 
         <Recorder
-          status={processing ? 'processing' : recorder.status}
+          status={processing ? 'processing' : refining ? 'refining' : recorder.status}
           failed={Boolean(error)}
           refinementLevel={outputLevel}
           elapsedMs={recorder.elapsedMs}
@@ -220,7 +273,9 @@ function App() {
             placeholder={
               refinementError
                 ? 'No polished text. Select and copy the raw transcript above instead.'
-                : 'Your polished text will appear here.'
+                : refining
+                  ? 'Refining…'
+                  : 'Your polished text will appear here.'
             }
           />
         </div>

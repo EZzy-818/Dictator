@@ -87,7 +87,9 @@ describe('POST /api/refine', () => {
       '嗯，这个方案我觉得，呃，还可以。',
       '我觉得这个 backend 应该用 Python，  but maybe not.  ',
     ])('None returns %j exactly, without calling OpenAI or counting usage', async (transcript) => {
-      const { app, openai } = createTestApp({ env: { REFINE_LIMIT_PER_MINUTE: '1' } })
+      // The fake model hands the transcript back unchanged.
+      const echo = fakeOpenAI(undefined, async ({ input }) => ({ status: 'completed', output_text: input }))
+      const { app, openai } = createTestApp({ openai: echo, env: { REFINE_LIMIT_PER_MINUTE: '1' } })
       for (let i = 0; i < 3; i++) {
         const res = await refine(app, { transcript, refinementLevel: 'none' })
         expect(res.status).toBe(200)
