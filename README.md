@@ -56,7 +56,7 @@ Editable Text → Copy
 
 Audio is recorded in the browser and sent to the backend for transcription. Depending on the selected refinement level, the backend either returns the raw transcript or processes it through an LLM.
 
-## Roadmap
+## Future Roadmap
 
 ### 1. Realtime Transcription
 - Stream audio while the user speaks.
