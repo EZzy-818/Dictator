@@ -1,0 +1,405 @@
+# Name check benchmark: every change the name check made
+
+Synthetic speech (OpenAI text-to-speech). Main = gpt-transcribe as returned; Raw = after the name check.
+
+## Before fix
+
+- **helpful** mixed-5-c #1
+  - Said: Don't push 到 main branch，先开 PR。
+  - Main: Don't push down main branch, 先开PR.
+  - Raw: Don't push 到 main branch, 先开PR.
+- **helpful** mixed-15-a #1
+  - Said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - Main: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且团队里大家都比较熟。
+  - Raw: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **harmful** mixed-30-a #1
+  - Said: 好的，那个，我说一下 deployment 的计划。我们 Thursday，actually no，Friday 晚上十点开始 deploy，预计 downtime 不超过 fifteen minutes。Backend 由 Alex 负责，frontend 由小王负责。如果 error rate 超过百分之二，就直接 rollback，不要等。
+  - Main: 好的，那个我说一下 deployment 的计划。我们 Thursday，actually no，Friday 晚上十点开始 deploy，预计 downtime 不超过 15 minutes。backend 由 Alex 负责，frontend 由小王负责，如果 error rate 超过百分之二就直接 roll back，不要等。
+  - Raw: 好的，那个我说一下 deployment 的计划。我们 Thursday，actually no，Friday 晚上十点开始 deploy，预计 downtime 不超过 15 minutes。backend 由 Alex 负责，frontend 由小王负责，如果 error rate 超过 2 就直接 roll back，不要等。
+- **helpful** mix-intro-nyu #1
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 呃，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Raw: 呃，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+- **helpful** mix-en-zh-places #1
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near Wutan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-school #1
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-en-zh-company #1
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+- **helpful** mix-zh-en-names #1
+  - Said: 我朋友在 Google 工作，他下个月要搬到 Seattle 去。
+  - Main: 我朋友在 Google 工作，他下个月要搬到西雅图去。
+  - Raw: 我朋友在 Google 工作，他下个月要搬到 Seattle 去。
+- **helpful** mix-deploy~noisy #1
+  - Said: Um, 我觉得 we should 先 deploy 到 staging，然后再 push to production.
+  - Main: 嗯，我觉得我们应该先 deploy 到 staging，然后再 push to production。
+  - Raw: 嗯，我觉得 we should 先 deploy 到 staging，然后再 push to production。
+- **helpful** mix-en-zh-school~noisy #1
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-intro-nyu~noisy #1
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 嗯，你好，我的名字叫王宇辰, and I just graduated from New York大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+  - Raw: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+- **helpful** mix-en-zh-places~noisy #1
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near Waitan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-company~noisy #1
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾迅, and she says the 微信 team is really busy right now.
+- **harmful** zh-30-c #2
+  - Said: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - Main: 今天的会议主要讨论了三件事：第一，下个季度的预算增加百分之十五；第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - Raw: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15；第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+- **helpful** mixed-5-c #2
+  - Said: Don't push 到 main branch，先开 PR。
+  - Main: Don't push down main branch, 先开PR.
+  - Raw: Don't push 到 main branch, 先开PR.
+- **helpful** mixed-15-a #2
+  - Said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - Main: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且团队里大家都比较熟。
+  - Raw: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **harmful** mixed-30-a #2
+  - Said: 好的，那个，我说一下 deployment 的计划。我们 Thursday，actually no，Friday 晚上十点开始 deploy，预计 downtime 不超过 fifteen minutes。Backend 由 Alex 负责，frontend 由小王负责。如果 error rate 超过百分之二，就直接 rollback，不要等。
+  - Main: 好的，那个我说一下 deployment 的计划。我们 Thursday，actually no，Friday 晚上十点开始 deploy，预计 downtime 不超过 15 minutes。backend 由 Alex 负责，frontend 由小王负责，如果 error rate 超过百分之二就直接 roll back，不要等。
+  - Raw: 好的，那个我说一下 deployment 的计划。我们 Thursday，actually no，Friday 晚上十点开始 deploy，预计 downtime 不超过 15 minutes。backend 由 Alex 负责，frontend 由小王负责，如果 error rate 超过 2 就直接 roll back，不要等。
+- **helpful** mix-intro-nyu #2
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 呃，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Raw: 呃，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+- **helpful** mix-en-zh-school #2
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-en-zh-company #2
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tengxun, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+- **helpful** mix-deploy~noisy #2
+  - Said: Um, 我觉得 we should 先 deploy 到 staging，然后再 push to production.
+  - Main: 嗯，我觉得我们应该先 deploy 到 staging，然后再 push to production。
+  - Raw: 嗯，我觉得 we should 先 deploy 到 staging，然后再 push to production。
+- **helpful** mix-intro-nyu~noisy #2
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 嗯，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+  - Raw: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+- **helpful** mix-en-zh-places~noisy #2
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near Waitan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-company~noisy #2
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾迅, and she says the 微信 team is really busy right now.
+- **harmful** zh-30-c #3
+  - Said: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - Main: 今天的会议主要讨论了三件事：第一，下个季度的预算增加百分之十五；第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - Raw: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15；第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+- **helpful** mixed-5-c #3
+  - Said: Don't push 到 main branch，先开 PR。
+  - Main: Don't push down main branch，掀开PR。
+  - Raw: Don't push 到 main branch，掀开PR。
+- **helpful** mixed-15-a #3
+  - Said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - Main: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且团队里大家都比较熟。
+  - Raw: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **harmful** mixed-30-a #3
+  - Said: 好的，那个，我说一下 deployment 的计划。我们 Thursday，actually no，Friday 晚上十点开始 deploy，预计 downtime 不超过 fifteen minutes。Backend 由 Alex 负责，frontend 由小王负责。如果 error rate 超过百分之二，就直接 rollback，不要等。
+  - Main: 好的，那个我说一下 deployment 的计划。我们 Thursday，actually no，Friday 晚上十点开始 deploy，预计 downtime 不超过 15 minutes。backend 由 Alex 负责，frontend 由小王负责，如果 error rate 超过百分之二就直接 roll back，不要等。
+  - Raw: 好的，那个我说一下 deployment 的计划。我们 Thursday，actually no，Friday 晚上 10 点开始 deploy，预计 downtime 不超过 15 minutes。backend 由 Alex 负责，frontend 由小王负责，如果 error rate 超过 2 就直接 roll back，不要等。
+- **helpful** mix-intro-nyu #3
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 呃，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Raw: 呃，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+- **helpful** mix-en-zh-places #3
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near Wutan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-school #3
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-en-zh-company #3
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tengxun, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+- **helpful** mix-deploy~noisy #3
+  - Said: Um, 我觉得 we should 先 deploy 到 staging，然后再 push to production.
+  - Main: 嗯，我觉得我们应该先 deploy 到 staging，然后再 push to production。
+  - Raw: 嗯，我觉得 we should 先 deploy 到 staging，然后再 push to production。
+- **helpful** mix-intro-nyu~noisy #3
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 嗯，你好，我的名字叫王宇辰, and I just graduated from New York大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+  - Raw: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+- **helpful** mix-en-zh-places~noisy #3
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near Waitan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-company~noisy #3
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾迅, and she says the 微信 team is really busy right now.
+
+## Fixed
+
+- **helpful** mixed-5-c #1
+  - Said: Don't push 到 main branch，先开 PR。
+  - Main: Don't push down main branch, 先开PR.
+  - Raw: Don't push 到 main branch, 先开PR.
+- **helpful** mixed-15-a #1
+  - Said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - Main: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且团队里大家都比较熟。
+  - Raw: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **helpful** mix-intro-nyu #1
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 呃，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Raw: 呃，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+- **helpful** mix-en-zh-places #1
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near Wutan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-school #1
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-en-zh-company #1
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+- **helpful** mix-zh-en-names #1
+  - Said: 我朋友在 Google 工作，他下个月要搬到 Seattle 去。
+  - Main: 我朋友在 Google 工作，他下个月要搬到西雅图去。
+  - Raw: 我朋友在 Google 工作，他下个月要搬到 Seattle 去。
+- **helpful** mix-deploy~noisy #1
+  - Said: Um, 我觉得 we should 先 deploy 到 staging，然后再 push to production.
+  - Main: 嗯，我觉得我们应该先 deploy 到 staging，然后再 push to production。
+  - Raw: 嗯，我觉得 we should 先 deploy 到 staging，然后再 push to production。
+- **helpful** mix-en-zh-school~noisy #1
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-intro-nyu~noisy #1
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 嗯，你好，我的名字叫王宇辰, and I just graduated from New York大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+  - Raw: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+- **helpful** mix-en-zh-places~noisy #1
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near Waitan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-company~noisy #1
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾迅, and she says the 微信 team is really busy right now.
+- **helpful** mixed-5-c #2
+  - Said: Don't push 到 main branch，先开 PR。
+  - Main: Don't push down main branch, 先开PR.
+  - Raw: Don't push 到 main branch, 先开PR.
+- **helpful** mixed-15-a #2
+  - Said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - Main: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且团队里大家都比较熟。
+  - Raw: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **helpful** mix-intro-nyu #2
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 呃，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Raw: 呃，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+- **helpful** mix-en-zh-school #2
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-en-zh-company #2
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tengxun, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+- **helpful** mix-deploy~noisy #2
+  - Said: Um, 我觉得 we should 先 deploy 到 staging，然后再 push to production.
+  - Main: 嗯，我觉得我们应该先 deploy 到 staging，然后再 push to production。
+  - Raw: 嗯，我觉得 we should 先 deploy 到 staging，然后再 push to production。
+- **helpful** mix-intro-nyu~noisy #2
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 嗯，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+  - Raw: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+- **helpful** mix-en-zh-places~noisy #2
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near Waitan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-company~noisy #2
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾迅, and she says the 微信 team is really busy right now.
+- **helpful** mixed-5-c #3
+  - Said: Don't push 到 main branch，先开 PR。
+  - Main: Don't push down main branch，掀开PR。
+  - Raw: Don't push 到 main branch，掀开PR。
+- **helpful** mixed-15-a #3
+  - Said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - Main: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且团队里大家都比较熟。
+  - Raw: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **helpful** mix-intro-nyu #3
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 呃，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Raw: 呃，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+- **helpful** mix-en-zh-places #3
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near Wutan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-school #3
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-en-zh-company #3
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tengxun, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+- **helpful** mix-deploy~noisy #3
+  - Said: Um, 我觉得 we should 先 deploy 到 staging，然后再 push to production.
+  - Main: 嗯，我觉得我们应该先 deploy 到 staging，然后再 push to production。
+  - Raw: 嗯，我觉得 we should 先 deploy 到 staging，然后再 push to production。
+- **helpful** mix-intro-nyu~noisy #3
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 嗯，你好，我的名字叫王宇辰, and I just graduated from New York大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+  - Raw: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+- **helpful** mix-en-zh-places~noisy #3
+  - Said: We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.
+  - Main: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near Waitan better.
+  - Raw: We flew from Shanghai to Beijing last week, but honestly I liked the hotel near 外滩 better.
+- **helpful** mix-en-zh-company~noisy #3
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾迅, and she says the 微信 team is really busy right now.
+
+## O4
+
+- **helpful** mixed-5-c #1
+  - Said: Don't push 到 main branch，先开 PR。
+  - Main: Don't push down main branch, 先开PR.
+  - Raw: Don't push 到 main branch, 先开PR.
+- **harmful** mixed-30-c #1
+  - Said: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - Main: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来。嗯, Lisa 会在 Wednesday 之前 send out 一个 proposal. We should not announce anything publicly until 合同签完.
+  - Raw: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来。嗯, Lisa 会在 Wednesday 之前 send 到 一个 proposal. We should not announce anything publicly until 合同签完.
+- **helpful** mix-intro-nyu #1
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 呃，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Raw: 呃，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+- **helpful** mix-en-zh-school #1
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-en-zh-company #1
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+- **helpful** mix-zh-en-names #1
+  - Said: 我朋友在 Google 工作，他下个月要搬到 Seattle 去。
+  - Main: 我朋友在 Google 工作，他下个月要搬到西雅图去。
+  - Raw: 我朋友在 Google 工作，他下个月要搬到 Seattle 去。
+- **helpful** mix-deploy~noisy #1
+  - Said: Um, 我觉得 we should 先 deploy 到 staging，然后再 push to production.
+  - Main: 嗯，我觉得我们应该先 deploy 到 staging，然后再 push to production。
+  - Raw: 嗯，我觉得 we should 先 deploy 到 staging，然后再 push to production。
+- **helpful** mix-intro-nyu~noisy #1
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 嗯，你好，我的名字叫王宇辰, and I just graduated from New York大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+  - Raw: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+- **helpful** mix-en-zh-company~noisy #1
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tencent, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the Weixin team is really busy right now.
+- **helpful** mixed-5-c #2
+  - Said: Don't push 到 main branch，先开 PR。
+  - Main: Don't push down main branch, 先开PR.
+  - Raw: Don't push 到 main branch, 先开PR.
+- **harmful** mixed-30-c #2
+  - Said: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - Main: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来。嗯, Lisa 会在 Wednesday 之前 send out 一个 proposal. We should not announce anything publicly until 合同签完。
+  - Raw: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来。嗯, Lisa 会在 Wednesday 之前 send 到 一个 proposal. We should not announce anything publicly until 合同签完。
+- **helpful** mix-intro-nyu #2
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 呃，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Raw: 呃，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+- **helpful** mix-en-zh-school #2
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-en-zh-company #2
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tengxun, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+- **helpful** mix-deploy~noisy #2
+  - Said: Um, 我觉得 we should 先 deploy 到 staging，然后再 push to production.
+  - Main: 嗯，我觉得我们应该先 deploy 到 staging，然后再 push to production。
+  - Raw: 嗯，我觉得 we should 先 deploy 到 staging，然后再 push to production。
+- **helpful** mix-intro-nyu~noisy #2
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 嗯，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+  - Raw: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+- **helpful** mix-en-zh-school~noisy #2
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mixed-5-c #3
+  - Said: Don't push 到 main branch，先开 PR。
+  - Main: Don't push down main branch，掀开PR。
+  - Raw: Don't push 到 main branch，掀开PR。
+- **helpful** mix-intro-nyu #3
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 呃，你好，我的名字叫王宇辰, and I just graduated from New York University with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Raw: 呃，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+- **helpful** mix-en-zh-school #3
+  - Said: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Main: I'm meeting Zhang老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+  - Raw: I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call.
+- **helpful** mix-en-zh-company #3
+  - Said: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+  - Main: My friend just started at Tengxun, and she says the Weixin team is really busy right now.
+  - Raw: My friend just started at 腾讯, and she says the 微信 team is really busy right now.
+- **helpful** mix-deploy~noisy #3
+  - Said: Um, 我觉得 we should 先 deploy 到 staging，然后再 push to production.
+  - Main: 嗯，我觉得我们应该先 deploy 到 staging，然后再 push to production。
+  - Raw: 嗯，我觉得 we should 先 deploy 到 staging，然后再 push to production。
+- **helpful** mix-intro-nyu~noisy #3
+  - Said: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。
+  - Main: 嗯，你好，我的名字叫王宇辰, and I just graduated from New York大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+  - Raw: 嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today.
+
+## Refinement after vs alongside the name check
+
+- O4 light mixed-5-c: swaps "down" → "到"; placed, identical
+- Fixed light mixed-5-c: swaps "down" → "到"; placed, identical
+- Fixed medium mixed-5-c: swaps "down" → "到"; refined again, identical
+- O4 medium mixed-5-c: swaps "down" → "到"; refined again, identical
+- Fixed medium mixed-15-a: swaps "团队" → "team"; placed, identical
+- Fixed light mixed-15-a: swaps "团队" → "team"; placed, identical
+- O4 light mixed-30-c: swaps "out" → "到"; placed
+  - After: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send 到一个 proposal. We should not announce anything publicly until 合同签完。
+  - Alongside: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send 到 一个 proposal. We should not announce anything publicly until 合同签完。
+- Fixed medium mix-intro-nyu: swaps "New York University" → "纽约大学"; placed, identical
+- Fixed light mix-intro-nyu: swaps "New York University" → "纽约大学"; placed, identical
+- O4 medium mixed-30-c: swaps "out" → "到"; placed
+  - After: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，一个做 backend，一个做 data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send 一个 proposal。We should not announce anything publicly until 合同签完。
+  - Alongside: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send 到 一个 proposal. We should not announce anything publicly until 合同签完。
+- O4 light mix-intro-nyu: swaps "New York University" → "纽约大学"; placed, identical
+- Fixed medium mix-en-zh-places: swaps "Wutan" → "外滩"; placed, identical
+- Fixed light mix-en-zh-places: swaps "Wutan" → "外滩"; placed, identical
+- O4 medium mix-intro-nyu: swaps "New York University" → "纽约大学"; placed, identical
+- O4 light mix-en-zh-school: swaps "Zhang" → "张"; placed, identical
+- O4 medium mix-en-zh-school: swaps "Zhang" → "张"; placed, identical
+- Fixed medium mix-en-zh-school: swaps "Zhang" → "张"; placed, identical
+- Fixed light mix-en-zh-school: swaps "Zhang" → "张"; placed, identical
+- Fixed light mix-en-zh-company: swaps "Tencent" → "腾讯", "Weixin" → "微信"; placed, identical
+- Fixed medium mix-en-zh-company: swaps "Tencent" → "腾讯", "Weixin" → "微信"; placed, identical
+- O4 light mix-en-zh-company: swaps "Tencent" → "腾讯", "Weixin" → "微信"; placed, identical
+- O4 medium mix-en-zh-company: swaps "Tencent" → "腾讯", "Weixin" → "微信"; placed, identical
+- Fixed light mix-zh-en-names: swaps "西雅图" → "Seattle"; placed, identical
+- O4 light mix-zh-en-names: swaps "西雅图" → "Seattle"; placed, identical
+- Fixed medium mix-zh-en-names: swaps "西雅图" → "Seattle"; placed, identical
+- O4 medium mix-zh-en-names: swaps "西雅图" → "Seattle"; placed, identical
