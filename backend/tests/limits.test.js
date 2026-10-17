@@ -9,16 +9,16 @@ import { AUDIO_SAMPLES, FIXTURES, createTestApp, fakeOpenAI } from './helpers.js
 const fixture = (name) => fs.readFileSync(path.join(FIXTURES, name))
 
 // The test app trusts one proxy, so each X-Forwarded-For value acts as a separate visitor.
-function postAudio(app, { client = '203.0.113.1', buffer = AUDIO_SAMPLES.webm, language = 'en' } = {}) {
+function postAudio(app, { client = '203.0.113.1', buffer = AUDIO_SAMPLES.webm, refinementLevel = 'light' } = {}) {
   return request(app)
     .post('/api/process')
     .set('X-Forwarded-For', client)
-    .field('language', language)
+    .field('refinementLevel', refinementLevel)
     .attach('audio', buffer, { filename: 'blob', contentType: 'audio/webm;codecs=opus' })
 }
 
-function postRefine(app, { client = '203.0.113.1', transcript = 'hello world', language = 'en' } = {}) {
-  return request(app).post('/api/refine').set('X-Forwarded-For', client).send({ transcript, language })
+function postRefine(app, { client = '203.0.113.1', transcript = 'hello world', refinementLevel = 'light' } = {}) {
+  return request(app).post('/api/refine').set('X-Forwarded-For', client).send({ transcript, refinementLevel })
 }
 
 function limitedApp(env, options) {
@@ -80,7 +80,7 @@ describe('upload validation', () => {
 
   it('rejects oversized form fields', async () => {
     const { app } = createTestApp()
-    const res = await postAudio(app, { language: 'x'.repeat(2000) })
+    const res = await postAudio(app, { refinementLevel: 'x'.repeat(2000) })
 
     expect(res.status).toBe(400)
     expect(res.body.code).toBe('invalid_upload')
@@ -125,7 +125,7 @@ describe('usage limits', () => {
   it('does not count requests rejected by validation', async () => {
     const { app } = limitedApp({ PROCESS_LIMIT_PER_MINUTE: '1' })
     for (let i = 0; i < 3; i++) {
-      expect((await postAudio(app, { language: 'fr' })).status).toBe(400)
+      expect((await postAudio(app, { refinementLevel: 'heavy' })).status).toBe(400)
       expect((await postAudio(app, { buffer: fixture('silence-130s.webm') })).status).toBe(413)
     }
     expect((await postAudio(app)).status).toBe(200)
@@ -173,7 +173,7 @@ describe('usage limits', () => {
   it('does not count invalid refinement requests', async () => {
     const { app } = limitedApp({ REFINE_LIMIT_PER_MINUTE: '1' })
     expect((await postRefine(app, { transcript: '' })).status).toBe(400)
-    expect((await postRefine(app, { language: 'de' })).status).toBe(400)
+    expect((await postRefine(app, { refinementLevel: 'heavy' })).status).toBe(400)
     expect((await postRefine(app)).status).toBe(200)
   })
 
@@ -271,13 +271,13 @@ describe('usage logging', () => {
       async () => ({ status: 'completed', output_text: polished }),
     )
     const { app } = limitedApp({}, { log, openai })
-    await postAudio(app, { client: '203.0.113.9', language: 'zh' })
-    await postRefine(app, { client: '203.0.113.9', transcript, language: 'zh' })
+    await postAudio(app, { client: '203.0.113.9' })
+    await postRefine(app, { client: '203.0.113.9', transcript })
     await request(app).get('/api/health')
 
     await vi.waitFor(() => expect(log).toHaveBeenCalledTimes(2))
     const [processEvent, refineEvent] = log.mock.calls.map(([event]) => event)
-    expect(processEvent).toMatchObject({ event: 'request', method: 'POST', path: '/api/process', status: 200, language: 'zh' })
+    expect(processEvent).toMatchObject({ event: 'request', method: 'POST', path: '/api/process', status: 200, refinementLevel: 'light' })
     expect(processEvent.bytes).toBeGreaterThan(AUDIO_SAMPLES.webm.length)
     expect(processEvent.ms).toBeGreaterThanOrEqual(0)
     expect(processEvent.client).toMatch(/^[0-9a-f]{12}$/)
@@ -300,10 +300,10 @@ describe('usage logging', () => {
     expect(events).toContainEqual(expect.objectContaining({ event: 'request', status: 429, code: 'rate_limited' }))
   })
 
-  it('does not log an unsupported language value', async () => {
+  it('does not log an unsupported refinement level value', async () => {
     const log = vi.fn()
     const { app } = limitedApp({}, { log })
-    await postRefine(app, { language: 'secret words' })
+    await postRefine(app, { refinementLevel: 'secret words' })
 
     await vi.waitFor(() => expect(log).toHaveBeenCalledTimes(1))
     expect(JSON.stringify(log.mock.calls)).not.toContain('secret')

@@ -3,7 +3,6 @@ import multer from 'multer'
 import { ApiError } from '../lib/errors.js'
 import { MAX_AUDIO_BYTES, identifyAudio } from '../lib/audio.js'
 import { audioDurationSeconds } from '../lib/duration.js'
-import { DEFAULT_LANGUAGE, isSupportedLanguage } from '../lib/languages.js'
 import { resolveRefinementLevel } from '../lib/refinementLevels.js'
 import { transcribeAudio } from '../services/transcription.js'
 import { refineTranscript } from '../services/refinement.js'
@@ -33,10 +32,6 @@ function receiveAudio(req, res, next) {
 // Checks everything about the upload before any usage is counted or OpenAI is called.
 async function validateUpload(req, res, next) {
   try {
-    const language = req.body?.language || DEFAULT_LANGUAGE
-    if (!isSupportedLanguage(language)) {
-      throw new ApiError(400, 'invalid_language', 'Unsupported language. Choose English, 中文, or Auto-detect.')
-    }
     const refinementLevel = resolveRefinementLevel(req.body?.refinementLevel)
     if (!req.file) {
       throw new ApiError(400, 'missing_audio', 'No recording was received.')
@@ -55,7 +50,7 @@ async function validateUpload(req, res, next) {
     if (seconds > MAX_RECORDING_SECONDS) {
       throw new ApiError(413, 'recording_too_long', 'The recording is longer than the 2-minute limit. Please record a shorter clip.')
     }
-    res.locals.upload = { language, refinementLevel, format }
+    res.locals.upload = { refinementLevel, format }
     next()
   } catch (err) {
     next(err)
@@ -67,13 +62,12 @@ export function createProcessRouter({ config, getOpenAIClient, usageLimiters = [
 
   router.post('/process', receiveAudio, validateUpload, ...usageLimiters, async (req, res, next) => {
     try {
-      const { language, refinementLevel, format } = res.locals.upload
+      const { refinementLevel, format } = res.locals.upload
       const client = getOpenAIClient()
       const rawTranscript = await transcribeAudio({
         client,
         model: config.transcriptionModel,
         audio: { buffer: req.file.buffer, ...format },
-        language,
       })
 
       // None skips refinement and returns the raw transcript as the polished text.
@@ -86,7 +80,6 @@ export function createProcessRouter({ config, getOpenAIClient, usageLimiters = [
             client,
             model: config.refinementModel,
             transcript: rawTranscript,
-            language,
             level: refinementLevel,
           })
           refinementStatus = 'success'
@@ -99,7 +92,6 @@ export function createProcessRouter({ config, getOpenAIClient, usageLimiters = [
       res.json({
         rawTranscript,
         polishedTranscript,
-        selectedLanguage: language,
         refinementLevel,
         transcriptionStatus: 'success',
         refinementStatus,

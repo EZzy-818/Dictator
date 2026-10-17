@@ -7,7 +7,7 @@ import OpenAI from 'openai'
 import request from 'supertest'
 import { createApp } from '../src/app.js'
 import { loadConfig } from '../src/config.js'
-import { TRANSCRIPTION_HINTS } from '../src/services/transcription.js'
+import { TRANSCRIPTION_PROMPT } from '../src/services/transcription.js'
 import { AUDIO_SAMPLES } from './helpers.js'
 
 let server
@@ -45,16 +45,15 @@ beforeAll(async () => {
 
 afterAll(() => new Promise((resolve) => server.close(resolve)))
 
-function appWithRealSdk() {
-  const config = loadConfig({ OPENAI_API_KEY: 'sk-test', TRANSCRIPTION_MODEL: 'gpt-4o-transcribe', REFINEMENT_MODEL: 'gpt-4.1' })
+function appWithRealSdk(transcriptionModel = 'gpt-transcribe') {
+  const config = loadConfig({ OPENAI_API_KEY: 'sk-test', TRANSCRIPTION_MODEL: transcriptionModel, REFINEMENT_MODEL: 'gpt-4.1' })
   return createApp(config, { openai: new OpenAI({ apiKey: 'sk-test', baseURL, maxRetries: 0 }) })
 }
 
 describe('OpenAI SDK requests', () => {
-  it('sends model, language, prompt and the audio file as multipart', async () => {
+  it('sends model, languages, prompt and the audio file as multipart', async () => {
     const res = await request(appWithRealSdk())
       .post('/api/process')
-      .field('language', 'zh')
       .attach('audio', AUDIO_SAMPLES.webm, { filename: 'blob', contentType: 'audio/webm;codecs=opus' })
 
     expect(res.status).toBe(200)
@@ -65,22 +64,21 @@ describe('OpenAI SDK requests', () => {
     expect(received.responses.input).toContain('我们应该用 PostgreSQL。')
     expect(received.auth).toBe('Bearer sk-test')
     expect(received.body).toEqual({
-      model: 'gpt-4o-transcribe',
+      model: 'gpt-transcribe',
       response_format: 'json',
-      language: 'zh',
-      prompt: TRANSCRIPTION_HINTS.zh,
+      prompt: TRANSCRIPTION_PROMPT,
+      languages: ['zh', 'en'],
     })
     expect(received.file.originalname).toBe('recording.webm')
     expect(received.file.mimetype).toBe('audio/webm')
     expect(received.file.buffer.equals(AUDIO_SAMPLES.webm)).toBe(true)
   })
 
-  it('sends no language field in auto mode', async () => {
-    await request(appWithRealSdk())
+  it('sends no language fields to older models', async () => {
+    await request(appWithRealSdk('gpt-4o-transcribe'))
       .post('/api/process')
-      .field('language', 'auto')
       .attach('audio', AUDIO_SAMPLES.webm, { filename: 'blob', contentType: 'audio/webm' })
 
-    expect(received.body).toEqual({ model: 'gpt-4o-transcribe', response_format: 'json' })
+    expect(received.body).toEqual({ model: 'gpt-4o-transcribe', response_format: 'json', prompt: TRANSCRIPTION_PROMPT })
   })
 })

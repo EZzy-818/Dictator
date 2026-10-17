@@ -1,7 +1,6 @@
 # Accuracy evaluation: synthetic recordings
 
-Run 2026-10-17T01:32:12.910Z. Transcription model `gpt-4o-transcribe`, refinement model `gpt-4.1`.
-Language option: the one set for each sample.
+Run 2026-10-17T04:15:36.284Z. Transcription model `gpt-transcribe`, refinement model `gpt-4.1`.
 
 31 of 31 samples transcribed.
 
@@ -13,20 +12,20 @@ Rates are corpus-level: total errors divided by total reference tokens. Hesitati
 
 | Group | Metric | Samples | Rate | S / D / I / N | With fillers counted |
 | --- | --- | --- | --- | --- | --- |
-| English | WER | 13 | 0.6% | 0 / 1 / 0 / 169 | 2.9% |
-| Chinese | CER | 12 | 2.0% | 3 / 2 / 0 / 248 | 3.2% |
-| Mixed | CER | 6 | 5.6% | 3 / 10 / 0 / 233 | 5.6% |
-| Mixed | MER | 6 | 2.8% | 3 / 0 / 0 / 107 | 2.8% |
+| English | WER | 13 | 0.0% | 0 / 0 / 0 / 169 | 1.7% |
+| Chinese | CER | 12 | 3.6% | 8 / 1 / 0 / 248 | 3.6% |
+| Mixed | CER | 6 | 0.0% | 0 / 0 / 0 / 233 | 0.0% |
+| Mixed | MER | 6 | 0.0% | 0 / 0 / 0 / 107 | 0.0% |
 
 | Category | Metric | Samples | Rate | S / D / I / N | With fillers counted |
 | --- | --- | --- | --- | --- | --- |
 | English normal speech | WER | 5 | 0.0% | 0 / 0 / 0 / 74 | 0.0% |
-| English corrections and fillers | WER | 5 | 1.8% | 0 / 1 / 0 / 56 | 8.3% |
-| Mandarin normal speech | CER | 5 | 1.8% | 2 / 0 / 0 / 110 | 1.8% |
-| Mandarin corrections and fillers | CER | 5 | 3.3% | 1 / 2 / 0 / 90 | 6.4% |
-| Mixed Chinese-English speech | CER | 5 | 7.0% | 3 / 10 / 0 / 185 | 7.0% |
+| English corrections and fillers | WER | 5 | 0.0% | 0 / 0 / 0 / 56 | 5.0% |
+| Mandarin normal speech | CER | 5 | 0.0% | 0 / 0 / 0 / 110 | 0.0% |
+| Mandarin corrections and fillers | CER | 5 | 0.0% | 0 / 0 / 0 / 90 | 0.0% |
+| Mixed Chinese-English speech | CER | 5 | 0.0% | 0 / 0 / 0 / 185 | 0.0% |
 | Numbers, dates, names, technical terms, and noise | WER | 3 | 0.0% | 0 / 0 / 0 / 39 | 0.0% |
-| Numbers, dates, names, technical terms, and noise | CER | 3 | 0.0% | 0 / 0 / 0 / 96 | 0.0% |
+| Numbers, dates, names, technical terms, and noise | CER | 3 | 9.4% | 8 / 1 / 0 / 96 | 9.4% |
 
 ## Refinement (automatic checks)
 
@@ -34,7 +33,7 @@ Rates are corpus-level: total errors divided by total reference tokens. Hesitati
 | --- | --- |
 | Self-correction handled | 8 / 8 |
 | Fillers removed | 31 / 31 |
-| Languages preserved | 30 / 31 |
+| Languages preserved | 31 / 31 |
 | Names and terms kept | 15 / 15 |
 | Numbers kept | 23 / 23 |
 | Negations kept | 23 / 23 |
@@ -47,7 +46,7 @@ Meaning, invented facts and overall acceptability are reviewed by a person; see 
 
 ### en-normal-1
 
-English normal speech. Language option: `en`.
+English normal speech.
 
 - Script: Please send the quarterly report to the finance team before Friday afternoon.
 - Raw transcript: Please send the quarterly report to the finance team before Friday afternoon.
@@ -57,7 +56,7 @@ English normal speech. Language option: `en`.
 
 ### en-normal-2
 
-English normal speech. Language option: `en`.
+English normal speech.
 
 - Script: The new onboarding flow made it much easier for customers to find the settings page.
 - Raw transcript: The new onboarding flow made it much easier for customers to find the settings page.
@@ -67,7 +66,7 @@ English normal speech. Language option: `en`.
 
 ### en-normal-3
 
-English normal speech. Language option: `en`.
+English normal speech.
 
 - Script: I'd like to schedule a short call with the design team to go over the mobile layout.
 - Raw transcript: I'd like to schedule a short call with the design team to go over the mobile layout.
@@ -77,7 +76,7 @@ English normal speech. Language option: `en`.
 
 ### en-normal-4
 
-English normal speech. Language option: `en`.
+English normal speech.
 
 - Script: Our main goal for this sprint is to improve the search results and fix the login bugs.
 - Raw transcript: Our main goal for this sprint is to improve the search results and fix the login bugs.
@@ -87,7 +86,7 @@ English normal speech. Language option: `en`.
 
 ### en-normal-5
 
-English normal speech. Language option: `en`.
+English normal speech.
 
 - Script: Can you check whether the latest build passed all of the integration tests?
 - Raw transcript: Can you check whether the latest build passed all of the integration tests?
@@ -97,7 +96,7 @@ English normal speech. Language option: `en`.
 
 ### en-corrections-1
 
-English corrections and fillers. Language option: `en`.
+English corrections and fillers.
 
 - Script: Um, I think we should, uh, start the migration tomorrow morning.
 - Raw transcript: I think we should start the migration tomorrow morning.
@@ -108,21 +107,21 @@ English corrections and fillers. Language option: `en`.
 
 ### en-corrections-2
 
-English corrections and fillers. Language option: `en`.
+English corrections and fillers.
 
 - Script: Let's meet on Tuesday, actually no, Wednesday at three PM.
-- Raw transcript: Let's meet on Tuesday. Actually, no, Wednesday at 3 pm.
+- Raw transcript: Let's meet on Tuesday, actually no, Wednesday at 3 p.m.
 - WER: 0.0% (0 / 10; with fillers counted 0.0%). Errors: none
-- Refined: Let's meet on Wednesday at 3 pm.
+- Refined: Let's meet on Wednesday at 3 p.m.
 - Intended refinement: Let's meet on Wednesday at 3 PM.
 - Automatic checks: Self-correction handled yes, Fillers removed yes, Languages preserved yes, Names and terms kept yes
 
 ### en-corrections-3
 
-English corrections and fillers. Language option: `en`.
+English corrections and fillers.
 
 - Script: The deadline is the end of May, sorry, I mean the end of June.
-- Raw transcript: The deadline is the end of May. Sorry, I mean the end of June.
+- Raw transcript: The deadline is the end of May, sorry I mean the end of June.
 - WER: 0.0% (0 / 14; with fillers counted 0.0%). Errors: none
 - Refined: The deadline is the end of June.
 - Intended refinement: The deadline is the end of June.
@@ -130,18 +129,18 @@ English corrections and fillers. Language option: `en`.
 
 ### en-corrections-4
 
-English corrections and fillers. Language option: `en`.
+English corrections and fillers.
 
 - Script: Uh, can you send me the, um, the slides from yesterday's meeting?
-- Raw transcript: Can you send me the slides from yesterday's meeting?
-- WER: 10.0% (1 / 10; with fillers counted 25.0%). Errors: D `the`
+- Raw transcript: Can you send me the, um, the slides from yesterday's meeting?
+- WER: 0.0% (0 / 10; with fillers counted 8.3%). Errors: none
 - Refined: Can you send me the slides from yesterday's meeting?
 - Intended refinement: Can you send me the slides from yesterday's meeting?
 - Automatic checks: Fillers removed yes, Languages preserved yes, Numbers kept yes, Negations kept yes
 
 ### en-corrections-5
 
-English corrections and fillers. Language option: `en`.
+English corrections and fillers.
 
 - Script: We need three new servers, no wait, four new servers for the launch.
 - Raw transcript: We need three new servers. No wait, four new servers for the launch.
@@ -152,7 +151,7 @@ English corrections and fillers. Language option: `en`.
 
 ### zh-normal-1
 
-Mandarin normal speech. Language option: `zh`.
+Mandarin normal speech.
 
 - Script: 请把这份季度报告发给财务部门，周五之前要完成。
 - Raw transcript: 请把这份季度报告发给财务部门，周五之前要完成。
@@ -162,7 +161,7 @@ Mandarin normal speech. Language option: `zh`.
 
 ### zh-normal-2
 
-Mandarin normal speech. Language option: `zh`.
+Mandarin normal speech.
 
 - Script: 新的注册流程让用户更容易找到设置页面。
 - Raw transcript: 新的注册流程让用户更容易找到设置页面。
@@ -172,7 +171,7 @@ Mandarin normal speech. Language option: `zh`.
 
 ### zh-normal-3
 
-Mandarin normal speech. Language option: `zh`.
+Mandarin normal speech.
 
 - Script: 我想和设计团队约一个简短的会议，讨论一下手机端的布局。
 - Raw transcript: 我想和设计团队约一个简短的会议，讨论一下手机端的布局。
@@ -182,7 +181,7 @@ Mandarin normal speech. Language option: `zh`.
 
 ### zh-normal-4
 
-Mandarin normal speech. Language option: `zh`.
+Mandarin normal speech.
 
 - Script: 这个迭代的主要目标是改进搜索结果和修复登录问题。
 - Raw transcript: 这个迭代的主要目标是改进搜索结果和修复登录问题。
@@ -192,28 +191,28 @@ Mandarin normal speech. Language option: `zh`.
 
 ### zh-normal-5
 
-Mandarin normal speech. Language option: `zh`.
+Mandarin normal speech.
 
 - Script: 你能帮我看一下最新的版本有没有通过所有的测试吗？
-- Raw transcript: 米娜帮我看一下，最新的版本有没有通过所有的测试吗?
-- CER: 8.7% (2 / 23; with fillers counted 8.7%). Errors: S `你`→`米`, S `能`→`娜`
-- Refined: 米娜，帮我看一下，最新的版本有没有通过所有的测试？
+- Raw transcript: 你能帮我看一下最新的版本有没有通过所有的测试吗？
+- CER: 0.0% (0 / 23; with fillers counted 0.0%). Errors: none
+- Refined: 你能帮我看一下最新的版本有没有通过所有的测试吗？
 - Automatic checks: Fillers removed yes, Languages preserved yes, Numbers kept yes, Negations kept yes
 
 ### zh-corrections-1
 
-Mandarin corrections and fillers. Language option: `zh`.
+Mandarin corrections and fillers.
 
 - Script: 嗯，我觉得我们，呃，明天上午可以开始迁移。
-- Raw transcript: 嗯，我觉得我们明天上午可以开始迁移。
-- CER: 0.0% (0 / 15; with fillers counted 5.9%). Errors: none
+- Raw transcript: 嗯，我觉得我们，呃，明天上午可以开始迁移。
+- CER: 0.0% (0 / 15; with fillers counted 0.0%). Errors: none
 - Refined: 我觉得我们明天上午可以开始迁移。
 - Intended refinement: 我觉得我们明天上午可以开始迁移。
 - Automatic checks: Fillers removed yes, Languages preserved yes, Numbers kept yes, Negations kept yes
 
 ### zh-corrections-2
 
-Mandarin corrections and fillers. Language option: `zh`.
+Mandarin corrections and fillers.
 
 - Script: 我们下周二开会，不对，应该是下周三下午三点。
 - Raw transcript: 我们下周二开会，不对，应该是下周三下午三点。
@@ -224,32 +223,32 @@ Mandarin corrections and fillers. Language option: `zh`.
 
 ### zh-corrections-3
 
-Mandarin corrections and fillers. Language option: `zh`.
+Mandarin corrections and fillers.
 
 - Script: 截止日期是五月底，不好意思，我是说六月底。
-- Raw transcript: 截至日期是五月底，不好意思，我是说六月底。
-- CER: 5.6% (1 / 18; with fillers counted 5.6%). Errors: S `止`→`至`
-- Refined: 截至日期是六月底。
+- Raw transcript: 截止日期是五月底，不好意思，我是说六月底。
+- CER: 0.0% (0 / 18; with fillers counted 0.0%). Errors: none
+- Refined: 截止日期是六月底。
 - Intended refinement: 截止日期是六月底。
 - Automatic checks: Self-correction handled yes, Fillers removed yes, Languages preserved yes
 
 ### zh-corrections-4
 
-Mandarin corrections and fillers. Language option: `zh`.
+Mandarin corrections and fillers.
 
 - Script: 呃，你能把昨天会议的那个，嗯，那个幻灯片发给我吗？
-- Raw transcript: 你能把昨天会议的那个幻灯片发给我吗?
-- CER: 10.5% (2 / 19; with fillers counted 19.0%). Errors: D `那`, D `个`
-- Refined: 你能把昨天会议的幻灯片发给我吗？
+- Raw transcript: 呃，你能把昨天会议的那个，嗯，那个幻灯片发给我吗？
+- CER: 0.0% (0 / 19; with fillers counted 0.0%). Errors: none
+- Refined: 你能把昨天会议的那个幻灯片发给我吗？
 - Intended refinement: 你能把昨天会议的幻灯片发给我吗？
 - Automatic checks: Fillers removed yes, Languages preserved yes, Numbers kept yes, Negations kept yes
 
 ### zh-corrections-5
 
-Mandarin corrections and fillers. Language option: `zh`.
+Mandarin corrections and fillers.
 
 - Script: 我们需要三台新服务器，哦不，是四台新服务器。
-- Raw transcript: 我们需要三台新服务器。哦，不，是四台新服务器。
+- Raw transcript: 我们需要三台新服务器，哦不，是四台新服务器。
 - CER: 0.0% (0 / 19; with fillers counted 0.0%). Errors: none
 - Refined: 我们需要四台新服务器。
 - Intended refinement: 我们需要四台新服务器。
@@ -257,10 +256,10 @@ Mandarin corrections and fillers. Language option: `zh`.
 
 ### mixed-1
 
-Mixed Chinese-English speech. Language option: `auto`.
+Mixed Chinese-English speech.
 
 - Script: 我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。
-- Raw transcript: 我觉得这个backend应该用Python，但是frontend还是用React比较好。
+- Raw transcript: 我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。
 - CER: 0.0% (0 / 42; with fillers counted 0.0%). Errors: none
 - Mixed-token error rate: 0.0% (0 / 20; with fillers counted 0.0%). Errors: none
 - Refined: 我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。
@@ -268,10 +267,10 @@ Mixed Chinese-English speech. Language option: `auto`.
 
 ### mixed-2
 
-Mixed Chinese-English speech. Language option: `auto`.
+Mixed Chinese-English speech.
 
 - Script: 明天的 meeting 改到下午两点，记得带上你的 laptop。
-- Raw transcript: 明天的meeting改到下午两点，记得带上你的laptop。
+- Raw transcript: 明天的 meeting 改到下午两点，记得带上你的 laptop。
 - CER: 0.0% (0 / 28; with fillers counted 0.0%). Errors: none
 - Mixed-token error rate: 0.0% (0 / 17; with fillers counted 0.0%). Errors: none
 - Refined: 明天的 meeting 改到下午两点，记得带上你的 laptop。
@@ -279,33 +278,33 @@ Mixed Chinese-English speech. Language option: `auto`.
 
 ### mixed-3
 
-Mixed Chinese-English speech. Language option: `auto`.
+Mixed Chinese-English speech.
 
 - Script: 这个 bug 是因为 API 返回的 JSON 格式不对。
-- Raw transcript: 这个bug是因为API返回的JSON格式不对。
+- Raw transcript: 这个 bug 是因为 API 返回的 json 格式不对。
 - CER: 0.0% (0 / 22; with fillers counted 0.0%). Errors: none
 - Mixed-token error rate: 0.0% (0 / 15; with fillers counted 0.0%). Errors: none
-- Refined: 这个 bug 是因为 API 返回的 JSON 格式不对。
+- Refined: 这个 bug 是因为 API 返回的 json 格式不对。
 - Automatic checks: Fillers removed yes, Languages preserved yes, Names and terms kept yes, Numbers kept yes, Negations kept yes
 
 ### mixed-4
 
-Mixed Chinese-English speech. Language option: `auto`.
+Mixed Chinese-English speech.
 
 - Script: We should use MySQL, 不对，PostgreSQL would be better.
-- Raw transcript: We should use MySQL，不对，PostgreSQL会更好。
-- CER: 31.7% (13 / 41; with fillers counted 31.7%). Errors: D `l`, D `w`, D `o`, D `u`, D `d`, D `b`, D `e`, D `b`, D `e`, D `t`, S `t`→`会`, S `e`→`更`, S `r`→`好`
-- Mixed-token error rate: 30.0% (3 / 10; with fillers counted 30.0%). Errors: S `would`→`会`, S `be`→`更`, S `better`→`好`
-- Refined: We should use PostgreSQL 会更好。
+- Raw transcript: We should use MySQL. 不对，PostgreSQL would be better.
+- CER: 0.0% (0 / 41; with fillers counted 0.0%). Errors: none
+- Mixed-token error rate: 0.0% (0 / 10; with fillers counted 0.0%). Errors: none
+- Refined: We should use PostgreSQL.
 - Intended refinement: We should use PostgreSQL instead of MySQL.
-- Automatic checks: Self-correction handled yes, Fillers removed yes, Languages preserved **no**, Names and terms kept yes
+- Automatic checks: Self-correction handled yes, Fillers removed yes, Languages preserved yes, Names and terms kept yes
 
 ### mixed-5
 
-Mixed Chinese-English speech. Language option: `auto`.
+Mixed Chinese-English speech.
 
 - Script: 我觉得我们应该用 MongoDB，不对，还是 PostgreSQL 比较好，因为我们需要 relational data。
-- Raw transcript: 我觉得我们应该用MongoDB。不对，还是PostgreSQL比较好，因为我们需要relational data。
+- Raw transcript: 我觉得我们应该用 MongoDB，不对，还是 PostgreSQL 比较好，因为我们需要 relational data。
 - CER: 0.0% (0 / 52; with fillers counted 0.0%). Errors: none
 - Mixed-token error rate: 0.0% (0 / 25; with fillers counted 0.0%). Errors: none
 - Refined: 我觉得我们应该用 PostgreSQL，因为我们需要 relational data。
@@ -314,7 +313,7 @@ Mixed Chinese-English speech. Language option: `auto`.
 
 ### special-1
 
-Numbers, dates, names, technical terms, and noise. Language option: `en`.
+Numbers, dates, names, technical terms, and noise.
 
 - Script: The invoice total is $1,250, and it is due on March 15th, 2027.
 - Raw transcript: The invoice total is $1,250 and it is due on March 15, 2027.
@@ -324,7 +323,7 @@ Numbers, dates, names, technical terms, and noise. Language option: `en`.
 
 ### special-2
 
-Numbers, dates, names, technical terms, and noise. Language option: `en`.
+Numbers, dates, names, technical terms, and noise.
 
 - Script: Sarah Chen from Stripe asked us to upgrade Kubernetes to version 1.31 and enable OAuth.
 - Raw transcript: Sarah Chen from Stripe asked us to upgrade Kubernetes to version 1.31 and enable OAuth.
@@ -334,20 +333,21 @@ Numbers, dates, names, technical terms, and noise. Language option: `en`.
 
 ### special-3
 
-Numbers, dates, names, technical terms, and noise. Language option: `zh`.
+Numbers, dates, names, technical terms, and noise.
 
 - Script: 会议定在2027年3月15日上午10点半，预算是两万五千元。
-- Raw transcript: 会议定在2027年3月15日上午10点半，预算是两万五千元。
-- CER: 0.0% (0 / 28; with fillers counted 0.0%). Errors: none
-- Refined: 会议定在2027年3月15日上午10点半，预算是两万五千元。
+- Raw transcript: 会议定在二零二七年三月十五日上午十点半，预算是两万五千元。
+- CER: 32.1% (9 / 28; with fillers counted 32.1%). Errors: S `2`→`二`, S `0`→`零`, S `2`→`二`, S `7`→`七`, S `3`→`三`, S `1`→`十`, S `5`→`五`, D `1`, S `0`→`十`
+- Terms missing from the raw transcript: 2027年, 3月15日
+- Refined: 会议定在二零二七年三月十五日上午十点半，预算是两万五千元。
 - Automatic checks: Fillers removed yes, Languages preserved yes, Names and terms kept yes, Numbers kept yes, Negations kept yes
 
 ### special-4
 
-Numbers, dates, names, technical terms, and noise. Language option: `auto`.
+Numbers, dates, names, technical terms, and noise.
 
 - Script: 请把 GitHub 上的 pull request 发给王伟，他会用 TypeScript 重写这个 module。
-- Raw transcript: 请把GitHub上的pull request发给王伟，他会用TypeScript重写这个module。
+- Raw transcript: 请把 GitHub 上的 pull request 发给王伟，他会用 TypeScript 重写这个 module。
 - CER: 0.0% (0 / 48; with fillers counted 0.0%). Errors: none
 - Mixed-token error rate: 0.0% (0 / 20; with fillers counted 0.0%). Errors: none
 - Refined: 请把 GitHub 上的 pull request 发给王伟，他会用 TypeScript 重写这个 module。
@@ -355,20 +355,20 @@ Numbers, dates, names, technical terms, and noise. Language option: `auto`.
 
 ### special-5
 
-Numbers, dates, names, technical terms, and noise. Language option: `en`.
+Numbers, dates, names, technical terms, and noise.
 
 - Script: Please remind Daniel to renew the AWS certificate before October 3rd.
-- Raw transcript: Please remind Daniel to renew the AWS certificate before October 3rd.
+- Raw transcript: Please remind Daniel to renew the AWS certificate before October 3.
 - WER: 0.0% (0 / 11; with fillers counted 0.0%). Errors: none
-- Refined: Please remind Daniel to renew the AWS certificate before October 3rd.
+- Refined: Please remind Daniel to renew the AWS certificate before October 3.
 - Automatic checks: Fillers removed yes, Languages preserved yes, Names and terms kept yes, Numbers kept yes, Negations kept yes
 
 ### special-6
 
-Numbers, dates, names, technical terms, and noise. Language option: `zh`.
+Numbers, dates, names, technical terms, and noise.
 
 - Script: 请提醒李娜在十月三号之前更新服务器证书。
-- Raw transcript: 请提醒李娜在10月3号之前更新服务器证书。
+- Raw transcript: 请提醒李娜，在10月3号之前更新服务器证书。
 - CER: 0.0% (0 / 20; with fillers counted 0.0%). Errors: none
 - Refined: 请提醒李娜在10月3号之前更新服务器证书。
 - Automatic checks: Fillers removed yes, Languages preserved yes, Names and terms kept yes, Numbers kept yes, Negations kept yes

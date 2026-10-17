@@ -7,10 +7,9 @@
 // Usage:
 //   npm run eval                          synthetic samples (generated with OpenAI TTS on first run)
 //   npm run eval -- --source=voice        your recordings in .eval-samples/voice/<id>.<ext>
-//   npm run eval -- --language=auto       send every sample as Auto-detect (language-hint comparison)
 //   npm run eval -- --only=en-normal-1,mixed-2
 //   TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe npm run eval   compare another transcription model
-//   npm run eval -- --auto-hint="..."     experiment: send this transcription prompt in Auto-detect mode
+//   npm run eval -- --prompt="..."        experiment: send this transcription prompt instead of the app's
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import dotenv from 'dotenv'
@@ -18,7 +17,6 @@ import OpenAI from 'openai'
 import request from 'supertest'
 import { createApp } from '../src/app.js'
 import { loadConfig, withoutUsageLimits } from '../src/config.js'
-import { isSupportedLanguage } from '../src/lib/languages.js'
 import { CASES, CATEGORIES } from '../eval/dataset.js'
 import { aggregate, checkRefinement, missingTerms, scoreTranscript } from '../eval/metrics.js'
 import { addNoise } from '../eval/noise.js'
@@ -45,16 +43,11 @@ function option(name) {
 }
 
 const source = option('source') ?? 'synthetic'
-const languageOverride = option('language')
 const only = option('only')?.split(',')
-const autoHint = option('auto-hint')
+const promptOverride = option('prompt')
 
 if (!['synthetic', 'voice'].includes(source)) {
   console.error('--source must be synthetic or voice')
-  process.exit(1)
-}
-if (languageOverride && !isSupportedLanguage(languageOverride)) {
-  console.error('--language must be en, zh or auto')
   process.exit(1)
 }
 
@@ -67,21 +60,21 @@ if (!config.openaiApiKey) {
 
 const client = new OpenAI({ apiKey: config.openaiApiKey })
 
-// The --auto-hint experiment adds a prompt to Auto-detect transcription requests (the ones
-// without a language) without changing the app. Everything else uses the app's own client.
-function withAutoHint(hint) {
+// The --prompt experiment replaces the transcription prompt without changing the app.
+// Everything else uses the app's own client.
+function withPrompt(prompt) {
   const base = new OpenAI({ apiKey: config.openaiApiKey, maxRetries: 1 })
   return {
     audio: {
       transcriptions: {
-        create: (params, options) => base.audio.transcriptions.create(params.language ? params : { ...params, prompt: hint }, options),
+        create: (params, options) => base.audio.transcriptions.create({ ...params, prompt }, options),
       },
     },
     responses: base.responses,
   }
 }
 
-const app = createApp(config, { log: () => {}, ...(autoHint ? { openai: withAutoHint(autoHint) } : {}) })
+const app = createApp(config, { log: () => {}, ...(promptOverride ? { openai: withPrompt(promptOverride) } : {}) })
 
 async function syntheticSample(testCase, index) {
   const file = path.join(SAMPLES_DIR, 'synthetic', `${testCase.id}.wav`)
@@ -122,15 +115,13 @@ for (const testCase of cases) {
     continue
   }
 
-  const language = languageOverride ?? testCase.language
   const res = await request(app)
     .post('/api/process')
-    .field('language', language)
     .attach('audio', sample.audio, { filename: path.basename(sample.file), contentType: sample.type })
 
   if (res.status !== 200) {
     console.log(`[${testCase.id}] HTTP ${res.status} ${res.body.code}`)
-    results.push({ id: testCase.id, language, error: `HTTP ${res.status} ${res.body.code}` })
+    results.push({ id: testCase.id, error: `HTTP ${res.status} ${res.body.code}` })
     continue
   }
 
@@ -142,7 +133,6 @@ for (const testCase of cases) {
   console.log(`[${testCase.id}] ${testCase.metric === 'wer' ? 'WER' : 'CER'} ${(main.rate * 100).toFixed(1)}%  ${raw}`)
   results.push({
     id: testCase.id,
-    language,
     raw,
     refined,
     refinementStatus: res.body.refinementStatus,
@@ -197,7 +187,7 @@ function formatOps(ops) {
 
 function sampleSection(result) {
   const testCase = byCase.get(result.id)
-  const lines = [`### ${result.id}`, '', `${CATEGORIES[testCase.category]}. Language option: \`${result.language ?? testCase.language}\`.`, '']
+  const lines = [`### ${result.id}`, '', `${CATEGORIES[testCase.category]}.`, '']
   lines.push(`- Script: ${testCase.script}`)
   if (result.skipped) return [...lines, '- Skipped: no recording.', ''].join('\n')
   if (result.error) return [...lines, `- Failed: ${result.error}`, ''].join('\n')
@@ -226,8 +216,7 @@ const report = [
   `# Accuracy evaluation: ${source} recordings`,
   '',
   `Run ${new Date().toISOString()}. Transcription model \`${config.transcriptionModel}\`, refinement model \`${config.refinementModel}\`.`,
-  `Language option: ${languageOverride ? `\`${languageOverride}\` for every sample` : 'the one set for each sample'}.`,
-  autoHint ? `Experiment: Auto-detect transcription requests carried the prompt \`${autoHint}\`.` : '',
+  promptOverride ? `Experiment: transcription requests carried the prompt \`${promptOverride}\`.` : '',
   `${scored.length} of ${cases.length} samples transcribed${results.some((result) => result.skipped) ? `, ${results.filter((result) => result.skipped).length} without a recording` : ''}${results.some((result) => result.error) ? `, ${results.filter((result) => result.error).length} failed` : ''}.`,
   source === 'synthetic' ? '\nThe synthetic samples are OpenAI text-to-speech audio, not human speech. Noisy samples have pink noise mixed in.' : '',
   '',
@@ -259,8 +248,8 @@ const report = [
 ].join('\n')
 
 await fs.mkdir(RESULTS_DIR, { recursive: true })
-const name = [source, languageOverride, config.transcriptionModel !== 'gpt-4o-transcribe' && config.transcriptionModel, autoHint && 'autohint'].filter(Boolean).join('-')
-await fs.writeFile(path.join(RESULTS_DIR, `${name}.json`), `${JSON.stringify({ source, languageOverride: languageOverride ?? null, transcriptionModel: config.transcriptionModel, refinementModel: config.refinementModel, results }, null, 2)}\n`)
+const name = [source, config.transcriptionModel !== 'gpt-transcribe' && config.transcriptionModel, promptOverride && 'prompt'].filter(Boolean).join('-')
+await fs.writeFile(path.join(RESULTS_DIR, `${name}.json`), `${JSON.stringify({ source, transcriptionModel: config.transcriptionModel, refinementModel: config.refinementModel, results }, null, 2)}\n`)
 await fs.writeFile(path.join(RESULTS_DIR, `${name}.md`), report)
 
 console.log('\n| Group | Metric | Samples | Rate | S / D / I / N | With fillers counted |')

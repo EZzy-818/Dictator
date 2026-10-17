@@ -17,21 +17,12 @@ const SAMPLES_DIR = path.resolve(import.meta.dirname, '../.live-samples')
 const TTS_MODEL = 'gpt-4o-mini-tts'
 
 const SAMPLES = [
-  {
-    name: 'english',
-    script: "Let's meet on Wednesday at 3 PM to review the React and PostgreSQL migration.",
-    languages: ['en', 'auto'],
-  },
-  {
-    name: 'mandarin',
-    script: '我们下周三下午三点开会，讨论数据库迁移的问题。',
-    languages: ['zh', 'auto'],
-  },
-  {
-    name: 'mixed',
-    script: '我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。',
-    languages: ['zh', 'auto'],
-  },
+  { name: 'english', script: "Let's meet on Wednesday at 3 PM to review the React and PostgreSQL migration." },
+  { name: 'mandarin', script: '我们下周三下午三点开会，讨论数据库迁移的问题。' },
+  { name: 'mixed', script: '我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。' },
+  // gpt-4o-transcribe with no language wrote the English sentences of these in Chinese.
+  { name: 'mixed-english-led', script: 'Okay so the main problem is the API latency. 我看了一下监控，平均响应时间大概是八百毫秒，which is way too slow for our users.' },
+  { name: 'mixed-sentences', script: '我跟客户聊了一下，他们说 they are not happy with the current timeline, and they want us to deliver by the end of November. 所以我们得重新排一下优先级。' },
 ]
 
 async function ensureSample(client, sample) {
@@ -69,20 +60,17 @@ for (const sample of SAMPLES) {
   const audio = await ensureSample(client, sample)
   console.log(`[${sample.name}] script:     ${sample.script}`)
 
-  for (const language of sample.languages) {
-    const res = await request(app)
-      .post('/api/process')
-      .field('language', language)
-      .attach('audio', audio, { filename: `${sample.name}.wav`, contentType: 'audio/wav' })
+  const res = await request(app)
+    .post('/api/process')
+    .attach('audio', audio, { filename: `${sample.name}.wav`, contentType: 'audio/wav' })
 
-    if (res.status === 200) {
-      console.log(`[${sample.name}] ${language.padEnd(4)} raw      -> ${res.body.rawTranscript}`)
-      console.log(`[${sample.name}] ${language.padEnd(4)} polished -> ${res.body.polishedTranscript} (${res.body.refinementStatus})`)
-      if (res.body.refinementStatus !== 'success') failures++
-    } else {
-      failures++
-      console.log(`[${sample.name}] ${language.padEnd(4)} -> HTTP ${res.status} ${res.body.code}: ${res.body.error}`)
-    }
+  if (res.status === 200) {
+    console.log(`[${sample.name}] raw:        ${res.body.rawTranscript}`)
+    console.log(`[${sample.name}] polished:   ${res.body.polishedTranscript} (${res.body.refinementStatus})`)
+    if (res.body.refinementStatus !== 'success') failures++
+  } else {
+    failures++
+    console.log(`[${sample.name}] HTTP ${res.status} ${res.body.code}: ${res.body.error}`)
   }
   console.log()
 }

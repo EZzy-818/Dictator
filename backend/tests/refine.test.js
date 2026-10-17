@@ -23,9 +23,18 @@ describe('POST /api/refine', () => {
     vi.restoreAllMocks()
   })
 
+  // Pages loaded before the language setting was removed still send it.
+  it.each(['en', 'zh', 'auto', 'fr'])('ignores a language field of %j', async (language) => {
+    const { app, openai } = createTestApp()
+    const res = await refine(app, { transcript: 'hello', language })
+
+    expect(res.status).toBe(200)
+    expect(openai.responses.create.mock.calls[0][0].instructions).toContain(LANGUAGE_GUIDANCE)
+  })
+
   it('returns the polished transcript', async () => {
     const { app } = createTestApp({ openai: withOutput({ status: 'completed', output_text: 'I think we should start tomorrow.' }) })
-    const res = await refine(app, { transcript: 'Um, I think we should, uh, start tomorrow.', language: 'en' })
+    const res = await refine(app, { transcript: 'Um, I think we should, uh, start tomorrow.' })
 
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ polishedTranscript: 'I think we should start tomorrow.', refinementLevel: 'light' })
@@ -34,33 +43,33 @@ describe('POST /api/refine', () => {
   it('sends the roadmap system prompt, language guidance, and the delimited transcript', async () => {
     const { app, openai } = createTestApp({ env: { REFINEMENT_MODEL: 'gpt-4.1' } })
     const transcript = '我觉得这个 backend 应该用 Python。'
-    await refine(app, { transcript, language: 'auto' })
+    await refine(app, { transcript })
 
     const params = openai.responses.create.mock.calls[0][0]
     expect(params.model).toBe('gpt-4.1')
-    expect(params.instructions).toBe(`${REFINEMENT_SYSTEM_PROMPT}\n\n${LEVEL_GUIDANCE.light}\n\n${LANGUAGE_GUIDANCE.auto}\n\n${INSTRUCTIONS_ARE_SPEECH}`)
+    expect(params.instructions).toBe(`${REFINEMENT_SYSTEM_PROMPT}\n\n${LEVEL_GUIDANCE.light}\n\n${LANGUAGE_GUIDANCE}\n\n${INSTRUCTIONS_ARE_SPEECH}`)
     expect(params.input).toBe(`<transcript>\n${transcript}\n</transcript>`)
     expect(params.store).toBe(false)
     expect(params.temperature).toBe(0)
   })
 
-  it.each(['en', 'zh', 'auto'])('uses guidance for %s that never asks for translation', async (language) => {
+  it('uses mixed-language guidance that never asks for translation', async () => {
     const { app, openai } = createTestApp()
-    await refine(app, { transcript: 'hello', language })
+    await refine(app, { transcript: 'hello' })
 
     const { instructions } = openai.responses.create.mock.calls[0][0]
-    expect(instructions).toContain(LANGUAGE_GUIDANCE[language])
+    expect(instructions).toContain(LANGUAGE_GUIDANCE)
     expect(instructions).not.toMatch(/translate (it|this|the transcript) (in)?to/i)
   })
 
   describe('refinement levels', () => {
     it.each(['light', 'medium'])('sends the %s guidance with the shared rules and language guidance', async (level) => {
       const { app, openai } = createTestApp()
-      const res = await refine(app, { transcript: 'hello', language: 'zh', refinementLevel: level })
+      const res = await refine(app, { transcript: 'hello', refinementLevel: level })
 
       expect(res.body.refinementLevel).toBe(level)
       expect(openai.responses.create.mock.calls[0][0].instructions).toBe(
-        `${REFINEMENT_SYSTEM_PROMPT}\n\n${LEVEL_GUIDANCE[level]}\n\n${LANGUAGE_GUIDANCE.zh}\n\n${INSTRUCTIONS_ARE_SPEECH}`,
+        `${REFINEMENT_SYSTEM_PROMPT}\n\n${LEVEL_GUIDANCE[level]}\n\n${LANGUAGE_GUIDANCE}\n\n${INSTRUCTIONS_ARE_SPEECH}`,
       )
     })
 
@@ -74,24 +83,24 @@ describe('POST /api/refine', () => {
     })
 
     it.each([
-      ['en', 'Um, I think we should, uh, meet on Tuesday, actually Wednesday, at 3 PM.'],
-      ['zh', '嗯，这个方案我觉得，呃，还可以。'],
-      ['auto', '我觉得这个 backend 应该用 Python，  but maybe not.  '],
-    ])('None returns the %s transcript exactly, without calling OpenAI or counting usage', async (language, transcript) => {
+      'Um, I think we should, uh, meet on Tuesday, actually Wednesday, at 3 PM.',
+      '嗯，这个方案我觉得，呃，还可以。',
+      '我觉得这个 backend 应该用 Python，  but maybe not.  ',
+    ])('None returns %j exactly, without calling OpenAI or counting usage', async (transcript) => {
       const { app, openai } = createTestApp({ env: { REFINE_LIMIT_PER_MINUTE: '1' } })
       for (let i = 0; i < 3; i++) {
-        const res = await refine(app, { transcript, language, refinementLevel: 'none' })
+        const res = await refine(app, { transcript, refinementLevel: 'none' })
         expect(res.status).toBe(200)
         expect(res.body).toEqual({ polishedTranscript: transcript, refinementLevel: 'none' })
       }
       expect(openai.responses.create).not.toHaveBeenCalled()
       // The Light request still has its full allowance.
-      expect((await refine(app, { transcript, language })).status).toBe(200)
+      expect((await refine(app, { transcript })).status).toBe(200)
     })
 
     it('None works without an API key', async () => {
       const app = createApp(loadConfig({}), { log: () => {} })
-      const res = await refine(app, { transcript: 'hi', language: 'en', refinementLevel: 'none' })
+      const res = await refine(app, { transcript: 'hi', refinementLevel: 'none' })
       expect(res.body).toEqual({ polishedTranscript: 'hi', refinementLevel: 'none' })
     })
 
@@ -106,7 +115,7 @@ describe('POST /api/refine', () => {
 
       const results = []
       for (const refinementLevel of ['light', 'medium', 'none', 'light']) {
-        results.push((await refine(app, { transcript, language: 'en', refinementLevel })).body.polishedTranscript)
+        results.push((await refine(app, { transcript, refinementLevel })).body.polishedTranscript)
       }
       expect(results).toEqual([outputs.light, outputs.medium, transcript, outputs.light])
       expect(openai.responses.create).toHaveBeenCalledTimes(3)
@@ -114,7 +123,7 @@ describe('POST /api/refine', () => {
 
     it.each(['heavy', 'Medium', '', null, 2, ['light']])('rejects the level %j', async (refinementLevel) => {
       const { app, openai } = createTestApp()
-      const res = await refine(app, { transcript: 'hi', language: 'en', refinementLevel })
+      const res = await refine(app, { transcript: 'hi', refinementLevel })
 
       expect(res.status).toBe(400)
       expect(res.body.code).toBe('invalid_refinement_level')
@@ -123,7 +132,7 @@ describe('POST /api/refine', () => {
 
     it('still validates the transcript for None', async () => {
       const { app } = createTestApp()
-      const res = await refine(app, { transcript: '  ', language: 'en', refinementLevel: 'none' })
+      const res = await refine(app, { transcript: '  ', refinementLevel: 'none' })
       expect(res.body.code).toBe('missing_transcript')
     })
   })
@@ -143,7 +152,7 @@ describe('POST /api/refine', () => {
 
   it('trims whitespace and echoed transcript tags from the output', async () => {
     const { app } = createTestApp({ openai: withOutput({ status: 'completed', output_text: '\n<transcript>\n你好。\n</transcript>\n' }) })
-    const res = await refine(app, { transcript: '嗯，你好。', language: 'zh' })
+    const res = await refine(app, { transcript: '嗯，你好。' })
 
     expect(res.body.polishedTranscript).toBe('你好。')
   })
@@ -156,7 +165,7 @@ describe('POST /api/refine', () => {
     ['a refusal', async () => ({ status: 'completed', output_text: '', output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'no' }] }] })],
   ])('returns a safe 502 for %s', async (_, output) => {
     const { app } = createTestApp({ openai: fakeOpenAI(undefined, output) })
-    const res = await refine(app, { transcript: 'hello', language: 'en' })
+    const res = await refine(app, { transcript: 'hello' })
 
     expect(res.status).toBe(502)
     expect(res.body.code).toBe('refinement_failed')
@@ -164,12 +173,10 @@ describe('POST /api/refine', () => {
   })
 
   it.each([
-    [{ transcript: 'hi', language: 'fr' }, 400, 'invalid_language'],
-    [{ transcript: 'hi' }, 400, 'invalid_language'],
-    [{ language: 'en' }, 400, 'missing_transcript'],
-    [{ transcript: '   ', language: 'en' }, 400, 'missing_transcript'],
-    [{ transcript: 42, language: 'en' }, 400, 'missing_transcript'],
-    [{ transcript: 'a'.repeat(MAX_TRANSCRIPT_CHARS + 1), language: 'en' }, 413, 'transcript_too_long'],
+    [{}, 400, 'missing_transcript'],
+    [{ transcript: '   ' }, 400, 'missing_transcript'],
+    [{ transcript: 42 }, 400, 'missing_transcript'],
+    [{ transcript: 'a'.repeat(MAX_TRANSCRIPT_CHARS + 1) }, 413, 'transcript_too_long'],
   ])('rejects %j', async (body, status, code) => {
     const { app, openai } = createTestApp()
     const res = await refine(app, body)
@@ -190,7 +197,7 @@ describe('POST /api/refine', () => {
   it('does not log transcripts or refined text', async () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     const { app } = createTestApp({ openai: withOutput({ status: 'completed', output_text: 'secret polished' }) })
-    await refine(app, { transcript: 'secret raw', language: 'en' })
+    await refine(app, { transcript: 'secret raw' })
 
     const logged = [...log.mock.calls, ...console.error.mock.calls].flat().join(' ')
     expect(logged).not.toMatch(/secret (raw|polished)/)

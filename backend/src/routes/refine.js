@@ -5,9 +5,9 @@ import { refineTranscript, validateRefinementRequest } from '../services/refinem
 // Rejects invalid requests before any usage is counted.
 function validateBody(req, res, next) {
   try {
-    const { transcript, language, refinementLevel } = req.body ?? {}
+    const { transcript, refinementLevel } = req.body ?? {}
     res.locals.refinementLevel = resolveRefinementLevel(refinementLevel)
-    validateRefinementRequest(transcript, language)
+    validateRefinementRequest(transcript)
     next()
   } catch (err) {
     next(err)
@@ -25,13 +25,12 @@ export function createRefineRouter({ config, getOpenAIClient, usageLimiters = []
 
   router.post('/refine', validateBody, returnUnrefined, ...usageLimiters, async (req, res, next) => {
     try {
-      const { transcript, language } = req.body
+      const { transcript } = req.body
       const { refinementLevel } = res.locals
       const polishedTranscript = await refineTranscript({
         client: getOpenAIClient(),
         model: config.refinementModel,
         transcript,
-        language,
         level: refinementLevel,
       })
       res.json({ polishedTranscript, refinementLevel })

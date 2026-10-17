@@ -60,7 +60,7 @@ for (const [language, name, transcript, expected] of CASES) {
   // Count identical outputs so repeated runs show how stable each case is.
   const outputs = new Map()
   for (let run = 0; run < repeat; run++) {
-    const res = await request(app).post('/api/refine').send({ transcript, language, refinementLevel })
+    const res = await request(app).post('/api/refine').send({ transcript, refinementLevel })
     const output = res.status === 200 ? res.body.polishedTranscript : `HTTP ${res.status} ${res.body.code}`
     if (res.status !== 200) failures++
     outputs.set(output, (outputs.get(output) ?? 0) + 1)
