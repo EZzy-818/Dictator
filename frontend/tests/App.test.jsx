@@ -153,7 +153,7 @@ describe('App', () => {
 
     expect(calls('/api/process')).toHaveLength(1)
     const [, options] = calls('/api/refine')[0]
-    expect(JSON.parse(options.body)).toEqual({ transcript: MIXED_RAW, language: 'zh' })
+    expect(JSON.parse(options.body)).toEqual({ transcript: MIXED_RAW, language: 'zh', refinementLevel: 'light' })
     expect(screen.getByLabelText('Polished text').value).toBe('Retried text。')
     expect(screen.queryByRole('alert')).toBeNull()
   })
@@ -224,6 +224,110 @@ describe('App', () => {
     expect(start.disabled).toBe(true)
     await act(async () => fireEvent.click(start))
     expect(media.getUserMedia).toHaveBeenCalledTimes(1)
+  })
+
+  describe('refinement levels', () => {
+    it('defaults to Light and says what it does', () => {
+      render(<App />)
+      expect(screen.getByLabelText('Light').checked).toBe(true)
+      expect(screen.getByLabelText('None').checked).toBe(false)
+      expect(screen.getByLabelText('Medium').checked).toBe(false)
+      expect(screen.getByText('Removes filler words and corrects grammar.')).toBeTruthy()
+
+      fireEvent.click(screen.getByLabelText('Medium'))
+      expect(screen.getByLabelText('Medium').checked).toBe(true)
+      expect(screen.getByText('Improves clarity and conciseness while preserving the meaning.')).toBeTruthy()
+    })
+
+    it('sends Light by default and labels the output', async () => {
+      render(<App />)
+      await record()
+
+      expect(calls('/api/process')[0][1].body.get('refinementLevel')).toBe('light')
+      expect(screen.getByTestId('output-level').textContent).toBe('Light refinement')
+    })
+
+    it.each(['none', 'medium'])('sends %s when it is selected', async (level) => {
+      processResponse = () => jsonResponse(processResult({ refinementLevel: level }))
+      render(<App />)
+      fireEvent.click(screen.getByLabelText(level === 'none' ? 'None' : 'Medium'))
+      await record()
+
+      expect(calls('/api/process')[0][1].body.get('refinementLevel')).toBe(level)
+    })
+
+    it('shows the raw transcript as the polished text for None', async () => {
+      processResponse = () =>
+        jsonResponse(processResult({ polishedTranscript: MIXED_RAW, refinementLevel: 'none', refinementStatus: 'skipped' }))
+      render(<App />)
+      fireEvent.click(screen.getByLabelText('None'))
+      await record()
+
+      expect(screen.getByLabelText('Polished text').value).toBe(MIXED_RAW)
+      expect(screen.getByLabelText('Polished text').disabled).toBe(false)
+      expect(screen.getByTestId('output-level').textContent).toBe('No refinement')
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('switching levels while recording does not interrupt the recording', async () => {
+      render(<App />)
+      await startRecording()
+      fireEvent.click(screen.getByLabelText('Medium'))
+      fireEvent.click(screen.getByLabelText('None'))
+      expect(state()).toBe('recording')
+      expect(media.tracks.some((track) => track.stop.mock.calls.length > 0)).toBe(false)
+
+      // The level selected when the recording stops is the one used.
+      fireEvent.click(screen.getByLabelText('Medium'))
+      await stopRecording()
+      expect(calls('/api/process')[0][1].body.get('refinementLevel')).toBe('medium')
+    })
+
+    it('captures the level when processing begins', async () => {
+      let resolveProcess
+      processResponse = () => new Promise((resolve) => (resolveProcess = resolve))
+      render(<App />)
+      await record()
+      fireEvent.click(screen.getByLabelText('None'))
+
+      await act(async () => resolveProcess(jsonResponse(processResult({ refinementLevel: 'light' }))))
+      expect(calls('/api/process')[0][1].body.get('refinementLevel')).toBe('light')
+      expect(screen.getByTestId('output-level').textContent).toBe('Light refinement')
+      // The new selection is offered as a regeneration, not applied silently.
+      expect(screen.getByLabelText('Polished text').value).toBe(MIXED_POLISHED)
+      expect(screen.getByRole('button', { name: 'Regenerate as None' })).toBeTruthy()
+    })
+
+    it('regenerates at a new level without recording or transcribing again', async () => {
+      refineResponse = () => jsonResponse({ polishedTranscript: '用 Go 写 backend。', refinementLevel: 'medium' })
+      render(<App />)
+      await record()
+
+      fireEvent.click(screen.getByLabelText('Medium'))
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Regenerate as Medium' })))
+
+      expect(calls('/api/process')).toHaveLength(1)
+      expect(media.getUserMedia).toHaveBeenCalledTimes(1)
+      expect(JSON.parse(calls('/api/refine')[0][1].body)).toEqual({ transcript: MIXED_RAW, language: 'zh', refinementLevel: 'medium' })
+      expect(screen.getByLabelText('Polished text').value).toBe('用 Go 写 backend。')
+      expect(screen.getByTestId('output-level').textContent).toBe('Medium refinement')
+      expect(screen.getByRole('button', { name: 'Retry Refinement' })).toBeTruthy()
+
+      // None shows the raw transcript without asking the server.
+      fireEvent.click(screen.getByLabelText('None'))
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Regenerate as None' })))
+      expect(calls('/api/refine')).toHaveLength(1)
+      expect(screen.getByLabelText('Polished text').value).toBe(MIXED_RAW)
+      expect(screen.getByTestId('output-level').textContent).toBe('No refinement')
+    })
+
+    it('says only Transcribing while a None recording is processed', async () => {
+      processResponse = () => new Promise(() => {})
+      render(<App />)
+      fireEvent.click(screen.getByLabelText('None'))
+      await record()
+      expect(screen.getByText('Transcribing…')).toBeTruthy()
+    })
   })
 
   it('keeps English text in an English-tagged field', async () => {

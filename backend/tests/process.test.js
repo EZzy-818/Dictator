@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
 import { createApp } from '../src/app.js'
 import { loadConfig } from '../src/config.js'
+import { LEVEL_GUIDANCE, buildRefinementInstructions } from '../src/prompts/refinement.js'
 import { TRANSCRIPTION_HINTS } from '../src/services/transcription.js'
 import { AUDIO_SAMPLES, createTestApp, fakeOpenAI } from './helpers.js'
 
-function postAudio(app, { buffer = AUDIO_SAMPLES.webm, contentType = 'audio/webm;codecs=opus', language } = {}) {
+function postAudio(app, { buffer = AUDIO_SAMPLES.webm, contentType = 'audio/webm;codecs=opus', language, refinementLevel } = {}) {
   const req = request(app).post('/api/process')
   if (language !== undefined) req.field('language', language)
+  if (refinementLevel !== undefined) req.field('refinementLevel', refinementLevel)
   return req.attach('audio', buffer, { filename: 'blob', contentType })
 }
 
@@ -29,6 +31,7 @@ describe('POST /api/process', () => {
       rawTranscript: 'Hello world.',
       polishedTranscript: 'Hello, world.',
       selectedLanguage: 'en',
+      refinementLevel: 'light',
       transcriptionStatus: 'success',
       refinementStatus: 'success',
     })
@@ -197,8 +200,71 @@ describe('POST /api/process', () => {
       rawTranscript: 'Hello world.',
       polishedTranscript: null,
       selectedLanguage: 'en',
+      refinementLevel: 'light',
       transcriptionStatus: 'success',
       refinementStatus: 'failed',
+    })
+  })
+
+  describe('refinement levels', () => {
+    it('defaults to Light when no level is sent', async () => {
+      const { app, openai } = createTestApp()
+      const res = await postAudio(app, { language: 'en' })
+
+      expect(res.body.refinementLevel).toBe('light')
+      expect(openai.responses.create.mock.calls[0][0].instructions).toContain(LEVEL_GUIDANCE.light)
+    })
+
+    it.each(['light', 'medium'])('refines with the %s instructions', async (level) => {
+      const { app, openai } = createTestApp()
+      const res = await postAudio(app, { language: 'auto', refinementLevel: level })
+
+      expect(res.status).toBe(200)
+      expect(res.body).toMatchObject({ refinementLevel: level, refinementStatus: 'success', polishedTranscript: 'Hello, world.' })
+      expect(openai.responses.create.mock.calls[0][0].instructions).toBe(buildRefinementInstructions('auto', level))
+    })
+
+    it.each([
+      ['en', 'Um, I think we should, uh, meet on Tuesday, actually Wednesday, at 3 PM.'],
+      ['zh', '嗯，我觉得我们，呃，明天可以开始这个项目。'],
+      ['auto', '嗯，我觉得这个backend应该用Python，不对，用 Go。'],
+    ])('None returns the %s transcript unchanged with no refinement call', async (language, text) => {
+      const { app, openai } = createTestApp({ openai: fakeOpenAI(async () => ({ text })) })
+      const res = await postAudio(app, { language, refinementLevel: 'none' })
+
+      expect(res.status).toBe(200)
+      expect(res.body).toEqual({
+        rawTranscript: text,
+        polishedTranscript: text,
+        selectedLanguage: language,
+        refinementLevel: 'none',
+        transcriptionStatus: 'success',
+        refinementStatus: 'skipped',
+      })
+      expect(openai.audio.transcriptions.create).toHaveBeenCalledTimes(1)
+      expect(openai.responses.create).not.toHaveBeenCalled()
+    })
+
+    it('None does not change the transcription request', async () => {
+      const { app, openai } = createTestApp()
+      await postAudio(app, { language: 'zh', refinementLevel: 'none' })
+      const withLight = createTestApp()
+      await postAudio(withLight.app, { language: 'zh', refinementLevel: 'light' })
+
+      const params = (client) => {
+        const { file, ...rest } = client.audio.transcriptions.create.mock.calls[0][0]
+        return { ...rest, file: [file.name, file.type, file.size] }
+      }
+      expect(params(openai)).toEqual(params(withLight.openai))
+    })
+
+    it.each(['heavy', 'None', 'LIGHT', ''])('rejects the level %j before calling OpenAI', async (level) => {
+      const { app, openai } = createTestApp()
+      const res = await postAudio(app, { language: 'en', refinementLevel: level })
+
+      expect(res.status).toBe(400)
+      expect(res.body.code).toBe('invalid_refinement_level')
+      expect(openai.audio.transcriptions.create).not.toHaveBeenCalled()
     })
   })
 

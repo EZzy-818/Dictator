@@ -3,6 +3,7 @@ import cors from 'cors'
 import OpenAI from 'openai'
 import { ApiError } from './lib/errors.js'
 import { isSupportedLanguage } from './lib/languages.js'
+import { isRefinementLevel } from './lib/refinementLevels.js'
 import { clientTag, concurrencyLimit, createUsageLimiters } from './lib/limits.js'
 import { createProcessRouter } from './routes/process.js'
 import { createRefineRouter } from './routes/refine.js'
@@ -17,7 +18,7 @@ function requestLog(log) {
   return (req, res, next) => {
     const started = performance.now()
     res.once('close', () => {
-      const language = req.body?.language
+      const { language, refinementLevel } = req.body ?? {}
       log({
         event: 'request',
         method: req.method,
@@ -28,6 +29,7 @@ function requestLog(log) {
         ms: Math.round(performance.now() - started),
         bytes: Number(req.headers['content-length']) || 0,
         language: isSupportedLanguage(language) ? language : undefined,
+        refinementLevel: isRefinementLevel(refinementLevel) ? refinementLevel : undefined,
         client: clientTag(req),
         aborted: res.writableEnded ? undefined : true,
       })

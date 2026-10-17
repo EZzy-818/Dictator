@@ -4,6 +4,7 @@ import { ApiError } from '../lib/errors.js'
 import { MAX_AUDIO_BYTES, identifyAudio } from '../lib/audio.js'
 import { audioDurationSeconds } from '../lib/duration.js'
 import { DEFAULT_LANGUAGE, isSupportedLanguage } from '../lib/languages.js'
+import { resolveRefinementLevel } from '../lib/refinementLevels.js'
 import { transcribeAudio } from '../services/transcription.js'
 import { refineTranscript } from '../services/refinement.js'
 
@@ -36,6 +37,7 @@ async function validateUpload(req, res, next) {
     if (!isSupportedLanguage(language)) {
       throw new ApiError(400, 'invalid_language', 'Unsupported language. Choose English, 中文, or Auto-detect.')
     }
+    const refinementLevel = resolveRefinementLevel(req.body?.refinementLevel)
     if (!req.file) {
       throw new ApiError(400, 'missing_audio', 'No recording was received.')
     }
@@ -53,7 +55,7 @@ async function validateUpload(req, res, next) {
     if (seconds > MAX_RECORDING_SECONDS) {
       throw new ApiError(413, 'recording_too_long', 'The recording is longer than the 2-minute limit. Please record a shorter clip.')
     }
-    res.locals.upload = { language, format }
+    res.locals.upload = { language, refinementLevel, format }
     next()
   } catch (err) {
     next(err)
@@ -65,7 +67,7 @@ export function createProcessRouter({ config, getOpenAIClient, usageLimiters = [
 
   router.post('/process', receiveAudio, validateUpload, ...usageLimiters, async (req, res, next) => {
     try {
-      const { language, format } = res.locals.upload
+      const { language, refinementLevel, format } = res.locals.upload
       const client = getOpenAIClient()
       const rawTranscript = await transcribeAudio({
         client,
@@ -74,24 +76,31 @@ export function createProcessRouter({ config, getOpenAIClient, usageLimiters = [
         language,
       })
 
+      // None skips refinement and returns the raw transcript as the polished text.
       // A refinement failure keeps the raw transcript; the client can retry via /api/refine.
-      let polishedTranscript = null
-      let refinementStatus = 'success'
-      try {
-        polishedTranscript = await refineTranscript({
-          client,
-          model: config.refinementModel,
-          transcript: rawTranscript,
-          language,
-        })
-      } catch {
-        refinementStatus = 'failed'
+      let polishedTranscript = rawTranscript
+      let refinementStatus = 'skipped'
+      if (refinementLevel !== 'none') {
+        try {
+          polishedTranscript = await refineTranscript({
+            client,
+            model: config.refinementModel,
+            transcript: rawTranscript,
+            language,
+            level: refinementLevel,
+          })
+          refinementStatus = 'success'
+        } catch {
+          polishedTranscript = null
+          refinementStatus = 'failed'
+        }
       }
 
       res.json({
         rawTranscript,
         polishedTranscript,
         selectedLanguage: language,
+        refinementLevel,
         transcriptionStatus: 'success',
         refinementStatus,
       })
