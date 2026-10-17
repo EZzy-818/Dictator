@@ -4,7 +4,8 @@ import { ApiError } from '../lib/errors.js'
 import { MAX_AUDIO_BYTES, identifyAudio } from '../lib/audio.js'
 import { audioDurationSeconds } from '../lib/duration.js'
 import { resolveRefinementLevel } from '../lib/refinementLevels.js'
-import { transcribeAudio } from '../services/transcription.js'
+import { applySwaps } from '../lib/names.js'
+import { startTranscription } from '../services/transcription.js'
 import { refineTranscript } from '../services/refinement.js'
 
 // Audio is held in memory only for the duration of the request and never written to disk.
@@ -63,6 +64,18 @@ async function validateUpload(req, res, next) {
   }
 }
 
+// Refines the main transcript while the name check finishes. When the check changes a name, the
+// same change is made in the refined text, or the changed transcript is refined again when the
+// name cannot be placed there for certain. names: startTranscription's promise.
+async function refineAlongsideNameCheck(text, names, refine) {
+  const [restored, refined] = await Promise.all([names, refine(text).then((polished) => ({ polished }), (error) => ({ error }))])
+  if (!restored.swapped) {
+    if (refined.error) throw refined.error
+    return refined.polished
+  }
+  return (refined.error ? null : applySwaps(refined.polished, restored.swaps)) ?? refine(restored.text)
+}
+
 export function createProcessRouter({ config, getOpenAIClient, usageLimiters = [] }) {
   const router = Router()
 
@@ -71,17 +84,23 @@ export function createProcessRouter({ config, getOpenAIClient, usageLimiters = [
       const { refinementLevel, format } = res.locals.upload
       const { timing } = res.locals
       const client = getOpenAIClient()
-      const rawTranscript = await timing.measure('transcription', () =>
-        transcribeAudio({
+      // With NAME_CHECK_OVERLAP, refinement starts on the main transcript instead of waiting for
+      // the name check; the transcription stage then ends with the main transcript.
+      const overlap = config.nameCheckOverlap && refinementLevel !== 'none'
+      const transcription = await timing.measure('transcription', async () => {
+        const started = await startTranscription({
           client,
           model: config.transcriptionModel,
           nameCheckModel: config.nameCheckModel,
           audio: { buffer: req.file.buffer, ...format },
-        }),
-      )
+        })
+        return overlap ? started : { text: (await started.names).text }
+      })
+      const refine = (transcript) => refineTranscript({ client, model: config.refinementModel, transcript, level: refinementLevel })
 
       // None skips refinement and returns the raw transcript as the polished text.
       // A refinement failure keeps the raw transcript; the client can retry via /api/refine.
+      let rawTranscript = transcription.text
       let polishedTranscript = rawTranscript
       let refinementStatus = 'skipped'
       if (refinementLevel === 'none') {
@@ -89,18 +108,14 @@ export function createProcessRouter({ config, getOpenAIClient, usageLimiters = [
       } else {
         try {
           polishedTranscript = await timing.measure('refinement', () =>
-            refineTranscript({
-              client,
-              model: config.refinementModel,
-              transcript: rawTranscript,
-              level: refinementLevel,
-            }),
+            overlap ? refineAlongsideNameCheck(transcription.text, transcription.names, refine) : refine(rawTranscript),
           )
           refinementStatus = 'success'
         } catch {
           polishedTranscript = null
           refinementStatus = 'failed'
         }
+        if (overlap) rawTranscript = (await transcription.names).text
       }
 
       res.json({

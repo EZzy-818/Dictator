@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
-import { restoreSpokenNames } from '../src/lib/names.js'
+import { applySwaps, restoreSpokenNames } from '../src/lib/names.js'
 import { NAME_CHECK_WAIT_MS } from '../src/services/transcription.js'
 import { AUDIO_SAMPLES, createTestApp, fakeOpenAI } from './helpers.js'
 
@@ -39,7 +39,7 @@ describe('restoreSpokenNames', () => {
     // Nothing shared around the span.
     ['New York University', '纽约大学'],
   ])('leaves %j alone', (transcript, check) => {
-    expect(restoreSpokenNames(transcript, check)).toEqual({ text: transcript, swapped: 0 })
+    expect(restoreSpokenNames(transcript, check)).toEqual({ text: transcript, swapped: 0, swaps: [] })
   })
 
   // Numbers, amounts and dates the two models write differently are left as gpt-transcribe wrote
@@ -61,7 +61,7 @@ describe('restoreSpokenNames', () => {
     ["Let's move the launch to 三月十五号, after the review.", "Let's move the launch to 3月15号, after the review."],
     ['我们 Friday 晚上十点开始 deploy，预计 downtime 不超过 fifteen minutes。', '我们Friday晚上10点开始deploy，预计downtime不超过fifteen minutes。'],
   ])('keeps the number in %j', (transcript, check) => {
-    expect(restoreSpokenNames(transcript, check)).toEqual({ text: transcript, swapped: 0 })
+    expect(restoreSpokenNames(transcript, check)).toEqual({ text: transcript, swapped: 0, swaps: [] })
   })
 
   it.each([
@@ -87,7 +87,7 @@ describe('restoreSpokenNames', () => {
   })
 
   it('keeps the transcript when there is no check', () => {
-    expect(restoreSpokenNames(NYU, null)).toEqual({ text: NYU, swapped: 0 })
+    expect(restoreSpokenNames(NYU, null)).toEqual({ text: NYU, swapped: 0, swaps: [] })
   })
 
   it('changes nothing but the name, punctuation and spacing included', () => {
@@ -179,5 +179,96 @@ describe('transcription with the name check', () => {
     await post(app)
 
     expect(openai.audio.transcriptions.create).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('applySwaps', () => {
+  const swaps = [{ from: 'New York University', to: '纽约大学' }]
+
+  it('makes the same swap in the refined text', () => {
+    expect(applySwaps('I just graduated from New York University with a bachelor degree.', swaps)).toBe('I just graduated from 纽约大学 with a bachelor degree.')
+    expect(applySwaps('我觉得我们应该用 PostgreSQL，而且团队里大家都比较熟。', [{ from: '团队', to: 'team' }])).toBe('我觉得我们应该用 PostgreSQL，而且 team 里大家都比较熟。')
+  })
+
+  it('gives up when the name is not there exactly once', () => {
+    expect(applySwaps('I just graduated with a bachelor degree.', swaps)).toBeNull()
+    expect(applySwaps('New York University, yes, New York University.', swaps)).toBeNull()
+    // Part of a longer word is not the name.
+    expect(applySwaps('Alexander will review it.', [{ from: 'Alex', to: '小王' }])).toBeNull()
+  })
+})
+
+describe('refinement alongside the name check', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+  })
+
+  afterEach(() => vi.restoreAllMocks())
+
+  const NYU_FIXED = NYU.replace('New York University', '纽约大学')
+  const post = (app, level = 'light') =>
+    request(app).post('/api/process').field('refinementLevel', level).attach('audio', AUDIO_SAMPLES.webm, { filename: 'blob', contentType: 'audio/webm' })
+  const transcripts = (main, check) => async ({ model }) => ({ text: model === 'gpt-transcribe' ? main : check })
+  // Refines by returning the transcript it was given, unless edit says otherwise.
+  const echo = (edit = (text) => text) =>
+    async ({ input }) => ({ status: 'completed', output_text: edit(input.match(/<transcript>\n?([\s\S]*?)\n?<\/transcript>/)[1]) })
+  const app = (openai, overlap = 'true') => createTestApp({ openai, env: { NAME_CHECK_MODEL: 'gpt-4o-transcribe', NAME_CHECK_OVERLAP: overlap, EXPOSE_TIMINGS: 'false' } }).app
+
+  it('is off by default: refinement waits for the name check and refines the changed transcript', async () => {
+    const openai = fakeOpenAI(transcripts(NYU, NYU_CHECK), echo())
+    const res = await post(app(openai, ''))
+
+    expect(res.body.rawTranscript).toBe(NYU_FIXED)
+    expect(res.body.polishedTranscript).toBe(NYU_FIXED)
+    expect(openai.responses.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the refined main transcript when the name check changes nothing', async () => {
+    const openai = fakeOpenAI(transcripts(NYU, NYU), echo((text) => `${text} (refined)`))
+    const res = await post(app(openai))
+
+    expect(res.body.rawTranscript).toBe(NYU)
+    expect(res.body.polishedTranscript).toBe(`${NYU} (refined)`)
+    expect(openai.responses.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('puts the name into the refined text', async () => {
+    const openai = fakeOpenAI(transcripts(NYU, NYU_CHECK), echo((text) => text.replace('嗯，你好，', '你好，')))
+    const res = await post(app(openai))
+
+    expect(res.body.rawTranscript).toBe(NYU_FIXED)
+    expect(res.body.polishedTranscript).toBe(NYU_FIXED.replace('嗯，你好，', '你好，'))
+    expect(openai.responses.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('refines the changed transcript again when the name cannot be placed', async () => {
+    const openai = fakeOpenAI(transcripts(NYU, NYU_CHECK), echo((text) => text.replace('New York University', 'NYU')))
+    const res = await post(app(openai))
+
+    expect(res.body.rawTranscript).toBe(NYU_FIXED)
+    expect(res.body.polishedTranscript).toBe(NYU_FIXED)
+    expect(openai.responses.create).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the changed raw transcript when refinement fails', async () => {
+    const openai = fakeOpenAI(transcripts(NYU, NYU_CHECK), async () => {
+      throw Object.assign(new Error('boom'), { status: 500 })
+    })
+    const res = await post(app(openai))
+
+    expect(res.status).toBe(200)
+    expect(res.body.rawTranscript).toBe(NYU_FIXED)
+    expect(res.body.polishedTranscript).toBeNull()
+    expect(res.body.refinementStatus).toBe('failed')
+  })
+
+  it('still waits for the name check at None', async () => {
+    const openai = fakeOpenAI(transcripts(NYU, NYU_CHECK))
+    const res = await post(app(openai), 'none')
+
+    expect(res.body.rawTranscript).toBe(NYU_FIXED)
+    expect(res.body.polishedTranscript).toBe(NYU_FIXED)
+    expect(openai.responses.create).not.toHaveBeenCalled()
   })
 })

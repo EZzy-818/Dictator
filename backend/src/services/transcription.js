@@ -49,12 +49,14 @@ async function nameCheckTranscript(request, stopped) {
 }
 
 /**
- * Transcribes one audio file. Returns the transcript text exactly as the API returned it, except
- * that names the name check heard in another language are put back as spoken (see lib/names.js).
+ * Transcribes one audio file. Resolves as soon as the main transcript is ready, with
+ * text: the main transcript exactly as the API returned it, and
+ * names: a promise of restoreSpokenNames's result ({ text, swapped, swaps }), where names the name
+ * check heard in another language are put back as spoken (see lib/names.js). It never rejects.
  * audio: { buffer, mimeType, extension } as produced by identifyAudio plus the bytes.
  * nameCheckModel: second model run on the same audio at the same time; falsy turns it off.
  */
-export async function transcribeAudio({ client, model, nameCheckModel, audio }) {
+export async function startTranscription({ client, model, nameCheckModel, audio }) {
   // Stops the name check once its answer can no longer be used.
   const abort = new AbortController()
   const stopped = { value: false }
@@ -89,13 +91,22 @@ export async function transcribeAudio({ client, model, nameCheckModel, audio }) 
     throw new ApiError(422, 'no_speech', 'No speech was detected in the recording. Please try again and speak clearly.')
   }
 
-  if (!check) return response.text
-  let timer
-  const second = await Promise.race([check, new Promise((resolve) => (timer = setTimeout(resolve, NAME_CHECK_WAIT_MS, null)))])
-  clearTimeout(timer)
-  stopNameCheck()
-  const { text, swapped } = restoreSpokenNames(response.text, second)
-  // Counts only; the text itself is never logged.
-  if (swapped) console.info(`Name check restored ${swapped} name(s) to the language spoken.`)
-  return text
+  const names = (async () => {
+    if (!check) return restoreSpokenNames(response.text, null)
+    let timer
+    const second = await Promise.race([check, new Promise((resolve) => (timer = setTimeout(resolve, NAME_CHECK_WAIT_MS, null)))])
+    clearTimeout(timer)
+    stopNameCheck()
+    const restored = restoreSpokenNames(response.text, second)
+    // Counts only; the text itself is never logged.
+    if (restored.swapped) console.info(`Name check restored ${restored.swapped} name(s) to the language spoken.`)
+    return restored
+  })()
+  return { text: response.text, names }
+}
+
+/** The transcript with the name check's names put back: startTranscription, waiting for both. */
+export async function transcribeAudio(options) {
+  const { names } = await startTranscription(options)
+  return (await names).text
 }
