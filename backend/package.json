@@ -14,7 +14,8 @@
     "test:live:levels": "node scripts/live-refinement-levels.js",
     "benchmark:latency": "node scripts/benchmark-latency.js",
     "benchmark:models": "node scripts/benchmark-models.js",
-    "benchmark:name-check": "node scripts/benchmark-name-check.js"
+    "benchmark:name-check": "node scripts/benchmark-name-check.js",
+    "benchmark:realtime": "node scripts/benchmark-realtime.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -29,7 +30,8 @@
   },
   "devDependencies": {
     "supertest": "^7.3.1",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "ws": "^8.22.0"
   },
   "private": true,
   "type": "module",
