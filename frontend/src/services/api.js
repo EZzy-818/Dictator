@@ -68,25 +68,26 @@ export function getHealth() {
   return send('/api/health', {}, HEALTH_TIMEOUT_MS)
 }
 
-export async function processAudio({ blob, mimeType }, language) {
+export async function processAudio({ blob, mimeType }, language, refinementLevel = 'light') {
   if (blob.size > MAX_UPLOAD_BYTES) throw clientError('file_too_large')
 
   const baseType = mimeType.split(';')[0]
   const form = new FormData()
   form.append('language', language)
+  form.append('refinementLevel', refinementLevel)
   form.append('audio', blob, `recording.${EXTENSIONS[baseType] ?? 'webm'}`)
   const data = await send('/api/process', { method: 'POST', body: form }, PROCESS_TIMEOUT_MS)
   if (typeof data?.rawTranscript !== 'string') throw clientError('bad_response')
   return data
 }
 
-export async function refineTranscript(transcript, language) {
+export async function refineTranscript(transcript, language, refinementLevel = 'light') {
   const data = await send(
     '/api/refine',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transcript, language }),
+      body: JSON.stringify({ transcript, language, refinementLevel }),
     },
     REFINE_TIMEOUT_MS,
   )

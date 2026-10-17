@@ -2,7 +2,7 @@
 // Milestone 4 test cases plus a few safety cases. Results are for human review:
 // the expected text shows the intent, and other wordings can be acceptable.
 //
-// Usage: npm run test:live:refine [-- --repeat=3]
+// Usage: npm run test:live:refine [-- --repeat=3] [-- --level=medium]  (Light by default)
 import dotenv from 'dotenv'
 import request from 'supertest'
 import { createApp } from '../src/app.js'
@@ -47,9 +47,10 @@ if (!config.openaiApiKey) {
 }
 
 const repeat = Number(process.argv.find((arg) => arg.startsWith('--repeat='))?.split('=')[1]) || 1
+const refinementLevel = process.argv.find((arg) => arg.startsWith('--level='))?.split('=')[1] ?? 'light'
 const app = createApp(config, { log: () => {} })
 let failures = 0
-console.log(`Refinement model: ${config.refinementModel}, runs per case: ${repeat}\n`)
+console.log(`Refinement model: ${config.refinementModel}, level: ${refinementLevel}, runs per case: ${repeat}\n`)
 
 for (const [language, name, transcript, expected] of CASES) {
   console.log(`## ${name} (${language})`)
@@ -59,7 +60,7 @@ for (const [language, name, transcript, expected] of CASES) {
   // Count identical outputs so repeated runs show how stable each case is.
   const outputs = new Map()
   for (let run = 0; run < repeat; run++) {
-    const res = await request(app).post('/api/refine').send({ transcript, language })
+    const res = await request(app).post('/api/refine').send({ transcript, language, refinementLevel })
     const output = res.status === 200 ? res.body.polishedTranscript : `HTTP ${res.status} ${res.body.code}`
     if (res.status !== 200) failures++
     outputs.set(output, (outputs.get(output) ?? 0) + 1)

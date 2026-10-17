@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getHealth, processAudio, refineTranscript } from './services/api.js'
 import { formatDuration, useAudioRecorder } from './hooks/useAudioRecorder.js'
 import LanguageSelector from './components/LanguageSelector.jsx'
+import RefinementLevelSelector from './components/RefinementLevelSelector.jsx'
+import { DEFAULT_REFINEMENT_LEVEL } from './refinementLevels.js'
 import Recorder from './components/Recorder.jsx'
 import TranscriptPanel from './components/TranscriptPanel.jsx'
 import OutputEditor from './components/OutputEditor.jsx'
@@ -26,11 +28,14 @@ function Notice({ tone, children }) {
 function App() {
   const [serverUnavailable, setServerUnavailable] = useState(false)
   const [language, setLanguage] = useState('auto')
+  const [refinementLevel, setRefinementLevel] = useState(DEFAULT_REFINEMENT_LEVEL)
   const [processing, setProcessing] = useState(false)
   const [processError, setProcessError] = useState(null)
   // { rawTranscript, selectedLanguage } from the last successful transcription.
   const [transcript, setTranscript] = useState(null)
   const [polishedText, setPolishedText] = useState(null)
+  // The level the polished text was made with (or last attempted at, after a failure).
+  const [outputLevel, setOutputLevel] = useState(null)
   const [refining, setRefining] = useState(false)
   const [refinementError, setRefinementError] = useState(null)
   const [copyStatus, setCopyStatus] = useState('idle')
@@ -43,6 +48,7 @@ function App() {
     setProcessError(null)
     setTranscript(null)
     setPolishedText(null)
+    setOutputLevel(null)
     setRefining(false)
     setRefinementError(null)
     setCopyStatus('idle')
@@ -51,13 +57,16 @@ function App() {
   const handleRecordingComplete = useCallback(
     async (recording) => {
       const requestId = ++requestIdRef.current
+      // The level is captured here, when processing begins.
+      setOutputLevel(refinementLevel)
       setProcessing(true)
       try {
-        const data = await processAudio(recording, language)
+        const data = await processAudio(recording, language, refinementLevel)
         if (requestId !== requestIdRef.current) return
         setServerUnavailable(false)
         setTranscript({ rawTranscript: data.rawTranscript, selectedLanguage: data.selectedLanguage })
-        if (data.refinementStatus === 'success') {
+        setOutputLevel(data.refinementLevel ?? refinementLevel)
+        if (data.refinementStatus === 'success' || data.refinementStatus === 'skipped') {
           setPolishedText(data.polishedTranscript)
         } else {
           setRefinementError(REFINEMENT_FAILED)
@@ -68,7 +77,7 @@ function App() {
         if (requestId === requestIdRef.current) setProcessing(false)
       }
     },
-    [language],
+    [language, refinementLevel],
   )
 
   const recorder = useAudioRecorder({ onRecordingComplete: handleRecordingComplete })
@@ -78,14 +87,21 @@ function App() {
     recorder.start()
   }
 
-  // Retries only the refinement step, reusing the transcript and the language it was recorded with.
+  // Refines the same transcript again at the selected level, reusing the language it was recorded with.
   const retryRefinement = async () => {
     if (!transcript || refining) return
+    const level = refinementLevel
+    setOutputLevel(level)
+    setRefinementError(null)
+    // None is the raw transcript itself; there is nothing to ask the server.
+    if (level === 'none') {
+      setPolishedText(transcript.rawTranscript)
+      return
+    }
     const requestId = requestIdRef.current
     setRefining(true)
-    setRefinementError(null)
     try {
-      const data = await refineTranscript(transcript.rawTranscript, transcript.selectedLanguage)
+      const data = await refineTranscript(transcript.rawTranscript, transcript.selectedLanguage, level)
       if (requestId === requestIdRef.current) setPolishedText(data.polishedTranscript)
     } catch (err) {
       if (requestId === requestIdRef.current) {
@@ -137,10 +153,14 @@ function App() {
         <p className="text-slate-600">AI Voice-to-Text</p>
       </header>
 
-      <LanguageSelector value={language} onChange={setLanguage} />
+      <div className="flex flex-wrap gap-x-8 gap-y-4">
+        <LanguageSelector value={language} onChange={setLanguage} />
+        <RefinementLevelSelector value={refinementLevel} onChange={setRefinementLevel} />
+      </div>
 
       <Recorder
         status={processing ? 'processing' : recorder.status}
+        refinementLevel={outputLevel}
         elapsedMs={recorder.elapsedMs}
         maxDurationMs={recorder.maxDurationMs}
         onStart={startRecording}
@@ -170,6 +190,8 @@ function App() {
             value={polishedText}
             onChange={setPolishedText}
             lang={textLang}
+            outputLevel={outputLevel}
+            selectedLevel={refinementLevel}
             copyStatus={copyStatus}
             onCopy={copyPolishedText}
             refining={refining}
@@ -197,7 +219,8 @@ function App() {
               processed, and never saved to disk.
             </li>
             <li>
-              The audio is sent to OpenAI for transcription, and the transcript is sent to OpenAI for refinement. OpenAI
+              The audio is sent to OpenAI for transcription, and the transcript is sent to OpenAI for refinement unless
+              AI refinement is set to None. OpenAI
               does not use this data to train its models. Under its API data policy, OpenAI may keep the text sent for
               refinement for up to 30 days to monitor abuse.
             </li>

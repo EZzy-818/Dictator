@@ -9,7 +9,8 @@
     "test:live": "node scripts/live-transcription.js",
     "test:live:refine": "node scripts/live-refinement.js",
     "eval": "node scripts/eval-accuracy.js",
-    "test:acceptance": "node scripts/acceptance.js"
+    "test:acceptance": "node scripts/acceptance.js",
+    "test:live:levels": "node scripts/live-refinement-levels.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

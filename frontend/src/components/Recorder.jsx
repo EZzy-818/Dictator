@@ -7,7 +7,7 @@ const STATUS_TEXT = {
   processing: 'Transcribing and refining…',
 }
 
-function Recorder({ status, elapsedMs, maxDurationMs, onStart, onStop }) {
+function Recorder({ status, refinementLevel, elapsedMs, maxDurationMs, onStart, onStop }) {
   const isRecording = status === 'recording'
 
   return (
@@ -34,7 +34,7 @@ function Recorder({ status, elapsedMs, maxDurationMs, onStart, onStop }) {
 
         <div className="flex items-center gap-2 text-sm text-slate-700" role="status" aria-live="polite">
           {isRecording && <span className="size-3 animate-pulse rounded-full bg-red-600" aria-hidden="true" />}
-          <span>{STATUS_TEXT[status]}</span>
+          <span>{status === 'processing' && refinementLevel === 'none' ? 'Transcribing…' : STATUS_TEXT[status]}</span>
         </div>
 
         <span className="ml-auto font-mono text-sm tabular-nums text-slate-600" data-testid="timer">

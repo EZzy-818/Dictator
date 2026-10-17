@@ -75,6 +75,20 @@ describe('api service', () => {
     expect(options.body.get('audio').name).toBe('recording.mp4')
   })
 
+  it('sends the refinement level, defaulting to Light', async () => {
+    fetch.mockResolvedValue(response({ json: async () => ({ rawTranscript: 'x', polishedTranscript: 'x' }) }))
+    await processAudio(recording(), 'en')
+    await processAudio(recording(), 'en', 'medium')
+    await refineTranscript('hi', 'en')
+    await refineTranscript('hi', 'en', 'none')
+
+    const [process1, process2, refine1, refine2] = fetch.mock.calls.map(([, options]) => options.body)
+    expect(process1.get('refinementLevel')).toBe('light')
+    expect(process2.get('refinementLevel')).toBe('medium')
+    expect(JSON.parse(refine1).refinementLevel).toBe('light')
+    expect(JSON.parse(refine2).refinementLevel).toBe('none')
+  })
+
   it('checks health', async () => {
     fetch.mockResolvedValue(response({ json: async () => ({ status: 'ok' }) }))
     await expect(getHealth()).resolves.toEqual({ status: 'ok' })

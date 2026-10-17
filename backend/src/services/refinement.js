@@ -1,6 +1,7 @@
 import { APIConnectionTimeoutError } from 'openai'
 import { ApiError } from '../lib/errors.js'
 import { isSupportedLanguage } from '../lib/languages.js'
+import { DEFAULT_REFINEMENT_LEVEL } from '../lib/refinementLevels.js'
 import { buildRefinementInput, buildRefinementInstructions } from '../prompts/refinement.js'
 
 export const MAX_TRANSCRIPT_CHARS = 10_000
@@ -27,16 +28,20 @@ function stripTranscriptTags(text) {
   return text.replace(/^\s*<transcript>\s*/i, '').replace(/\s*<\/transcript>\s*$/i, '')
 }
 
-/** Returns the polished transcript. Throws ApiError on any failure. */
-export async function refineTranscript({ client, model, transcript, language }) {
+/**
+ * Returns the polished transcript. Throws ApiError on any failure.
+ * level "none" returns the transcript exactly as given, without calling the model.
+ */
+export async function refineTranscript({ client, model, transcript, language, level = DEFAULT_REFINEMENT_LEVEL }) {
   validateRefinementRequest(transcript, language)
+  if (level === 'none') return transcript
 
   let response
   try {
     response = await client.responses.create(
       {
         model,
-        instructions: buildRefinementInstructions(language),
+        instructions: buildRefinementInstructions(language, level),
         input: buildRefinementInput(transcript),
         max_output_tokens: MAX_OUTPUT_TOKENS,
         // Editing should be as repeatable as possible. Reasoning models reject this parameter.
