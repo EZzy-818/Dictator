@@ -272,3 +272,138 @@ describe('refinement alongside the name check', () => {
     expect(openai.responses.create).not.toHaveBeenCalled()
   })
 })
+
+// Regression cases from the name check benchmark (eval/results/name-check-report.md). Each pair is
+// gpt-transcribe's text and the check's text of the same synthetic recording, or a close variant.
+describe('name check regressions', () => {
+  it.each([
+    // Numbers: the same value written as numerals in one transcript and digits in the other stays
+    // exactly as gpt-transcribe wrote it, units and percent signs included.
+    ['如果 error rate 超过百分之二就直接 roll back，不要等。', '如果error rate超过2%就直接roll back，不要等。'],
+    ['我们 Thursday，actually no，Friday 晚上十点开始 deploy。', '我们Thursday，actually no，Friday晚上10点开始deploy。'],
+    ['会议改到十点半，在三楼的会议室。', '会议改到10:30，在3楼的会议室。'],
+    ['The server costs about 两千块 a month, so we should cut it.', 'The server costs about 2000块 a month, so we should cut it.'],
+    ['我们订单表等到双十一之后再迁。', '我们订单表等到双11之后再迁。'],
+    // Hindi is written in Devanagari, which the check does not compare, so it never changes Hindi.
+    ['हम चार लोगों को हायर करेंगे, PostgreSQL use करेंगे।', 'हम 4 लोगों को हायर करेंगे, PostgreSQL use करेंगे।'],
+    ['मुझे लगता है कि हमें अगले हफ्ते मीटिंग करनी चाहिए।', 'मुझे लगता है कि हमें अगले हफ़्ते मीटिंग करनी चाहिए।'],
+    // An English name said in English inside Chinese stays English when the check writes it in Chinese.
+    ['backend 由 Alex 负责，frontend 由小王负责。', 'backend由亚历克斯负责，frontend由小王负责。'],
+    // A homophone in the same script is not a language swap (刘阳 vs 刘洋).
+    ['刘阳会在周五之前把会议纪要发给大家。', '刘洋会在周五之前把会议纪要发给大家。'],
+  ])('leaves %j as gpt-transcribe wrote it', (transcript, check) => {
+    expect(restoreSpokenNames(transcript, check)).toEqual({ text: transcript, swapped: 0, swaps: [] })
+  })
+
+  it.each([
+    // Proper names said in Mandarin inside English.
+    ['We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near Wutan better.', 'We flew from Shanghai to Beijing last week, but honestly I liked the hotel near 外滩 better.', 'We flew from Shanghai to Beijing last week, but honestly, I liked the hotel near 外滩 better.'],
+    ['My friend just started at Tencent, and she says the Weixin team is really busy right now.', 'My friend just started at 腾讯, and she says the 微信 team is really busy right now.', 'My friend just started at 腾讯, and she says the 微信 team is really busy right now.'],
+    ['嗯，你好，我的名字叫王宇辰, and I just graduated from New York大学 with a bachelor degree.', '嗯你好，我的名字叫王宇辰,and I just graduated from 纽约大学 with a bachelor degree.', '嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree.'],
+    // Code-switching: English words gpt-transcribe heard or wrote in Chinese, and the reverse.
+    ["Don't push down main branch, 先开PR.", "Don't push 到 main branch，先开 PR。", "Don't push 到 main branch, 先开PR."],
+    ['我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且团队里大家都比较熟。', '我觉得我们应该用PostgreSQL，因为它处理关系型数据更好，而且team里大家都比较熟。', '我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。'],
+    // A name and a number in one sentence: the name is restored, the number is not touched.
+    ['我朋友在 Google 工作，他下个月十号要搬到西雅图去。', '我朋友在Google工作，他下个月10号要搬到Seattle去。', '我朋友在 Google 工作，他下个月十号要搬到 Seattle 去。'],
+  ])('restores %j', (transcript, check, expected) => {
+    expect(restoreSpokenNames(transcript, check).text).toBe(expected)
+  })
+
+  it('reports each swap so it can be repeated in the refined text', () => {
+    const { swaps } = restoreSpokenNames('My friend just started at Tencent, and she says the Weixin team is really busy.', 'My friend just started at 腾讯, and she says the 微信 team is really busy.')
+    expect(swaps).toEqual([
+      { from: 'Tencent', to: '腾讯' },
+      { from: 'Weixin', to: '微信' },
+    ])
+  })
+})
+
+describe('second refinement pass alongside the name check', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+  })
+
+  afterEach(() => vi.restoreAllMocks())
+
+  const COMPANY = 'My friend just started at Tencent, and she says the Weixin team is really busy right now.'
+  const COMPANY_CHECK = 'My friend just started at 腾讯, and she says the 微信 team is really busy right now.'
+  const TEAM = '我觉得我们应该用 PostgreSQL，而且团队里大家都比较熟。'
+  const TEAM_CHECK = '我觉得我们应该用PostgreSQL，而且team里大家都比较熟。'
+  const post = (app, level) =>
+    request(app).post('/api/process').field('refinementLevel', level).attach('audio', AUDIO_SAMPLES.webm, { filename: 'blob', contentType: 'audio/webm' })
+  const transcripts = (main, check) => async ({ model }) => ({ text: model === 'gpt-transcribe' ? main : check })
+  const inputOf = (body) => body.input.match(/<transcript>\n?([\s\S]*?)\n?<\/transcript>/)[1]
+  const app = (openai) => createTestApp({ openai, env: { NAME_CHECK_MODEL: 'gpt-4o-transcribe', NAME_CHECK_OVERLAP: 'true', EXPOSE_TIMINGS: 'false' } }).app
+
+  it.each(['light', 'medium'])('places a code-switched word in the refined text at %s', async (level) => {
+    const openai = fakeOpenAI(transcripts(TEAM, TEAM_CHECK), async (body) => ({ status: 'completed', output_text: inputOf(body).replace('而且', '并且') }))
+    const res = await post(app(openai), level)
+
+    expect(res.body.rawTranscript).toBe('我觉得我们应该用 PostgreSQL，而且 team 里大家都比较熟。')
+    expect(res.body.polishedTranscript).toBe('我觉得我们应该用 PostgreSQL，并且 team 里大家都比较熟。')
+    expect(openai.responses.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('places every swap when there are several', async () => {
+    const openai = fakeOpenAI(transcripts(COMPANY, COMPANY_CHECK), async (body) => ({ status: 'completed', output_text: inputOf(body).replace(' right now', '') }))
+    const res = await post(app(openai), 'light')
+
+    expect(res.body.polishedTranscript).toBe('My friend just started at 腾讯, and she says the 微信 team is really busy.')
+    expect(openai.responses.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('refines again when one of several swaps cannot be placed', async () => {
+    // The first pass dropped Weixin, so 微信 has nowhere to go: the changed transcript is refined.
+    const openai = fakeOpenAI(transcripts(COMPANY, COMPANY_CHECK), async (body) => ({ status: 'completed', output_text: inputOf(body).replace('the Weixin team', 'the team') }))
+    const res = await post(app(openai), 'medium')
+
+    expect(res.body.rawTranscript).toBe(COMPANY_CHECK)
+    expect(res.body.polishedTranscript).toBe(COMPANY_CHECK)
+    expect(openai.responses.create).toHaveBeenCalledTimes(2)
+    expect(inputOf(openai.responses.create.mock.calls[1][0])).toBe(COMPANY_CHECK)
+  })
+
+  it('refines again when the name appears more than once in the refined text', async () => {
+    const openai = fakeOpenAI(transcripts(COMPANY, COMPANY_CHECK), async (body) => ({ status: 'completed', output_text: `${inputOf(body)} Tencent!` }))
+    const res = await post(app(openai), 'light')
+
+    expect(res.body.polishedTranscript).toBe(`${COMPANY_CHECK} Tencent!`)
+    expect(openai.responses.create).toHaveBeenCalledTimes(2)
+  })
+
+  it('refines the changed transcript when the first pass fails', async () => {
+    let calls = 0
+    const openai = fakeOpenAI(transcripts(COMPANY, COMPANY_CHECK), async (body) => {
+      if (calls++ === 0) throw Object.assign(new Error('boom'), { status: 500 })
+      return { status: 'completed', output_text: inputOf(body) }
+    })
+    const res = await post(app(openai), 'light')
+
+    expect(res.body.refinementStatus).toBe('success')
+    expect(res.body.polishedTranscript).toBe(COMPANY_CHECK)
+  })
+
+  it('reports a refinement failure when the second pass fails too, keeping the changed raw transcript', async () => {
+    let calls = 0
+    const openai = fakeOpenAI(transcripts(COMPANY, COMPANY_CHECK), async (body) => {
+      if (calls++ === 0) return { status: 'completed', output_text: inputOf(body).replace('the Weixin team', 'the team') }
+      throw Object.assign(new Error('boom'), { status: 500 })
+    })
+    const res = await post(app(openai), 'light')
+
+    expect(res.status).toBe(200)
+    expect(res.body.rawTranscript).toBe(COMPANY_CHECK)
+    expect(res.body.polishedTranscript).toBeNull()
+    expect(res.body.refinementStatus).toBe('failed')
+  })
+
+  it('never refines twice when the check changes nothing', async () => {
+    const openai = fakeOpenAI(transcripts('会议改到十点半。', '会议改到10:30。'), async (body) => ({ status: 'completed', output_text: inputOf(body) }))
+    const res = await post(app(openai), 'medium')
+
+    expect(res.body.rawTranscript).toBe('会议改到十点半。')
+    expect(res.body.polishedTranscript).toBe('会议改到十点半。')
+    expect(openai.responses.create).toHaveBeenCalledTimes(1)
+  })
+})
