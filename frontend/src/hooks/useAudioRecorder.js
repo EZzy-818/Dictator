@@ -57,6 +57,7 @@ export function formatDuration(ms) {
  *
  * status: 'idle' | 'requesting' (waiting for microphone permission) | 'recording'
  * recording: { blob, mimeType, durationMs } after a successful stop, otherwise null
+ * stream: the microphone MediaStream while recording, otherwise null
  * onRecordingComplete: called with that same object when a recording finishes successfully
  */
 export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecordingComplete } = {}) {
@@ -65,6 +66,8 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
   const [recording, setRecording] = useState(null)
   const [error, setError] = useState(null)
   const [stoppedAtLimit, setStoppedAtLimit] = useState(false)
+  // The live microphone stream while recording, so the page can draw its level. Null otherwise.
+  const [stream, setStream] = useState(null)
 
   const busyRef = useRef(false)
   const recorderRef = useRef(null)
@@ -82,6 +85,7 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
     clearTimeout(limitRef.current)
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
+    setStream(null)
   }, [])
 
   const stop = useCallback(() => {
@@ -169,6 +173,7 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
     recorder.start()
     startedAt = Date.now()
     setStatus('recording')
+    setStream(streamRef.current)
 
     timerRef.current = setInterval(() => setElapsedMs(Date.now() - startedAt), 250)
     limitRef.current = setTimeout(() => {
@@ -189,5 +194,5 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
     }
   }, [releaseMicrophone])
 
-  return { status, elapsedMs, maxDurationMs, recording, error, stoppedAtLimit, start, stop }
+  return { status, elapsedMs, maxDurationMs, recording, error, stoppedAtLimit, stream, start, stop }
 }

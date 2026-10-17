@@ -5,4 +5,39 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC",
     "Source Han Sans SC", sans-serif;
+
+  --color-brand-blue: #4f7dff;
+  --color-brand-violet: #8b5cf6;
+  --color-navy: #111a33;
+  --color-navy-hover: #1c2747;
+
+  /* A small overshoot that settles, for the refinement bubble. */
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@layer base {
+  body {
+    background:
+      radial-gradient(60rem 30rem at 15% -10%, rgb(79 125 255 / 0.12), transparent 70%),
+      radial-gradient(50rem 28rem at 95% 0%, rgb(139 92 246 / 0.12), transparent 70%),
+      #f6f7fb;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@keyframes mic-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.85;
+  }
+}
+
+@utility animate-mic-glow {
+  animation: mic-glow 2.4s ease-in-out infinite;
 }

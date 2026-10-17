@@ -1,45 +1,75 @@
 import { formatDuration } from '../hooks/useAudioRecorder.js'
+import Waveform from './Waveform.jsx'
+import { MicIcon, SpinnerIcon, StopIcon } from './icons.jsx'
 
-const STATUS_TEXT = {
-  idle: 'Ready to record',
-  requesting: 'Waiting for microphone permission…',
-  recording: 'Recording',
-  processing: 'Transcribing and refining…',
+// The four states a person sees. 'requesting' (waiting for microphone permission) reads as Recording starting.
+const STATE_LABEL = { idle: 'Ready', recording: 'Recording', processing: 'Processing', error: 'Error' }
+
+const STATE_DOT = {
+  idle: 'bg-emerald-500',
+  recording: 'bg-rose-500 motion-safe:animate-pulse',
+  processing: 'bg-brand-violet motion-safe:animate-pulse',
+  error: 'bg-red-500',
 }
 
-function Recorder({ status, refinementLevel, elapsedMs, maxDurationMs, onStart, onStop }) {
+const HINT = {
+  idle: 'Tap the microphone to start',
+  requesting: 'Waiting for microphone permission…',
+  recording: 'Tap to stop',
+  processing: 'Transcribing and refining…',
+  error: 'Tap the microphone to try again',
+}
+
+function Recorder({ status, failed, refinementLevel, elapsedMs, maxDurationMs, stream, onStart, onStop }) {
   const isRecording = status === 'recording'
+  const isBusy = status === 'requesting' || status === 'processing'
+  const state = isRecording || status === 'requesting' ? 'recording' : status === 'processing' ? 'processing' : failed ? 'error' : 'idle'
+  const hint =
+    status === 'processing' && refinementLevel === 'none'
+      ? 'Transcribing…'
+      : HINT[status === 'idle' && failed ? 'error' : status]
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center gap-4">
-        {isRecording ? (
-          <button
-            type="button"
-            onClick={onStop}
-            className="rounded-lg bg-red-600 px-5 py-2.5 font-medium text-white hover:bg-red-700"
-          >
-            Stop Recording
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onStart}
-            disabled={status === 'requesting' || status === 'processing'}
-            className="rounded-lg bg-slate-900 px-5 py-2.5 font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Start Recording
-          </button>
-        )}
+    <section className="flex flex-col items-center gap-5 py-2" aria-label="Recorder">
+      <div className="relative grid size-32 place-items-center sm:size-36">
+        <span
+          aria-hidden="true"
+          className={`absolute inset-0 rounded-full bg-gradient-to-br from-brand-blue to-brand-violet blur-2xl transition-opacity duration-500 ${
+            isRecording ? 'opacity-60 motion-safe:animate-mic-glow' : 'opacity-25'
+          }`}
+        />
+        <button
+          type="button"
+          onClick={isRecording ? onStop : onStart}
+          disabled={isBusy}
+          aria-label={isRecording ? 'Stop Recording' : 'Start Recording'}
+          className="relative grid size-24 place-items-center rounded-full bg-gradient-to-br from-brand-blue to-brand-violet text-white shadow-[0_10px_30px_-6px_rgb(99_102_241/0.55)] ring-4 ring-white transition duration-200 hover:scale-[1.03] hover:shadow-[0_14px_36px_-6px_rgb(99_102_241/0.65)] focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-brand-blue active:scale-95 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100 motion-reduce:transition-none motion-reduce:hover:scale-100 sm:size-28"
+        >
+          {isRecording ? (
+            <StopIcon className="size-9" />
+          ) : status === 'processing' ? (
+            <SpinnerIcon className="size-9 motion-safe:animate-spin" />
+          ) : (
+            <MicIcon className="size-10" />
+          )}
+        </button>
+      </div>
 
-        <div className="flex items-center gap-2 text-sm text-slate-700" role="status" aria-live="polite">
-          {isRecording && <span className="size-3 animate-pulse rounded-full bg-red-600" aria-hidden="true" />}
-          <span>{status === 'processing' && refinementLevel === 'none' ? 'Transcribing…' : STATUS_TEXT[status]}</span>
+      <Waveform stream={isRecording ? stream : null} />
+
+      <div className="flex flex-col items-center gap-1.5 text-center">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+            <span className={`size-2 rounded-full ${STATE_DOT[state]}`} aria-hidden="true" />
+            {STATE_LABEL[state]}
+          </span>
+          <span className="font-mono text-sm text-slate-500 tabular-nums" data-testid="timer">
+            {formatDuration(elapsedMs)} / {formatDuration(maxDurationMs)}
+          </span>
         </div>
-
-        <span className="ml-auto font-mono text-sm tabular-nums text-slate-600" data-testid="timer">
-          {formatDuration(elapsedMs)} / {formatDuration(maxDurationMs)}
-        </span>
+        <p className="text-sm text-slate-500" role="status" aria-live="polite">
+          {hint}
+        </p>
       </div>
     </section>
   )

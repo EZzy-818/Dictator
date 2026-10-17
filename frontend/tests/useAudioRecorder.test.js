@@ -89,6 +89,18 @@ describe('useAudioRecorder', () => {
     expect(media.tracks[0].stop).toHaveBeenCalled()
   })
 
+  it('exposes the microphone stream only while recording', async () => {
+    const { result } = renderHook(() => useAudioRecorder())
+    expect(result.current.stream).toBeNull()
+
+    await startRecording(result)
+    expect(result.current.stream.getTracks()).toEqual([media.tracks[0]])
+
+    advance(1_000)
+    act(() => result.current.stop())
+    expect(result.current.stream).toBeNull()
+  })
+
   it('uses the format the browser actually supports', async () => {
     removeMediaMocks()
     media = installMediaMocks({ supportedTypes: ['audio/mp4'] })
