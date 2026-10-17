@@ -42,6 +42,50 @@ describe('restoreSpokenNames', () => {
     expect(restoreSpokenNames(transcript, check)).toEqual({ text: transcript, swapped: 0 })
   })
 
+  // Numbers, amounts and dates the two models write differently are left as gpt-transcribe wrote
+  // them: swapping in the digits drops the symbol or unit beside them and changes the meaning.
+  it.each([
+    // Percentages, from the model benchmark (zh-30-c, mixed-30-a): the check's "15%" became "15".
+    ['今天的会议主要讨论了三件事：第一，下个季度的预算增加百分之十五；第二，招聘计划从五个人调整到七个人。', '今天的会议主要讨论了三件事：第一，下个季度的预算增加15%，第二，招聘计划从五个人调整到七个人。'],
+    ['backend 由 Alex 负责，frontend 由小王负责，如果 error rate 超过百分之二就直接 rollback，不要等。', 'backend由Alex负责，frontend由小王负责，如果error rate超过2%就直接rollback，不要等。'],
+    // Numbers and amounts.
+    ['请把合同发给李娜，金额是两万五千元，记得抄送财务部。', '请把合同发给李娜，金额是25,000元，记得抄送财务部。'],
+    ['我们下个月要招两个 senior engineers，one for backend.', '我们下个月要招2个senior engineers，one for backend.'],
+    ['The latency is about 八百毫秒 on average, which is way too slow.', 'The latency is about 800毫秒 on average, which is way too slow.'],
+    // Currency.
+    ['这个 plan 每个月要五美元，我觉得太贵了。', '这个plan每个月要$5，我觉得太贵了。'],
+    ['这个 plan 每个月要五十块钱，我觉得太贵了。', '这个plan每个月要50块钱，我觉得太贵了。'],
+    // Dates and times.
+    ['付款时间是下个月十号，记得抄送财务部。', '付款时间是下个月10号，记得抄送财务部。'],
+    ['迁移窗口定在凌晨两点到四点，预计影响不超过十分钟。', '迁移窗口定在凌晨2点到4点，预计影响不超过10分钟。'],
+    ["Let's move the launch to 三月十五号, after the review.", "Let's move the launch to 3月15号, after the review."],
+    ['我们 Friday 晚上十点开始 deploy，预计 downtime 不超过 fifteen minutes。', '我们Friday晚上10点开始deploy，预计downtime不超过fifteen minutes。'],
+  ])('keeps the number in %j', (transcript, check) => {
+    expect(restoreSpokenNames(transcript, check)).toEqual({ text: transcript, swapped: 0 })
+  })
+
+  it.each([
+    // A name next to a number is still restored, and the number is kept as gpt-transcribe wrote it.
+    [
+      '我明年想去纽约大学读研究生，学费大概是五万美元。',
+      '我明年想去New York University读研究生，学费大概是5万美元。',
+      '我明年想去New York University读研究生，学费大概是五万美元。',
+    ],
+    [
+      "I'm meeting Zhang老师 at three, and the budget is 百分之十 higher.",
+      "I'm meeting 张老师 at three, and the budget is 10% higher.",
+      "I'm meeting 张老师 at three, and the budget is 百分之十 higher.",
+    ],
+    // From the model benchmark (mixed-15-a): an English word gpt-transcribe translated, with no number nearby.
+    [
+      '我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且团队里大家都比较熟。',
+      '我觉得我们应该用PostgreSQL，因为它处理关系型数据更好，而且team里大家都比较熟。',
+      '我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。',
+    ],
+  ])('restores the name but not the number in %j', (transcript, check, expected) => {
+    expect(restoreSpokenNames(transcript, check).text).toBe(expected)
+  })
+
   it('keeps the transcript when there is no check', () => {
     expect(restoreSpokenNames(NYU, null)).toEqual({ text: NYU, swapped: 0 })
   })
