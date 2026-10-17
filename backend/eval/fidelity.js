@@ -90,8 +90,20 @@ export function verbatimErrorRate(reference, transcript) {
   return { ...result, errors, rate: result.N ? errors / result.N : 0 }
 }
 
-export function scoreFidelity(reference, transcript) {
+/**
+ * Names and terms that must come back exactly as spoken, in the language they were said in
+ * ("纽约大学" said in Mandarin inside an English sentence must not become "New York University").
+ * Spaces are ignored. Returns { expected, kept, missing: [...] }.
+ */
+export function compareTerms(terms, transcript) {
+  const compact = (text) => text.normalize('NFKC').toLowerCase().replace(/\s+/g, '')
+  const missing = terms.filter((term) => !compact(transcript).includes(compact(term)))
+  return { expected: terms.length, kept: terms.length - missing.length, missing }
+}
+
+export function scoreFidelity(reference, transcript, terms = []) {
   return {
+    terms: compareTerms(terms, transcript),
     languages: compareLanguages(reference, transcript),
     fillers: compareFillers(reference, transcript),
     verbatim: verbatimErrorRate(reference, transcript),

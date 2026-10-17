@@ -11,7 +11,14 @@ describe('GET /api/health', () => {
     const res = await request(app).get('/api/health')
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ status: 'ok', openaiConfigured: true, transcriptionModel: 'gpt-transcribe', refinementModel: 'gpt-4.1' })
+    expect(res.body).toEqual({ status: 'ok', openaiConfigured: true, transcriptionModel: 'gpt-transcribe', nameCheckModel: 'gpt-4o-transcribe', refinementModel: 'gpt-4.1' })
+  })
+
+  it('reports the name check as off when NAME_CHECK_MODEL is empty', async () => {
+    const app = createApp(loadConfig({ OPENAI_API_KEY: SECRET, NAME_CHECK_MODEL: '' }))
+    const res = await request(app).get('/api/health')
+
+    expect(res.body.nameCheckModel).toBeNull()
   })
 
   it('reports a TRANSCRIPTION_MODEL override', async () => {
@@ -57,6 +64,7 @@ describe('config', () => {
     expect(config.port).toBe(3001)
     expect(config.transcriptionModel).toBe('gpt-transcribe')
     expect(config.refinementModel).toBe('gpt-4.1')
+    expect(config.nameCheckModel).toBe('gpt-4o-transcribe')
   })
 
   it('reads model names from the environment', () => {

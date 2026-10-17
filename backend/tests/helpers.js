@@ -23,6 +23,7 @@ export function fakeOpenAI(
 }
 
 export function createTestApp({ openai = fakeOpenAI(), env = {}, log = () => {}, createStore } = {}) {
-  const config = loadConfig({ OPENAI_API_KEY: 'sk-test', ...env })
+  // The name check makes a second transcription request; tests that want it turn it on.
+  const config = loadConfig({ OPENAI_API_KEY: 'sk-test', NAME_CHECK_MODEL: '', ...env })
   return { app: createApp(config, { openai, log, createStore }), openai, config }
 }

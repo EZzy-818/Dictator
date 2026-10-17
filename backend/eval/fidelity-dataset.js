@@ -2,8 +2,9 @@
 // Synthetic samples are spoken by OpenAI text-to-speech, so they test the transcription model
 // on clear, deliberate fillers; a person's quick, quiet "uh" is harder. See docs/evaluation.md.
 //
-// Each case: id, group, script (spoken text = verbatim reference), voice, and casual: true to ask
-// the speech model for relaxed, hesitant delivery.
+// Each case: id, group, script (spoken text = verbatim reference), voice, casual: true to ask
+// the speech model for relaxed, hesitant delivery, and terms: names that must come back exactly
+// as written, in the language they were said in.
 
 export const FIDELITY_GROUPS = {
   mixed: 'Mandarin-English code-switching',
@@ -34,6 +35,24 @@ export const FIDELITY_CASES = [
   { id: 'zh-heavy-timeline', group: 'mixed', voice: 'onyx', script: '我觉得这个方案还可以，但是我们需要再讨论一下 timeline，因为下个月大家都很忙。' },
   { id: 'zh-heavy-retention', group: 'mixed', voice: 'shimmer', script: '昨天开会的时候老板说，我们这个季度的重点是提高用户留存，especially for new users。' },
   { id: 'zh-heavy-update', group: 'mixed', voice: 'alloy', script: '好，我先说一下今天的进度。前端那边登录页面已经做完了，后端的 API 还差两个接口，然后测试环境明天应该能搭好。如果没有问题的话，我们下周三就可以 release。' },
+
+  // Chinese names inside English sentences, which the model tends to write in English (纽约大学 as
+  // "New York University"). The first is a sentence a user reported. The last two are the reverse:
+  // English names said in English, which must stay English.
+  {
+    id: 'mix-intro-nyu',
+    group: 'mixed',
+    voice: 'echo',
+    casual: true,
+    terms: ['纽约大学', '计算机科学', '王宇辰'],
+    script: '嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it\'s really nice for me to meet you today. 我想要更多地了解你。',
+  },
+  { id: 'mix-en-zh-school', group: 'mixed', voice: 'nova', terms: ['张老师', '清华大学'], script: "I'm meeting 张老师 at 清华大学 tomorrow, so I'll be a little late for the call." },
+  { id: 'mix-en-zh-places', group: 'mixed', voice: 'onyx', terms: ['上海', '北京', '外滩'], script: 'We flew from 上海 to 北京 last week, but honestly I liked the hotel near 外滩 better.' },
+  { id: 'mix-en-zh-company', group: 'mixed', voice: 'shimmer', terms: ['腾讯', '微信'], script: 'My friend just started at 腾讯, and she says the 微信 team is really busy right now.' },
+  { id: 'mix-en-zh-major', group: 'mixed', voice: 'alloy', terms: ['人工智能', '机器学习'], script: 'Next year I want to study 人工智能, especially 机器学习, at a school in California.' },
+  { id: 'mix-zh-en-school', group: 'mixed', voice: 'coral', terms: ['New York University'], script: '我明年想去 New York University 读研究生，学 computer science。' },
+  { id: 'mix-zh-en-names', group: 'mixed', voice: 'echo', terms: ['Google', 'Seattle'], script: '我朋友在 Google 工作，他下个月要搬到 Seattle 去。' },
 
   { id: 'en-fillers-spec', group: 'fillers_en', voice: 'alloy', casual: true, script: 'Um, I think we should, uh, use PostgreSQL.' },
   { id: 'en-fillers-many', group: 'fillers_en', voice: 'onyx', casual: true, script: 'Um, so, uh, I was thinking, you know, that we could, um, maybe move the meeting to Friday.' },

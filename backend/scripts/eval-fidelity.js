@@ -10,6 +10,7 @@
 //   npm run eval:fidelity -- --runs=3 --only=mix-postgres,en-fillers-spec
 //   npm run eval:fidelity -- --voice=onyx --noise=15  every sample in another voice, with pink noise at 15 dB SNR
 //   npm run eval:fidelity -- --out=fidelity-noisy         report name in eval/results/
+//   npm run eval:fidelity -- --settings=app,no-name-check   the app with and without the name check (src/lib/names.js)
 //   npm run eval:fidelity -- --source=voice        your recordings in .eval-samples/fidelity-voice/<id>.<ext>
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -17,6 +18,7 @@ import dotenv from 'dotenv'
 import OpenAI, { toFile } from 'openai'
 import { loadConfig } from '../src/config.js'
 import { TRANSCRIPTION_PROMPT, transcriptionParams } from '../src/services/transcription.js'
+import { restoreSpokenNames } from '../src/lib/names.js'
 import { FIDELITY_CASES, FIDELITY_GROUPS } from '../eval/fidelity-dataset.js'
 import { scoreFidelity } from '../eval/fidelity.js'
 import { addNoise } from '../eval/noise.js'
@@ -35,12 +37,23 @@ const ALL = ['zh', 'en', 'hi']
 const BILINGUAL_PROMPT =
   'Dictation that mixes English, Mandarin Chinese and Hindi, often in one sentence. Write each part in the language it was spoken in, including filler words like um, uh. 中英混说的口述：中文部分用简体中文写，英文部分保留英文，不要翻译，保留“嗯”“呃”等语气词。'
 
+// Candidates for keeping Chinese names Chinese inside English sentences. The names in them are not
+// in the dataset, so they cannot simply be copied.
+const NAMES_PROMPT = `${TRANSCRIPTION_PROMPT} This includes names of people, places, schools and companies: a name said in Mandarin stays in Chinese characters even inside an English sentence, and a name said in English stays in English even inside a Chinese sentence.`
+const EXAMPLE_PROMPT =
+  '嗯，我上个月去了 the new office in 深圳, and 李经理 said we can start 下周. Um, my sister studies at 复旦大学, and she works part-time at Starbucks.'
+
+const NAMES_EXPLICIT_PROMPT = `${TRANSCRIPTION_PROMPT} Names of people, places, schools and companies are written in the language they were spoken in: if the speaker says 复旦大学, 深圳 or 李明 in Mandarin inside an English sentence, write 复旦大学, 深圳 and 李明, not Fudan University, Shenzhen or Li Ming. A name said in English stays in English inside a Chinese sentence.`
+const NAMES_EXAMPLE_PROMPT =
+  "Um, I did my master's at 复旦大学, and then I moved to 深圳 to work at 华为 with 李明. 后来我们去了 Stanford 和 Microsoft 交流了一下。"
+
 const config = loadConfig()
 const model = config.transcriptionModel
 
-// name: [label, model, params]
+// name: [label, model, params, name check model]
 const SETTINGS = {
-  app: [`App (${model}, zh+en+hi, app prompt)`, model, transcriptionParams(model)],
+  app: [`App (${model}, zh+en+hi, app prompt${config.nameCheckModel ? `, name check with ${config.nameCheckModel}` : ''})`, model, transcriptionParams(model), config.nameCheckModel],
+  'no-name-check': [`${model}, zh+en+hi, app prompt, no name check`, model, transcriptionParams(model)],
   'all-no-prompt': ['zh+en+hi, no prompt', 'gpt-transcribe', { languages: ALL }],
   auto: ['Auto (no languages, no prompt)', 'gpt-transcribe', {}],
   'auto-prompt': ['Auto (no languages), app prompt', 'gpt-transcribe', { prompt: TRANSCRIPTION_PROMPT }],
@@ -48,6 +61,16 @@ const SETTINGS = {
   zh: ['Mandarin only, app prompt', 'gpt-transcribe', { languages: ['zh'], prompt: TRANSCRIPTION_PROMPT }],
   hi: ['Hindi only, app prompt', 'gpt-transcribe', { languages: ['hi'], prompt: TRANSCRIPTION_PROMPT }],
   'bilingual-prompt': ['zh+en+hi, half-Chinese prompt (candidate)', 'gpt-transcribe', { languages: ALL, prompt: BILINGUAL_PROMPT }],
+  names: ['zh+en+hi, app prompt + names sentence (candidate)', 'gpt-transcribe', { languages: ALL, prompt: NAMES_PROMPT }],
+  example: ['zh+en+hi, code-switched example prompt (candidate)', 'gpt-transcribe', { languages: ALL, prompt: EXAMPLE_PROMPT }],
+  'names-example': ['zh+en+hi, names sentence + example (candidate)', 'gpt-transcribe', { languages: ALL, prompt: `${NAMES_PROMPT} Example: ${EXAMPLE_PROMPT}` }],
+  'names-explicit': ['zh+en+hi, app prompt + explicit names rule (candidate)', 'gpt-transcribe', { languages: ALL, prompt: NAMES_EXPLICIT_PROMPT }],
+  'names-example2': ['zh+en+hi, names-in-English example prompt (candidate)', 'gpt-transcribe', { languages: ALL, prompt: NAMES_EXAMPLE_PROMPT }],
+  'names-both': ['zh+en+hi, explicit names rule + example (candidate)', 'gpt-transcribe', { languages: ALL, prompt: `${NAMES_EXPLICIT_PROMPT} Example: ${NAMES_EXAMPLE_PROMPT}` }],
+  'names-example2-zhen': ['zh+en, names-in-English example prompt (candidate)', 'gpt-transcribe', { languages: ['zh', 'en'], prompt: NAMES_EXAMPLE_PROMPT }],
+  'names-example2-auto': ['Auto, names-in-English example prompt (candidate)', 'gpt-transcribe', { prompt: NAMES_EXAMPLE_PROMPT }],
+  mini: ['gpt-4o-mini-transcribe, app prompt', 'gpt-4o-mini-transcribe', { prompt: TRANSCRIPTION_PROMPT }],
+  live: ['gpt-live-transcribe, zh+en+hi, app prompt', 'gpt-live-transcribe', transcriptionParams('gpt-live-transcribe')],
   keywords: ['zh+en+hi, app prompt, filler keywords (candidate)', 'gpt-transcribe', { ...transcriptionParams('gpt-transcribe'), keywords: ['um', 'uh', '嗯', '呃'] }],
   '4o': ['gpt-4o-transcribe, app prompt', 'gpt-4o-transcribe', { prompt: TRANSCRIPTION_PROMPT }],
   whisper: ['whisper-1, no prompt', 'whisper-1', {}],
@@ -136,14 +159,19 @@ for (const testCase of cases) {
 
 const tasks = []
 for (const name of settingNames) {
-  const [, settingModel, params] = SETTINGS[name]
+  const [, settingModel, params, nameCheckModel] = SETTINGS[name]
   for (const testCase of cases) {
     if (!samples[testCase.id]) continue
     for (let run = 1; run <= runs; run++) {
       tasks.push(async () => {
         try {
-          const { text, detected } = await transcribe(samples[testCase.id], settingModel, params)
-          return { setting: name, id: testCase.id, run, text, detected, ...scoreFidelity(testCase.script, text) }
+          const [main, check] = await Promise.all([
+            transcribe(samples[testCase.id], settingModel, params),
+            nameCheckModel ? transcribe(samples[testCase.id], nameCheckModel, transcriptionParams(nameCheckModel)).catch(() => null) : null,
+          ])
+          const { detected } = main
+          const text = restoreSpokenNames(main.text, check?.text).text
+          return { setting: name, id: testCase.id, run, text, detected, ...scoreFidelity(testCase.script, text, testCase.terms) }
         } catch (err) {
           return { setting: name, id: testCase.id, run, error: `${err.status ?? ''} ${err.message}`.trim() }
         }
@@ -165,6 +193,8 @@ const summary = settingNames.map((name) => {
     runs: rows.length,
     errors: results.filter((row) => row.setting === name && row.error).length,
     languagesPreserved: rows.filter((row) => row.languages.preserved).length,
+    termsKept: sum((row) => row.terms.kept),
+    termsExpected: sum((row) => row.terms.expected),
     fillersKept: sum((row) => row.fillers.kept),
     fillersExpected: sum((row) => row.fillers.expected),
     fillersInvented: sum((row) => row.fillers.invented),
@@ -178,14 +208,14 @@ const lines = [
   '',
   `Source: ${source === 'voice' ? 'your recordings' : `synthetic speech (OpenAI text-to-speech, not a human voice)${voiceOverride ? `, voice ${voiceOverride}` : ''}${noiseSnrDb === undefined ? '' : `, pink noise at ${noiseSnrDb} dB SNR`}`}. ${runs} runs per sample. Raw transcripts only; no refinement.`,
   '',
-  '| Setting | Languages kept | Fillers kept | Fillers invented | Verbatim error rate | Failed requests |',
-  '| --- | --- | --- | --- | --- | --- |',
+  '| Setting | Languages kept | Names kept as spoken | Fillers kept | Fillers invented | Verbatim error rate | Failed requests |',
+  '| --- | --- | --- | --- | --- | --- | --- |',
   ...summary.map(
     (row) =>
-      `| ${row.label} | ${row.languagesPreserved}/${row.runs} | ${row.fillersKept}/${row.fillersExpected} (${pct(row.fillersKept, row.fillersExpected)}) | ${row.fillersInvented} | ${pct(row.verbatimErrors, row.verbatimTokens)} | ${row.errors} |`,
+      `| ${row.label} | ${row.languagesPreserved}/${row.runs} | ${row.termsKept}/${row.termsExpected} | ${row.fillersKept}/${row.fillersExpected} (${pct(row.fillersKept, row.fillersExpected)}) | ${row.fillersInvented} | ${pct(row.verbatimErrors, row.verbatimTokens)} | ${row.errors} |`,
   ),
   '',
-  'Languages kept: runs where every language spoken in the sample is still there (none translated away, none added). Fillers: um, uh, er, ah, hmm, "you know", 嗯, 呃 and Hindi fillers, counted per occurrence. Verbatim error rate: mixed-token error rate (one token per Chinese character or English word) with fillers counted.',
+  'Names kept as spoken: names and terms (the dataset\'s `terms`) that came back in the language they were said in. Languages kept: runs where every language spoken in the sample is still there (none translated away, none added). Fillers: um, uh, er, ah, hmm, "you know", 嗯, 呃 and Hindi fillers, counted per occurrence. Verbatim error rate: mixed-token error rate (one token per Chinese character or English word) with fillers counted.',
   '',
 ]
 for (const testCase of cases) {
@@ -196,6 +226,7 @@ for (const testCase of cases) {
       continue
     }
     const flags = [
+      row.terms.missing.length ? `names changed: ${row.terms.missing.join(', ')}` : null,
       row.languages.preserved ? null : `languages lost: ${[...row.languages.lost, ...row.languages.added.map((l) => `+${l}`)].join(', ')}`,
       row.fillers.missed ? `${row.fillers.missed} filler(s) missed` : null,
       row.fillers.invented ? `${row.fillers.invented} filler(s) invented` : null,

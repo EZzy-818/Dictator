@@ -8,7 +8,7 @@ What happens to the speaker's words between the microphone and the screen, what 
 | --- | --- | --- |
 | Recording | `frontend/src/hooks/useAudioRecorder.js` | Nothing (audio only). |
 | Upload | `frontend/src/services/api.js` → `POST /api/process` | Sends the audio and the selected level. |
-| Transcription | `backend/src/services/transcription.js` | `gpt-transcribe` with `languages: ["zh", "en", "hi"]` and a prompt. The text is returned **exactly as the API sent it**: no trimming, no filler removal, no normalization. |
+| Transcription | `backend/src/services/transcription.js` | `gpt-transcribe` with `languages: ["zh", "en", "hi"]` and a prompt. The text is returned **as the API sent it**: no trimming, no filler removal, no normalization. The one exception is the name check below: a short name that `gpt-4o-transcribe` heard in the other language replaces gpt-transcribe's version of it. |
 | Refinement | `backend/src/services/refinement.js`, `backend/src/prompts/refinement.js` | None: skipped, `polishedTranscript === rawTranscript`, 0 ms. Light / Medium: `gpt-4.1` edits the text. |
 | Display | `frontend/src/App.jsx` | Raw transcript shown read-only as received; polished text editable. |
 
@@ -63,7 +63,7 @@ The live refinement suite (`npm run test:live:levels -- --repeat=2`, now with th
 
 ### Raw transcription: language modes and fillers
 
-`npm run eval:fidelity`: 24 synthetic clips (15 mixed Chinese-English, 3 English and 2 Mandarin with fillers, 2 without fillers, 2 Hindi), one run each (outputs barely vary between runs of the same audio). Clean audio, then another voice with pink noise at 15 dB SNR:
+`npm run eval:fidelity`: 24 synthetic clips (before the name samples were added: 15 mixed Chinese-English, 3 English and 2 Mandarin with fillers, 2 without fillers, 2 Hindi), one run each (outputs barely vary between runs of the same audio). Clean audio, then another voice with pink noise at 15 dB SNR:
 
 | Setting | Languages kept, clean | noisy | Fillers kept, clean | noisy |
 | --- | --- | --- | --- | --- |
@@ -81,11 +81,33 @@ The live refinement suite (`npm run test:live:levels -- --repeat=2`, now with th
 
 - **Auto-detect is not better.** With no language list it translated the spec's PostgreSQL sentence into Chinese. Mandarin-only did the same; English-only and Hindi-only were no better than the three-language list. The app's setting is the only one that kept every language in both conditions.
 - **No setting keeps fillers reliably**: about half in every one, and the best clean result (filler `keywords`, 10/15) fell back to 7/15 with noise. OpenAI documents that `keywords` can put words in the transcript that nobody said, so it was not adopted. Invented fillers were rare (1 or 2 per run); the one in the app's row is a spoken "Um" written as "嗯".
-- Earlier prompt experiments (instruction prompt vs. a half-Chinese prompt vs. a code-switched prompt, three voices, with and without noise) moved filler counts by one or two either way, within run-to-run variation, and the Chinese-heavy prompts lost English more often. Full transcripts: `backend/eval/results/fidelity.md` and `fidelity-noisy.md`.
+- Earlier prompt experiments (instruction prompt vs. a half-Chinese prompt vs. a code-switched prompt, three voices, with and without noise) moved filler counts by one or two either way, within run-to-run variation, and the Chinese-heavy prompts lost English more often. The report files `backend/eval/results/fidelity.md` and `fidelity-noisy.md` now hold the latest run (with and without the name check, below).
+
+## Chinese names inside English sentences
+
+Reported with a real voice: in `嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学…`, said with 纽约大学 in Mandarin, both the raw and the refined text read "New York University".
+
+**Cause: the speech model.** `gpt-transcribe` writes a name in the language of the sentence around it. Reproduced with synthetic speech in three voices: 纽约大学 came back as "New York University" in every run, as did 上海 → Shanghai, 腾讯 → Tongxin, 张老师 → Zhang老师, and the reverse, Seattle in a Chinese sentence → 西雅图. Refinement was not the cause: given the raw text with 纽约大学, Light and Medium kept it every time (`npm run test:live:levels`, 2 new cases).
+
+**Prompts and language settings do not fix it.** Six prompt variants (a sentence about names, an explicit rule with examples, code-switched example transcripts, with zh+en+hi, zh+en or no language list), English-only and Mandarin-only: none kept 纽约大学, and the best moved names kept from 21 to 27 of 45 on one voice and not on others. Tables: `backend/eval/results/names-candidates.md`.
+
+**`gpt-4o-transcribe` keeps names much better** (36 of 45, 纽约大学 in 14 of 14 runs) but cannot replace gpt-transcribe: it sometimes drops or translates a whole clause (`So it's really nice for me to meet you today.` → `所以很高兴今天见到你。`, or gone; `it only happens when two users log in at the same time.` gone), takes no language list, and keeps fewer fillers in noise (15 vs 21 of 48).
+
+**Fix: the name check** (`backend/src/lib/names.js`). Both models transcribe the same audio at the same time. The gpt-transcribe text is kept, and only where the two agree on the words around a short span (up to 4 English words or 8 Chinese characters) and that span is English in one and Chinese in the other, gpt-4o-transcribe's span is taken. It is skipped when it is a common word or filler (because ↔ 因为, um ↔ 嗯), and when gpt-4o-transcribe's version is the one matching the language on both sides (its own version of the same mistake). Sentences, homophones (王宇辰 vs 王雨晨) and anything else stay exactly as gpt-transcribe wrote them. If the check fails, or is not back 1.5 s after the main transcript, the main transcript is returned alone. `NAME_CHECK_MODEL=` (empty) turns it off; `/api/health` reports it.
+
+All 31 synthetic samples, 3 runs (`npm run eval:fidelity -- --settings=app,no-name-check --runs=3`):
+
+| | Languages kept, clean | noisy | Names kept as spoken, clean | noisy | Fillers kept, clean | noisy |
+| --- | --- | --- | --- | --- | --- | --- |
+| Without the name check | 87/93 | 87/93 | 21/45 | 24/45 | 26/48 | 22/48 |
+| **With the name check (shipped)** | **89/93** | **90/93** | **33/45** | **32/45** | 28/48 | 21/48 |
+
+The reported sentence now comes back with 纽约大学 in every run, clean and noisy, and through the real `/api/process` endpoint at None and Light. None of the 24 earlier samples got worse. What still fails: names gpt-4o-transcribe also hears in English (上海, 北京 in an English sentence) or mishears (腾讯 as 腾迅). The extra request costs a second transcription per recording; it runs in parallel, so the wait is the slower of the two, about 0.1 s more at the median on these clips.
 
 ## Limitations
 
 - **Fillers.** Raw transcripts keep roughly half of spoken fillers, so None is close to verbatim but not verbatim. This is the speech model; prompts move it only slightly and no supported parameter guarantees verbatim output. A filler can also be misheard (呃 once came back as 二, "two").
+- **Names.** The name check restores a name only when gpt-4o-transcribe heard it as spoken; about a quarter of the names in the set are still written in the other language.
 - **Synthetic audio only.** Text-to-speech says fillers clearly and switches languages cleanly. A real speaker's quick "uh" and accent are harder, and the reported Chinese-to-English translation in the raw transcript was not reproduced with synthetic speech. Recordings in `.eval-samples/fidelity-voice/<id>.<ext>` (ids in `backend/eval/fidelity-dataset.js`) run with `npm run eval:fidelity -- --source=voice`.
 - **Refinement.** The check catches a translated clause and the common single-word swaps; a rarer one-word translation can still slip through. When it fires, the request takes one extra refinement call (about 0.7 to 1.5 s).
 - **Hindi.** English terms inside Hindi are sometimes written in Devanagari, and a term can be misheard (PostgreSQL as पास्ट ग्रीक सीक्वल in one voice).
@@ -95,6 +117,7 @@ The live refinement suite (`npm run test:live:levels -- --repeat=2`, now with th
 ```
 cd backend
 npm run eval:fidelity                          # every setting, synthetic audio
-npm run eval:fidelity -- --settings=app,auto,en,zh,hi --voice=onyx --noise=15 --out=fidelity-noisy
+npm run eval:fidelity -- --settings=app,no-name-check --runs=3   # with and without the name check
+npm run eval:fidelity -- --settings=app,no-name-check --runs=3 --voice=onyx --noise=15 --out=fidelity-noisy
 npm run test:live:levels -- --repeat=2         # refinement levels, including the mixed-language cases
 ```

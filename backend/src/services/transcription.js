@@ -1,5 +1,6 @@
 import { APIConnectionTimeoutError, toFile } from 'openai'
 import { ApiError } from '../lib/errors.js'
+import { restoreSpokenNames } from '../lib/names.js'
 
 // Per attempt; the client retries once, so the worst case is about twice this.
 export const TRANSCRIPTION_TIMEOUT_MS = 45_000
@@ -19,26 +20,57 @@ export function transcriptionParams(model) {
   return params
 }
 
-/**
- * Transcribes one audio file. Returns the transcript text exactly as the API returned it.
- * audio: { buffer, mimeType, extension } as produced by identifyAudio plus the bytes.
- */
-export async function transcribeAudio({ client, model, audio }) {
-  const params = transcriptionParams(model)
+// How long the name check may run on after the main transcript is ready. It usually finishes about
+// as fast; when it does not, the main transcript is returned without it.
+export const NAME_CHECK_WAIT_MS = 1_500
+
+async function requestTranscript({ client, model, audio, signal }) {
   const file = await toFile(audio.buffer, `recording.${audio.extension}`, { type: audio.mimeType })
+  return client.audio.transcriptions.create(
+    {
+      file,
+      model,
+      response_format: 'json',
+      ...transcriptionParams(model),
+    },
+    { timeout: TRANSCRIPTION_TIMEOUT_MS, ...(signal ? { signal } : {}) },
+  )
+}
+
+// The name check's transcript, or null if it failed, was empty or took too long.
+async function nameCheckTranscript(request, stopped) {
+  try {
+    const response = await request
+    return typeof response?.text === 'string' && response.text.trim() !== '' ? response.text : null
+  } catch (err) {
+    if (!stopped.value) console.warn('Name check transcription failed:', err?.status ?? '', err?.name ?? '')
+    return null
+  }
+}
+
+/**
+ * Transcribes one audio file. Returns the transcript text exactly as the API returned it, except
+ * that names the name check heard in another language are put back as spoken (see lib/names.js).
+ * audio: { buffer, mimeType, extension } as produced by identifyAudio plus the bytes.
+ * nameCheckModel: second model run on the same audio at the same time; falsy turns it off.
+ */
+export async function transcribeAudio({ client, model, nameCheckModel, audio }) {
+  // Stops the name check once its answer can no longer be used.
+  const abort = new AbortController()
+  const stopped = { value: false }
+  const stopNameCheck = () => {
+    stopped.value = true
+    abort.abort()
+  }
+  const check = nameCheckModel
+    ? nameCheckTranscript(requestTranscript({ client, model: nameCheckModel, audio, signal: abort.signal }), stopped)
+    : null
 
   let response
   try {
-    response = await client.audio.transcriptions.create(
-      {
-        file,
-        model,
-        response_format: 'json',
-        ...params,
-      },
-      { timeout: TRANSCRIPTION_TIMEOUT_MS },
-    )
+    response = await requestTranscript({ client, model, audio })
   } catch (err) {
+    stopNameCheck()
     console.error('Transcription request failed:', err?.status ?? '', err?.name ?? '', err?.code ?? '')
     if (err instanceof APIConnectionTimeoutError) {
       throw new ApiError(504, 'transcription_timeout', 'Transcription took too long. Please try again.')
@@ -47,13 +79,23 @@ export async function transcribeAudio({ client, model, audio }) {
   }
 
   if (typeof response?.text !== 'string') {
+    stopNameCheck()
     console.error('Transcription response had no text field.')
     throw new ApiError(502, 'transcription_failed', 'Transcription failed. Please try again.')
   }
 
   if (response.text.trim() === '') {
+    stopNameCheck()
     throw new ApiError(422, 'no_speech', 'No speech was detected in the recording. Please try again and speak clearly.')
   }
 
-  return response.text
+  if (!check) return response.text
+  let timer
+  const second = await Promise.race([check, new Promise((resolve) => (timer = setTimeout(resolve, NAME_CHECK_WAIT_MS, null)))])
+  clearTimeout(timer)
+  stopNameCheck()
+  const { text, swapped } = restoreSpokenNames(response.text, second)
+  // Counts only; the text itself is never logged.
+  if (swapped) console.info(`Name check restored ${swapped} name(s) to the language spoken.`)
+  return text
 }
