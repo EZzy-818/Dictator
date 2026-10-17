@@ -12,7 +12,9 @@ function RefinementLevelSelector({ value, onChange }) {
       value={value}
       onChange={onChange}
     >
-      <p className="mt-1.5 text-sm text-slate-500">{selected?.description}</p>
+      <p className="mt-2.5 text-center text-sm text-slate-500" aria-live="polite">
+        {selected?.description}
+      </p>
     </SegmentedControl>
   )
 }

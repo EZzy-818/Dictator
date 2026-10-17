@@ -75,9 +75,28 @@ describe('App', () => {
   it('shows the header and defaults to Light refinement', () => {
     render(<App />)
     expect(screen.getByRole('heading', { name: 'Dictator' })).toBeTruthy()
-    expect(screen.getByText('AI Voice-to-Text')).toBeTruthy()
+    expect(screen.getByText('Think out loud. Get polished text instantly.')).toBeTruthy()
+    expect(screen.getByText('Multilingual transcription and AI refinement for clearer, more concise writing.')).toBeTruthy()
     expect(screen.getByLabelText('Light').checked).toBe(true)
     expect(state()).toBe('idle')
+  })
+
+  it('shows empty panels and a disabled Copy before the first recording', () => {
+    render(<App />)
+    expect(screen.getByText('Ready')).toBeTruthy()
+    expect(screen.getByLabelText('Raw transcript').value).toBe('')
+    expect(screen.getByLabelText('Polished text').disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Copy' }).disabled).toBe(true)
+    expect(screen.queryByTestId('output-level')).toBeNull()
+  })
+
+  it('has exactly one Copy button and no Retry, Record Again or account controls', async () => {
+    render(<App />)
+    await record()
+
+    const buttons = screen.getAllByRole('button').map((button) => button.textContent.trim() || button.getAttribute('aria-label'))
+    expect(buttons).toEqual(['Start Recording', 'Copy'])
+    expect(screen.queryByRole('button', { name: /retry|record again|account|profile|sign in/i })).toBeNull()
   })
 
   it('moves through recording, processing and completed states', async () => {
@@ -87,9 +106,11 @@ describe('App', () => {
 
     await startRecording()
     expect(state()).toBe('recording')
+    expect(screen.getByText('Recording')).toBeTruthy()
 
     await stopRecording()
     expect(state()).toBe('processing')
+    expect(screen.getByText('Processing')).toBeTruthy()
     expect(screen.getByText('Transcribing and refining…')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Start Recording' }).disabled).toBe(true)
 
@@ -155,7 +176,8 @@ describe('App', () => {
 
     await startRecording()
     expect(state()).toBe('recording')
-    expect(screen.queryByLabelText('Raw transcript')).toBeNull()
+    expect(screen.getByLabelText('Raw transcript').value).toBe('')
+    expect(screen.getByLabelText('Polished text').value).toBe('')
 
     await stopRecording()
     expect(calls('/api/process')).toHaveLength(2)
@@ -169,7 +191,9 @@ describe('App', () => {
 
     expect(state()).toBe('error')
     expect(screen.getByRole('alert').textContent).toBe('No speech was detected in the recording.')
-    expect(screen.queryByLabelText('Raw transcript')).toBeNull()
+    expect(screen.getByText('Error')).toBeTruthy()
+    expect(screen.getByLabelText('Raw transcript').value).toBe('')
+    expect(screen.getByRole('button', { name: 'Copy' }).disabled).toBe(true)
   })
 
   it('shows a network error when the server is unreachable', async () => {
@@ -197,11 +221,14 @@ describe('App', () => {
       expect(screen.getByLabelText('Light').checked).toBe(true)
       expect(screen.getByLabelText('None').checked).toBe(false)
       expect(screen.getByLabelText('Medium').checked).toBe(false)
-      expect(screen.getByText('Removes filler words and corrects grammar.')).toBeTruthy()
+      expect(screen.getByText('Clean up filler words and grammar')).toBeTruthy()
 
       fireEvent.click(screen.getByLabelText('Medium'))
       expect(screen.getByLabelText('Medium').checked).toBe(true)
-      expect(screen.getByText('Improves clarity and conciseness while preserving the meaning.')).toBeTruthy()
+      expect(screen.getByText('Improve clarity and conciseness')).toBeTruthy()
+
+      fireEvent.click(screen.getByLabelText('None'))
+      expect(screen.getByText('No changes')).toBeTruthy()
     })
 
     it('sends Light by default and labels the output', async () => {

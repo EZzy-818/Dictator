@@ -11,9 +11,9 @@ class ErrorBoundary extends Component {
   render() {
     if (!this.state.failed) return this.props.children
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="text-3xl font-bold text-slate-900">Dictator</h1>
-        <p role="alert" className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+      <main className="mx-auto max-w-[880px] px-4 py-16 text-center sm:px-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Dictator</h1>
+        <p role="alert" className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           Something went wrong on this page. Reload to try again.
         </p>
       </main>
