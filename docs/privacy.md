@@ -8,7 +8,7 @@ This is the full version of the notice shown at the bottom of the app under "How
 2. **Upload.** The recording is uploaded to the Dictator backend over https, together with the refinement level you chose.
 3. **Processing on the Dictator server.** The audio is held in memory only for the duration of the request (`multer` memory storage) and is never written to disk. When the request ends it is discarded.
 4. **Transcription by OpenAI.** The backend sends the audio to OpenAI's speech-to-text API (`gpt-transcribe`).
-5. **Refinement by OpenAI.** The backend sends the transcript text to OpenAI's Responses API (`gpt-4.1`) with `store: false`. Retry Refinement sends the same transcript again. With AI refinement set to **None**, the transcript is not sent for refinement at all.
+5. **Refinement by OpenAI.** The backend sends the transcript text to OpenAI's Responses API (`gpt-4.1`) with `store: false`. With AI refinement set to **None**, the transcript is not sent for refinement at all.
 6. **Results.** The raw transcript and refined text are returned to your browser and shown on the page only. Dictator keeps no copy, no history and no accounts. Closing or reloading the page discards them.
 
 ## What Dictator logs

@@ -6,7 +6,3 @@ export const REFINEMENT_LEVEL_OPTIONS = [
 ]
 
 export const DEFAULT_REFINEMENT_LEVEL = 'light'
-
-export function refinementLevelLabel(value) {
-  return REFINEMENT_LEVEL_OPTIONS.find((option) => option.value === value)?.label
-}

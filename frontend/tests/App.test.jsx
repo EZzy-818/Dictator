@@ -135,7 +135,7 @@ describe('App', () => {
     expect(screen.getByLabelText('Polished text').value).toBe(MIXED_POLISHED)
   })
 
-  it('keeps the raw transcript when refinement fails and retries only refinement', async () => {
+  it('keeps the raw transcript when refinement fails', async () => {
     processResponse = () => jsonResponse(processResult({ polishedTranscript: null, refinementStatus: 'failed' }))
     render(<App />)
     await record()
@@ -144,38 +144,22 @@ describe('App', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/Refinement failed/)
     expect(screen.getByLabelText('Polished text').disabled).toBe(true)
     expect(screen.getByRole('button', { name: 'Copy' }).disabled).toBe(true)
-
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry Refinement' })))
-
-    expect(calls('/api/process')).toHaveLength(1)
-    const [, options] = calls('/api/refine')[0]
-    expect(JSON.parse(options.body)).toEqual({ transcript: MIXED_RAW, refinementLevel: 'light' })
-    expect(screen.getByLabelText('Polished text').value).toBe('Retried text。')
-    expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('shows the server message when retrying refinement fails again', async () => {
-    processResponse = () => jsonResponse(processResult({ polishedTranscript: null, refinementStatus: 'failed' }))
-    refineResponse = () => jsonResponse({ error: 'Refinement took too long.', code: 'refinement_timeout' }, 504)
+  it('offers only Copy under the polished text; Start Recording records again', async () => {
     render(<App />)
     await record()
 
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry Refinement' })))
-    expect(screen.getByRole('alert').textContent).toBe('Refinement took too long.')
-    expect(screen.getByLabelText('Raw transcript').value).toBe(MIXED_RAW)
-  })
+    expect(screen.queryByRole('button', { name: /Retry|Regenerate/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Record Again' })).toBeNull()
 
-  it('Record Again clears the results and starts a new recording', async () => {
-    render(<App />)
-    await record()
-
-    await startRecording('Record Again')
+    await startRecording()
     expect(state()).toBe('recording')
     expect(screen.queryByLabelText('Raw transcript')).toBeNull()
 
     await stopRecording()
     expect(calls('/api/process')).toHaveLength(2)
-    expect(media.tracks.every((track) => track.stop.mock.calls.length > 0)).toBe(true)
+    expect(calls('/api/refine')).toHaveLength(0)
   })
 
   it('shows the server error message in the error state', async () => {
@@ -194,21 +178,6 @@ describe('App', () => {
     await record()
 
     expect(screen.getByRole('alert').textContent).toMatch(/Could not reach the server/)
-  })
-
-  it('ignores a second Retry Refinement click while one is in flight', async () => {
-    let resolveRefine
-    refineResponse = () => new Promise((resolve) => (resolveRefine = resolve))
-    render(<App />)
-    await record()
-
-    const retry = screen.getByRole('button', { name: 'Retry Refinement' })
-    await act(async () => fireEvent.click(retry))
-    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Refining…' })))
-    expect(calls('/api/refine')).toHaveLength(1)
-
-    await act(async () => resolveRefine(jsonResponse({ polishedTranscript: 'Done.' })))
-    expect(screen.getByLabelText('Polished text').value).toBe('Done.')
   })
 
   it('cannot start a second recording while one is being processed', async () => {
@@ -289,32 +258,8 @@ describe('App', () => {
       await act(async () => resolveProcess(jsonResponse(processResult({ refinementLevel: 'light' }))))
       expect(calls('/api/process')[0][1].body.get('refinementLevel')).toBe('light')
       expect(screen.getByTestId('output-level').textContent).toBe('Light refinement')
-      // The new selection is offered as a regeneration, not applied silently.
+      // The new selection applies to the next recording, not to this result.
       expect(screen.getByLabelText('Polished text').value).toBe(MIXED_POLISHED)
-      expect(screen.getByRole('button', { name: 'Regenerate as None' })).toBeTruthy()
-    })
-
-    it('regenerates at a new level without recording or transcribing again', async () => {
-      refineResponse = () => jsonResponse({ polishedTranscript: '用 Go 写 backend。', refinementLevel: 'medium' })
-      render(<App />)
-      await record()
-
-      fireEvent.click(screen.getByLabelText('Medium'))
-      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Regenerate as Medium' })))
-
-      expect(calls('/api/process')).toHaveLength(1)
-      expect(media.getUserMedia).toHaveBeenCalledTimes(1)
-      expect(JSON.parse(calls('/api/refine')[0][1].body)).toEqual({ transcript: MIXED_RAW, refinementLevel: 'medium' })
-      expect(screen.getByLabelText('Polished text').value).toBe('用 Go 写 backend。')
-      expect(screen.getByTestId('output-level').textContent).toBe('Medium refinement')
-      expect(screen.getByRole('button', { name: 'Retry Refinement' })).toBeTruthy()
-
-      // None shows the raw transcript without asking the server.
-      fireEvent.click(screen.getByLabelText('None'))
-      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Regenerate as None' })))
-      expect(calls('/api/refine')).toHaveLength(1)
-      expect(screen.getByLabelText('Polished text').value).toBe(MIXED_RAW)
-      expect(screen.getByTestId('output-level').textContent).toBe('No refinement')
     })
 
     it('says only Transcribing while a None recording is processed', async () => {

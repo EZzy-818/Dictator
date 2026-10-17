@@ -68,7 +68,7 @@ Or run each side on its own with `npm run dev` inside `backend/` or `frontend/`.
 | --- | --- | --- |
 | `GET` | `/api/health` | Returns `{ "status": "ok", "openaiConfigured": true \| false }` |
 | `POST` | `/api/process` | Transcribes and refines one recording. See below. |
-| `POST` | `/api/refine` | Refines a transcript again (used to retry refinement). See below. |
+| `POST` | `/api/refine` | Refines a transcript again. The page no longer calls it; it stays for API clients. See below. |
 
 ### `POST /api/process`
 
@@ -155,9 +155,9 @@ Recordings are processed in memory and never written to disk. Transcripts and re
 1. Pick an **AI refinement** level: **None**, **Light** (the default) or **Medium**. It stays selected until you change it, and it can be changed while recording without interrupting it. The level selected when you stop recording is the one used. There is no language to choose: speak English, Mandarin, Hindi, or a mix of Chinese or Hindi with English.
 2. Click **Start Recording**, speak, then **Stop Recording**.
 3. The **Raw transcript** shows exactly what the transcription model returned (read-only). It keeps filler words such as um and 嗯 as far as the model hears them, so **None** shows them too.
-4. The **Polished text** is editable. **Copy** copies exactly what is in the box. **Retry Refinement** refines the same raw transcript again through `/api/refine`, without transcribing again, and replaces the polished text. After choosing a different level, the button reads **Regenerate as Medium** (or None, or Light) and regenerates the polished text at that level; None simply shows the raw transcript. A label above the box says which level made the current text. **Record Again** clears the results and starts a new recording.
+4. The **Polished text** is editable. **Copy** copies exactly what is in the box. A label above the box says which level made the current text. Changing the level afterwards applies to the next recording. **Start Recording** clears the results and starts a new recording.
 
-If refinement fails, the raw transcript stays on screen with a warning and Retry Refinement stays available.
+If refinement fails, the raw transcript stays on screen with a warning, and you can copy it from there.
 
 ## Error handling
 
@@ -171,12 +171,12 @@ Every failure shows a readable message and never produces invented text:
 | Recording reaches 120 s | Stops automatically and is processed, with a notice |
 | Recording over 10 MB | Rejected in the browser before upload (and by the server) |
 | Transcription fails, times out, or hears no speech | Message; refinement is not attempted |
-| Refinement fails or times out | Raw transcript kept, warning shown, Retry Refinement available |
+| Refinement fails or times out | Raw transcript kept, warning shown |
 | Server unreachable, offline, or an unexpected/non-JSON reply | Message; the page keeps working |
 | Speech service unreachable or not configured when the page loads | Warning; it clears after the next successful recording |
 | Page opened over plain `http://` (not localhost) | Message that recording needs an https address |
 | Copy blocked by the browser | Message asking to select and copy manually |
-| Repeated clicks | Start is disabled while recording or processing; Retry ignores clicks while running |
+| Repeated clicks | Start is disabled while recording or processing |
 | Unexpected rendering error | An error boundary shows a message instead of a blank page |
 
 ## Accuracy

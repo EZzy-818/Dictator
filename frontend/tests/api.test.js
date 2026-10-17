@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MAX_UPLOAD_BYTES, getHealth, processAudio, refineTranscript } from '../src/services/api.js'
+import { MAX_UPLOAD_BYTES, getHealth, processAudio } from '../src/services/api.js'
 
 const recording = (size = 100) => ({ blob: new Blob([new Uint8Array(size)], { type: 'audio/webm' }), mimeType: 'audio/webm;codecs=opus' })
 
@@ -38,9 +38,9 @@ describe('api service', () => {
           signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
         }),
     )
-    const pending = refineTranscript('hi')
+    const pending = processAudio(recording())
     const assertion = expect(pending).rejects.toMatchObject({ code: 'timeout' })
-    await vi.advanceTimersByTimeAsync(70_000)
+    await vi.advanceTimersByTimeAsync(170_000)
     await assertion
   })
 
@@ -62,7 +62,7 @@ describe('api service', () => {
     await expect(processAudio(recording())).rejects.toMatchObject({ code: 'bad_response' })
 
     fetch.mockResolvedValue(response({ json: async () => ({ unexpected: true }) }))
-    await expect(refineTranscript('hi')).rejects.toMatchObject({ code: 'bad_response' })
+    await expect(processAudio(recording())).rejects.toMatchObject({ code: 'bad_response' })
   })
 
   it('sends the recording with its real format and no language', async () => {
@@ -79,14 +79,10 @@ describe('api service', () => {
     fetch.mockResolvedValue(response({ json: async () => ({ rawTranscript: 'x', polishedTranscript: 'x' }) }))
     await processAudio(recording())
     await processAudio(recording(), 'medium')
-    await refineTranscript('hi')
-    await refineTranscript('hi', 'none')
 
-    const [process1, process2, refine1, refine2] = fetch.mock.calls.map(([, options]) => options.body)
+    const [process1, process2] = fetch.mock.calls.map(([, options]) => options.body)
     expect(process1.get('refinementLevel')).toBe('light')
     expect(process2.get('refinementLevel')).toBe('medium')
-    expect(JSON.parse(refine1).refinementLevel).toBe('light')
-    expect(JSON.parse(refine2).refinementLevel).toBe('none')
   })
 
   it('checks health', async () => {
