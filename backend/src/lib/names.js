@@ -27,6 +27,12 @@ const COMMON_WORDS = new Set(
 // Fillers are often heard as either language (um as 嗯); swapping one for the other restores no name.
 const FILLERS = new Set(['um', 'umm', 'uh', 'uhm', 'er', 'erm', 'ah', 'hmm', 'mm', '嗯', '呃', '啊'])
 
+// A number is not a name. The two models often write the same amount differently (百分之十五 and
+// 15%, 十号 and 10号), and the symbol or unit beside the digits is not part of the span, so taking
+// the second transcript's version can drop it and change the amount ("15" for 15%). A word that also
+// has letters, like Y10 for a misheard 外滩, is not a number.
+const NUMBER = /^\d+$/u
+
 function tokens(text) {
   return [...text.matchAll(TOKEN)].map((match) => ({
     key: match[0].toLowerCase(),
@@ -55,6 +61,7 @@ function matches(a, b) {
 
 function isName(span) {
   if (span.length === 0 || span.every((token) => FILLERS.has(token.key))) return false
+  if (span.some((token) => NUMBER.test(token.key))) return false
   if (span.every((token) => token.han)) return span.length <= MAX_HAN_CHARS
   if (span.some((token) => token.han)) return false
   return span.length <= MAX_LATIN_WORDS && !span.every((token) => COMMON_WORDS.has(token.key))
