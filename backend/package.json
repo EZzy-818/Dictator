@@ -13,7 +13,8 @@
     "test:acceptance": "node scripts/acceptance.js",
     "test:live:levels": "node scripts/live-refinement-levels.js",
     "benchmark:latency": "node scripts/benchmark-latency.js",
-    "benchmark:models": "node scripts/benchmark-models.js"
+    "benchmark:models": "node scripts/benchmark-models.js",
+    "benchmark:name-check": "node scripts/benchmark-name-check.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
