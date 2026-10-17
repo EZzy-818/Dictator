@@ -1,11 +1,15 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { vi } from 'vitest'
 import { createApp } from '../src/app.js'
 import { loadConfig } from '../src/config.js'
 
-// Minimal byte headers that identify each container format.
+// Real recordings. chrome.* come from Chromium's MediaRecorder (about 3 seconds, a test tone);
+// see fixtures/README.md.
+export const FIXTURES = path.resolve(import.meta.dirname, 'fixtures')
 export const AUDIO_SAMPLES = {
-  webm: Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(64, 1)]),
-  mp4: Buffer.concat([Buffer.from([0, 0, 0, 0x20]), Buffer.from('ftypM4A '), Buffer.alloc(64, 1)]),
+  webm: fs.readFileSync(path.join(FIXTURES, 'chrome.webm')),
+  mp4: fs.readFileSync(path.join(FIXTURES, 'chrome.mp4')),
 }
 
 export function fakeOpenAI(
@@ -18,7 +22,7 @@ export function fakeOpenAI(
   }
 }
 
-export function createTestApp({ openai = fakeOpenAI(), env = {} } = {}) {
+export function createTestApp({ openai = fakeOpenAI(), env = {}, log = () => {}, createStore } = {}) {
   const config = loadConfig({ OPENAI_API_KEY: 'sk-test', ...env })
-  return { app: createApp(config, { openai }), openai, config }
+  return { app: createApp(config, { openai, log, createStore }), openai, config }
 }

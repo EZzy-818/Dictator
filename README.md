@@ -2,7 +2,7 @@
 
 AI voice-to-text in the browser. Record speech in English, Mandarin Chinese, or a mix of both, get a raw transcript, and a refined version you can edit and copy.
 
-> Status: Milestone 9 (production readiness). The app is configured for deployment through environment variables; see [docs/deployment.md](docs/deployment.md).
+> Status: Milestone 10 (public API protection). The app is configured for deployment through environment variables, and the API has per-visitor and daily usage limits; see [docs/deployment.md](docs/deployment.md).
 
 ## Stack
 
@@ -103,10 +103,14 @@ Errors return `{ "error": "<safe message>", "code": "<code>" }`:
 | 400 | `invalid_language` | Language is not `en`, `zh`, or `auto` |
 | 400 | `missing_audio` / `empty_audio` / `invalid_upload` | No file, an empty file, or a malformed upload |
 | 413 | `file_too_large` | Over 10 MB |
+| 413 | `recording_too_long` | Longer than 2 minutes |
 | 415 | `unsupported_audio` | Unsupported type, or bytes that do not match the type |
+| 415 | `unreadable_audio` | The recording's length cannot be read |
 | 422 | `no_speech` | The transcription contained no speech |
+| 429 | `rate_limited` / `daily_limit_reached` / `too_many_concurrent` | A usage limit was reached (see below) |
 | 502 | `transcription_failed` | The OpenAI request failed |
 | 503 | `service_unavailable` | `OPENAI_API_KEY` is not configured |
+| 503 | `server_busy` / `limits_unavailable` | Too many requests in progress, or the usage counters are unreachable |
 | 504 | `transcription_timeout` | OpenAI did not answer in time |
 
 ### `POST /api/refine`
@@ -118,10 +122,15 @@ Refinement uses the OpenAI Responses API with `REFINEMENT_MODEL`, the roadmap's 
 | Status | Code | When |
 | --- | --- | --- |
 | 400 | `invalid_language` / `missing_transcript` / `invalid_json` | Bad input |
-| 413 | `transcript_too_long` | Over 10,000 characters |
+| 413 | `transcript_too_long` / `body_too_large` | Over 10,000 characters, or a body over 100 KB |
+| 429, 503 | as for `/api/process` | A usage limit was reached |
 | 502 | `refinement_failed` | The OpenAI request failed or returned no text |
 | 503 | `service_unavailable` | `OPENAI_API_KEY` is not configured |
 | 504 | `refinement_timeout` | OpenAI did not answer in time |
+
+### Usage limits
+
+The API is public, so the backend limits how much anyone can use it: by default 5 recordings per minute and 30 per day per visitor, 100 recordings per day in total, and similar limits for Retry Refinement, plus limits on requests in progress. Only requests that pass validation and reach OpenAI count. The page shows the server's message, which says how long to wait. The limits, how to change them, the worst-case daily cost and the abuse-monitoring log are described in [docs/deployment.md](docs/deployment.md#usage-limits-and-abuse-protection-milestone-10). Local evaluation scripts (`npm run eval`, `test:live`) turn the limits off, since they run many requests with your own key.
 
 Recordings are processed in memory and never written to disk. Transcripts and refined text are not logged. The app shows a short notice about this; the full version is in [docs/privacy.md](docs/privacy.md).
 
@@ -131,7 +140,7 @@ Recordings are processed in memory and never written to disk. Transcripts and re
 | --- | --- |
 | Transcription request to OpenAI | 45 s per attempt, 1 retry |
 | Refinement request to OpenAI | 30 s per attempt, 1 retry |
-| Whole backend request (`server.requestTimeout`) | 180 s |
+| Receiving the upload (`server.requestTimeout`) | 60 s (enforced within 90 s) |
 | Browser wait for `/api/process` / `/api/refine` | 170 s / 70 s |
 
 ## Using the app

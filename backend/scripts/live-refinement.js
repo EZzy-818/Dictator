@@ -6,7 +6,7 @@
 import dotenv from 'dotenv'
 import request from 'supertest'
 import { createApp } from '../src/app.js'
-import { loadConfig } from '../src/config.js'
+import { loadConfig, withoutUsageLimits } from '../src/config.js'
 
 dotenv.config({ quiet: true })
 
@@ -39,14 +39,15 @@ const CASES = [
   ['zh', 'Chinese is not translated in auto mode', '嗯，这个方案我觉得还可以。', '这个方案我觉得还可以。'],
 ]
 
-const config = loadConfig()
+// These runs send many requests in a row with your own key, so the public usage limits are off.
+const config = withoutUsageLimits(loadConfig())
 if (!config.openaiApiKey) {
   console.error('OPENAI_API_KEY is not set. Live tests need a real key.')
   process.exit(1)
 }
 
 const repeat = Number(process.argv.find((arg) => arg.startsWith('--repeat='))?.split('=')[1]) || 1
-const app = createApp(config)
+const app = createApp(config, { log: () => {} })
 let failures = 0
 console.log(`Refinement model: ${config.refinementModel}, runs per case: ${repeat}\n`)
 

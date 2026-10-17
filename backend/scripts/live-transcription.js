@@ -9,7 +9,7 @@ import dotenv from 'dotenv'
 import OpenAI from 'openai'
 import request from 'supertest'
 import { createApp } from '../src/app.js'
-import { loadConfig } from '../src/config.js'
+import { loadConfig, withoutUsageLimits } from '../src/config.js'
 
 dotenv.config({ quiet: true })
 
@@ -52,14 +52,15 @@ async function ensureSample(client, sample) {
   }
 }
 
-const config = loadConfig()
+// These runs send many requests in a row with your own key, so the public usage limits are off.
+const config = withoutUsageLimits(loadConfig())
 if (!config.openaiApiKey) {
   console.error('OPENAI_API_KEY is not set. Live tests need a real key.')
   process.exit(1)
 }
 
 const client = new OpenAI({ apiKey: config.openaiApiKey })
-const app = createApp(config)
+const app = createApp(config, { log: () => {} })
 let failures = 0
 
 console.log(`Transcription model: ${config.transcriptionModel}, refinement model: ${config.refinementModel}\n`)

@@ -57,6 +57,27 @@ describe('configProblems', () => {
   })
 })
 
+describe('usage limit settings', () => {
+  it('has defaults and reads overrides', () => {
+    expect(loadConfig({}).limits).toMatchObject({ processPerMinute: 5, processPerDay: 30, processGlobalPerDay: 100 })
+    expect(loadConfig({ PROCESS_LIMIT_PER_MINUTE: '12' }).limits.processPerMinute).toBe(12)
+  })
+
+  it('rejects values that are not positive whole numbers', () => {
+    for (const value of ['0', '-1', '2.5', 'ten']) {
+      const problems = configProblems(loadConfig({ REFINE_LIMIT_PER_DAY: value }))
+      expect(problems).toEqual(['REFINE_LIMIT_PER_DAY must be a positive whole number.'])
+    }
+  })
+
+  it('reads TRUST_PROXY as a hop count, a boolean or a list', () => {
+    expect(loadConfig({}).trustProxy).toBe(false)
+    expect(loadConfig({ TRUST_PROXY: '1' }).trustProxy).toBe(1)
+    expect(loadConfig({ TRUST_PROXY: 'true' }).trustProxy).toBe(true)
+    expect(loadConfig({ TRUST_PROXY: 'loopback' }).trustProxy).toBe('loopback')
+  })
+})
+
 describe('server start-up', () => {
   it('refuses to start in production without the required settings', async () => {
     // Run outside the backend folder so a local .env file is not loaded.
