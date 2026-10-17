@@ -10,6 +10,7 @@
 //   npm run eval -- --language=auto       send every sample as Auto-detect (language-hint comparison)
 //   npm run eval -- --only=en-normal-1,mixed-2
 //   TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe npm run eval   compare another transcription model
+//   npm run eval -- --auto-hint="..."     experiment: send this transcription prompt in Auto-detect mode
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import dotenv from 'dotenv'
@@ -40,12 +41,13 @@ const CHECK_LABELS = {
 }
 
 function option(name) {
-  return process.argv.find((arg) => arg.startsWith(`--${name}=`))?.split('=')[1]
+  return process.argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3)
 }
 
 const source = option('source') ?? 'synthetic'
 const languageOverride = option('language')
 const only = option('only')?.split(',')
+const autoHint = option('auto-hint')
 
 if (!['synthetic', 'voice'].includes(source)) {
   console.error('--source must be synthetic or voice')
@@ -63,7 +65,22 @@ if (!config.openaiApiKey) {
 }
 
 const client = new OpenAI({ apiKey: config.openaiApiKey })
-const app = createApp(config)
+
+// The --auto-hint experiment adds a prompt to Auto-detect transcription requests (the ones
+// without a language) without changing the app. Everything else uses the app's own client.
+function withAutoHint(hint) {
+  const base = new OpenAI({ apiKey: config.openaiApiKey, maxRetries: 1 })
+  return {
+    audio: {
+      transcriptions: {
+        create: (params, options) => base.audio.transcriptions.create(params.language ? params : { ...params, prompt: hint }, options),
+      },
+    },
+    responses: base.responses,
+  }
+}
+
+const app = createApp(config, autoHint ? { openai: withAutoHint(autoHint) } : {})
 
 async function syntheticSample(testCase, index) {
   const file = path.join(SAMPLES_DIR, 'synthetic', `${testCase.id}.wav`)
@@ -209,6 +226,7 @@ const report = [
   '',
   `Run ${new Date().toISOString()}. Transcription model \`${config.transcriptionModel}\`, refinement model \`${config.refinementModel}\`.`,
   `Language option: ${languageOverride ? `\`${languageOverride}\` for every sample` : 'the one set for each sample'}.`,
+  autoHint ? `Experiment: Auto-detect transcription requests carried the prompt \`${autoHint}\`.` : '',
   `${scored.length} of ${cases.length} samples transcribed${results.some((result) => result.skipped) ? `, ${results.filter((result) => result.skipped).length} without a recording` : ''}${results.some((result) => result.error) ? `, ${results.filter((result) => result.error).length} failed` : ''}.`,
   source === 'synthetic' ? '\nThe synthetic samples are OpenAI text-to-speech audio, not human speech. Noisy samples have pink noise mixed in.' : '',
   '',
@@ -240,7 +258,7 @@ const report = [
 ].join('\n')
 
 await fs.mkdir(RESULTS_DIR, { recursive: true })
-const name = [source, languageOverride, config.transcriptionModel !== 'gpt-4o-transcribe' && config.transcriptionModel].filter(Boolean).join('-')
+const name = [source, languageOverride, config.transcriptionModel !== 'gpt-4o-transcribe' && config.transcriptionModel, autoHint && 'autohint'].filter(Boolean).join('-')
 await fs.writeFile(path.join(RESULTS_DIR, `${name}.json`), `${JSON.stringify({ source, languageOverride: languageOverride ?? null, transcriptionModel: config.transcriptionModel, refinementModel: config.refinementModel, results }, null, 2)}\n`)
 await fs.writeFile(path.join(RESULTS_DIR, `${name}.md`), report)
 
