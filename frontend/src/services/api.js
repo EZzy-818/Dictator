@@ -4,7 +4,6 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 // Slightly above the backend's worst case (transcription + refinement, one retry each).
 const PROCESS_TIMEOUT_MS = 170_000
-const REFINE_TIMEOUT_MS = 70_000
 const HEALTH_TIMEOUT_MS = 10_000
 
 const MESSAGES = {
@@ -77,19 +76,5 @@ export async function processAudio({ blob, mimeType }, refinementLevel = 'light'
   form.append('audio', blob, `recording.${EXTENSIONS[baseType] ?? 'webm'}`)
   const data = await send('/api/process', { method: 'POST', body: form }, PROCESS_TIMEOUT_MS)
   if (typeof data?.rawTranscript !== 'string') throw clientError('bad_response')
-  return data
-}
-
-export async function refineTranscript(transcript, refinementLevel = 'light') {
-  const data = await send(
-    '/api/refine',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transcript, refinementLevel }),
-    },
-    REFINE_TIMEOUT_MS,
-  )
-  if (typeof data?.polishedTranscript !== 'string') throw clientError('bad_response')
   return data
 }

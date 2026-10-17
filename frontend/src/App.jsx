@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getHealth, processAudio, refineTranscript } from './services/api.js'
+import { getHealth, processAudio } from './services/api.js'
 import { formatDuration, useAudioRecorder } from './hooks/useAudioRecorder.js'
 import RefinementLevelSelector from './components/RefinementLevelSelector.jsx'
 import { DEFAULT_REFINEMENT_LEVEL } from './refinementLevels.js'
@@ -15,7 +15,7 @@ function textLangOf(text) {
   return 'en'
 }
 
-const REFINEMENT_FAILED = 'Refinement failed. Your raw transcript is preserved; you can retry refinement.'
+const REFINEMENT_FAILED = 'Refinement failed. Your raw transcript is preserved above; you can copy it from there.'
 
 function Notice({ tone, children }) {
   const styles = {
@@ -37,9 +37,8 @@ function App() {
   // { rawTranscript } from the last successful transcription.
   const [transcript, setTranscript] = useState(null)
   const [polishedText, setPolishedText] = useState(null)
-  // The level the polished text was made with (or last attempted at, after a failure).
+  // The level the polished text was made with (or attempted at, after a failure).
   const [outputLevel, setOutputLevel] = useState(null)
-  const [refining, setRefining] = useState(false)
   const [refinementError, setRefinementError] = useState(null)
   const [copyStatus, setCopyStatus] = useState('idle')
   const requestIdRef = useRef(0)
@@ -52,7 +51,6 @@ function App() {
     setTranscript(null)
     setPolishedText(null)
     setOutputLevel(null)
-    setRefining(false)
     setRefinementError(null)
     setCopyStatus('idle')
   }
@@ -88,31 +86,6 @@ function App() {
   const startRecording = () => {
     resetResults()
     recorder.start()
-  }
-
-  // Refines the same transcript again at the selected level.
-  const retryRefinement = async () => {
-    if (!transcript || refining) return
-    const level = refinementLevel
-    setOutputLevel(level)
-    setRefinementError(null)
-    // None is the raw transcript itself; there is nothing to ask the server.
-    if (level === 'none') {
-      setPolishedText(transcript.rawTranscript)
-      return
-    }
-    const requestId = requestIdRef.current
-    setRefining(true)
-    try {
-      const data = await refineTranscript(transcript.rawTranscript, level)
-      if (requestId === requestIdRef.current) setPolishedText(data.polishedTranscript)
-    } catch (err) {
-      if (requestId === requestIdRef.current) {
-        setRefinementError(err.message || REFINEMENT_FAILED)
-      }
-    } finally {
-      if (requestId === requestIdRef.current) setRefining(false)
-    }
   }
 
   const copyPolishedText = async () => {
@@ -191,13 +164,8 @@ function App() {
             onChange={setPolishedText}
             lang={textLang}
             outputLevel={outputLevel}
-            selectedLevel={refinementLevel}
             copyStatus={copyStatus}
             onCopy={copyPolishedText}
-            refining={refining}
-            onRetry={retryRefinement}
-            onRecordAgain={startRecording}
-            disabled={uiState !== 'completed'}
           />
         </>
       )}
