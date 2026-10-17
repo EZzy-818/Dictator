@@ -2,7 +2,7 @@
 
 AI voice-to-text in the browser. Record speech in English, Mandarin Chinese, or a mix of both, get a raw transcript, and a refined version you can edit and copy.
 
-> Status: Milestone 1 (project setup). Recording, transcription, and refinement arrive in later milestones.
+> Status: Milestone 2 (browser audio recording). Transcription and refinement arrive in later milestones.
 
 ## Stack
 
@@ -48,7 +48,7 @@ Then set `OPENAI_API_KEY` in `backend/.env`.
 
 ```bash
 npm run dev      # starts backend (http://localhost:3001) and frontend (http://localhost:5173)
-npm test         # backend tests
+npm test         # backend and frontend tests
 npm run build    # production build of the frontend
 ```
 
@@ -59,3 +59,15 @@ Or run each side on its own with `npm run dev` inside `backend/` or `frontend/`.
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Returns `{ "status": "ok", "openaiConfigured": true \| false }` |
+
+## Browser recording
+
+Recording uses `getUserMedia` and `MediaRecorder`. The first supported format is used, in this order:
+
+1. `audio/webm;codecs=opus` (Chrome, Edge, Firefox, recent Safari)
+2. `audio/webm`
+3. `audio/mp4` (older Safari)
+
+The audio is kept in the format the browser produced. Recordings stop automatically after 120 seconds, and the microphone is released as soon as recording stops.
+
+Browsers only allow microphone access on `https://` pages or `http://localhost`. Browsers without `MediaRecorder` or without any of the formats above show an error instead of recording.
