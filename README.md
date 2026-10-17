@@ -2,7 +2,7 @@
 
 AI voice-to-text in the browser. Record speech in English, Mandarin Chinese, or a mix of both, get a raw transcript, and a refined version you can edit and copy.
 
-> Status: Milestone 2 (browser audio recording). Transcription and refinement arrive in later milestones.
+> Status: Milestone 3 (multilingual speech-to-text). AI refinement arrives in Milestone 4.
 
 ## Stack
 
@@ -48,8 +48,9 @@ Then set `OPENAI_API_KEY` in `backend/.env`.
 
 ```bash
 npm run dev      # starts backend (http://localhost:3001) and frontend (http://localhost:5173)
-npm test         # backend and frontend tests
+npm test         # backend and frontend tests (OpenAI is mocked)
 npm run build    # production build of the frontend
+npm run test:live --prefix backend   # live transcription smoke test; needs OPENAI_API_KEY and network access
 ```
 
 Or run each side on its own with `npm run dev` inside `backend/` or `frontend/`.
@@ -59,6 +60,48 @@ Or run each side on its own with `npm run dev` inside `backend/` or `frontend/`.
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Returns `{ "status": "ok", "openaiConfigured": true \| false }` |
+| `POST` | `/api/process` | Transcribes one recording. See below. |
+
+### `POST /api/process`
+
+`multipart/form-data` with:
+
+- `audio`: the recording (WebM, MP4/M4A, OGG, WAV, MP3, or FLAC; at most 10 MB). The bytes must match the declared type.
+- `language`: `en`, `zh`, or `auto` (default `auto`).
+
+| Option | Sent to the transcription API |
+| --- | --- |
+| `en` | `language: "en"` plus a short English technical-vocabulary hint |
+| `zh` | `language: "zh"` plus a short Chinese technical-vocabulary hint |
+| `auto` | No `language` and no hint; the model infers the language |
+
+Success (`200`):
+
+```json
+{
+  "rawTranscript": "我们应该用 PostgreSQL。",
+  "polishedTranscript": null,
+  "selectedLanguage": "zh",
+  "transcriptionStatus": "success",
+  "refinementStatus": "skipped"
+}
+```
+
+`polishedTranscript` stays `null` and `refinementStatus` stays `"skipped"` until refinement is added in Milestone 4. `selectedLanguage` echoes the user's choice; it is not a detected language.
+
+Errors return `{ "error": "<safe message>", "code": "<code>" }`:
+
+| Status | Code | When |
+| --- | --- | --- |
+| 400 | `invalid_language` | Language is not `en`, `zh`, or `auto` |
+| 400 | `missing_audio` / `empty_audio` / `invalid_upload` | No file, an empty file, or a malformed upload |
+| 413 | `file_too_large` | Over 10 MB |
+| 415 | `unsupported_audio` | Unsupported type, or bytes that do not match the type |
+| 422 | `no_speech` | The transcription contained no speech |
+| 502 | `transcription_failed` | The OpenAI request failed |
+| 503 | `service_unavailable` | `OPENAI_API_KEY` is not configured |
+
+Recordings are processed in memory and never written to disk. Transcripts are not logged.
 
 ## Browser recording
 

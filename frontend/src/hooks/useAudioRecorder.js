@@ -57,8 +57,9 @@ export function formatDuration(ms) {
  *
  * status: 'idle' | 'requesting' (waiting for microphone permission) | 'recording'
  * recording: { blob, mimeType, durationMs } after a successful stop, otherwise null
+ * onRecordingComplete: called with that same object when a recording finishes successfully
  */
-export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS } = {}) {
+export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecordingComplete } = {}) {
   const [status, setStatus] = useState('idle')
   const [elapsedMs, setElapsedMs] = useState(0)
   const [recording, setRecording] = useState(null)
@@ -70,6 +71,11 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS } = {}) {
   const streamRef = useRef(null)
   const timerRef = useRef(null)
   const limitRef = useRef(null)
+  const onCompleteRef = useRef(onRecordingComplete)
+
+  useEffect(() => {
+    onCompleteRef.current = onRecordingComplete
+  }, [onRecordingComplete])
 
   const releaseMicrophone = useCallback(() => {
     clearInterval(timerRef.current)
@@ -147,10 +153,12 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS } = {}) {
 
       releaseMicrophone()
       recorderRef.current = null
+      const result = { blob, mimeType: type, durationMs }
       setElapsedMs(durationMs)
-      setRecording({ blob, mimeType: type, durationMs })
+      setRecording(result)
       setStatus('idle')
       busyRef.current = false
+      onCompleteRef.current?.(result)
     }
 
     recorderRef.current = recorder
