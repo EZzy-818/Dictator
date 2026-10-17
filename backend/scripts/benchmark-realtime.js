@@ -62,6 +62,9 @@ const REPEAT = Number(option('repeat', '3'))
 const REPEAT_LATENCY = Number(option('repeat-latency', '5'))
 const REPEAT_LONG = Number(option('repeat-long', '1'))
 const E2E_CONFIG = option('e2e-config', 'R-low')
+// Recordings timed at once in the e2e stage. 1 keeps timings cleanest; a few at a time cut the
+// wall-clock time (each stream is about 64 KB/s) and are recorded with every row.
+const E2E_CONCURRENCY = Number(option('e2e-concurrency', '1'))
 // How long the app would wait after Stop for a final transcript before using the batch path.
 const FALLBACK_TIMEOUT_MS = Number(option('fallback-timeout', '3000'))
 
@@ -559,33 +562,44 @@ async function baselineE2E(target, sample, level, requestId) {
 async function stageE2E(client, apiKey, ledger, samples) {
   const stage = await openStage('e2e')
   const config = REALTIME_CONFIGS.find((c) => c.name === E2E_CONFIG) ?? { name: E2E_CONFIG, model: LIVE, delay: E2E_CONFIG.replace(/^R-/, '') }
-  const target = await startBaselineServer(client, ledger)
+  // One baseline server per concurrent recording, so each one's API calls are attributed to it.
+  const free = await Promise.all(Array.from({ length: E2E_CONCURRENCY }, () => startBaselineServer(client, ledger)))
+  const servers = [...free]
   const jobs = []
   for (let rep = 1; rep <= REPEAT_LATENCY; rep++) {
     for (const id of LATENCY_CASE_IDS) for (const level of LEVELS) jobs.push({ id, level, rep })
     if (rep <= REPEAT_LONG) for (const c of LONG_CASES) jobs.push({ id: c.id, level: 'light', rep })
   }
   try {
-    for (const { id, level, rep } of jobs) {
-      const sample = samples[id]
-      if (!sample) continue
-      // Alternating which path goes first spreads any drift in API speed over both.
-      const order = rep % 2 ? ['Baseline', 'Realtime'] : ['Realtime', 'Baseline']
-      for (const path_ of order) {
-        const key = `${path_}|${id}|${level}|${rep}`
-        if (stage.has(key)) continue
-        ledger.check()
-        const result =
-          path_ === 'Baseline'
-            ? await baselineE2E(target, sample, level, `rt-baseline-${id}-${level}-${rep}`)
-            : await realtimeE2E({ client, apiKey, ledger, config, sample, level })
-        await stage.add({ key, path: path_, config: path_ === 'Baseline' ? 'Baseline' : config.name, id, level, rep, seconds: sample.seconds, ...result })
-        const shown = path_ === 'Baseline' ? `${Math.round(result.finalAt)} ms` : result.ok ? `${Math.round(result.withCheckAt)} ms with check, ${Math.round(result.aloneAt)} ms without` : result.error ?? result.stream?.error
-        console.log(`e2e #${rep} ${id} ${level.padEnd(6)} ${path_.padEnd(8)} ${shown}  ($${ledger.total.toFixed(3)})`)
-      }
-    }
+    // E2E_CONCURRENCY recordings at a time; each still runs its two paths one after the other.
+    await pool(
+      jobs.filter(({ id }) => samples[id]),
+      async ({ id, level, rep }) => {
+        const sample = samples[id]
+        const target = free.pop()
+        try {
+          // Alternating which path goes first spreads any drift in API speed over both.
+          const order = rep % 2 ? ['Baseline', 'Realtime'] : ['Realtime', 'Baseline']
+          for (const path_ of order) {
+            const key = `${path_}|${id}|${level}|${rep}`
+            if (stage.has(key)) continue
+            ledger.check()
+            const result =
+              path_ === 'Baseline'
+                ? await baselineE2E(target, sample, level, `rt-baseline-${id}-${level}-${rep}`)
+                : await realtimeE2E({ client, apiKey, ledger, config, sample, level })
+            await stage.add({ key, path: path_, config: path_ === 'Baseline' ? 'Baseline' : config.name, id, level, rep, seconds: sample.seconds, concurrency: E2E_CONCURRENCY, ...result })
+            const shown = path_ === 'Baseline' ? `${Math.round(result.finalAt)} ms` : result.ok ? `${Math.round(result.withCheckAt)} ms with check, ${Math.round(result.aloneAt)} ms without` : result.error ?? result.stream?.error
+            console.log(`e2e #${rep} ${id} ${level.padEnd(6)} ${path_.padEnd(8)} ${shown}  ($${ledger.total.toFixed(3)})`)
+          }
+        } finally {
+          free.push(target)
+        }
+      },
+      E2E_CONCURRENCY,
+    )
   } finally {
-    target.server.close()
+    for (const target of servers) target.server.close()
     await stage.flush()
   }
 }
@@ -817,7 +831,7 @@ function accuracySection(rows) {
 
 function e2eSection(e2e) {
   const lines = ['## Stop → final output', '']
-  lines.push(`One recording at a time, everything in this process. Baseline: the \`/api/process\` round trip on loopback (upload included). Realtime (${E2E_CONFIG}): Stop → the output the app would show as final and copyable. "+ check": the \`${CHECK}\` name check started at Stop on the streamed audio (WAV), waited for at most ${NAME_CHECK_WAIT_MS} ms after the transcript, refinement alongside it (O2); at None the text is final once the check is back. "no check": refinement straight on the realtime transcript. Neither path includes the browser ↔ server hop, so the realtime figures leave out the relay the design adds (one round trip for the commit and the result). ${REPEAT_LATENCY} repeats × ${LATENCY_CASE_IDS.length} recordings per row.`, '')
+  lines.push(`${E2E_CONCURRENCY === 1 ? 'One recording at a time' : `${E2E_CONCURRENCY} recordings at a time`}, everything in this process. Baseline: the \`/api/process\` round trip on loopback (upload included). Realtime (${E2E_CONFIG}): Stop → the output the app would show as final and copyable. "+ check": the \`${CHECK}\` name check started at Stop on the streamed audio (WAV), waited for at most ${NAME_CHECK_WAIT_MS} ms after the transcript, refinement alongside it (O2); at None the text is final once the check is back. "no check": refinement straight on the realtime transcript. Neither path includes the browser ↔ server hop, so the realtime figures leave out the relay the design adds (one round trip for the commit and the result). ${REPEAT_LATENCY} repeats × ${LATENCY_CASE_IDS.length} recordings per row.`, '')
   const summary = {}
   const header = ['Level', 'Path', 'Runs', 'Failed', 'p50', 'p95', 'Mean', 'Saved at p50', 'Saved at p95', 'Transcript ready p50', 'Check ready p50', 'Refined twice']
   const body = []
