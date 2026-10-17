@@ -1,6 +1,6 @@
-// Mixes pink noise into 16-bit PCM WAV files for the noisy synthetic samples.
+// Reads and writes 16-bit PCM WAV files and mixes pink noise into the noisy synthetic samples.
 
-function readWav(buffer) {
+export function readWav(buffer) {
   if (buffer.toString('ascii', 0, 4) !== 'RIFF' || buffer.toString('ascii', 8, 12) !== 'WAVE') {
     throw new Error('Not a WAV file')
   }
@@ -33,7 +33,7 @@ function readWav(buffer) {
   throw new Error('WAV file has no data chunk')
 }
 
-function writeWav({ channels, sampleRate, samples }) {
+export function writeWav({ channels, sampleRate, samples }) {
   const dataBytes = samples.length * 2
   const buffer = Buffer.alloc(44 + dataBytes)
   buffer.write('RIFF', 0, 'ascii')
