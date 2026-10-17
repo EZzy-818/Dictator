@@ -107,7 +107,7 @@ Errors return `{ "error": "<safe message>", "code": "<code>" }`:
 
 JSON body `{ "transcript": "Raw recognized speech", "language": "en" }` (`language` is required: `en`, `zh`, or `auto`). Returns `{ "polishedTranscript": "Refined text" }`.
 
-Refinement uses the OpenAI Responses API with `REFINEMENT_MODEL`, the roadmap's system prompt (`backend/src/prompts/refinement.js`), and short guidance for the selected language. It never asks the model to translate; in `auto` mode it keeps every part in the language it was spoken in. The transcript is wrapped in `<transcript>` tags so instructions inside it are treated as speech, and requests are sent with `store: false`.
+Refinement uses the OpenAI Responses API with `REFINEMENT_MODEL`, the roadmap's system prompt (`backend/src/prompts/refinement.js`), and short guidance for the selected language, including how to treat corrections spoken in the other language. It never asks the model to translate; in `auto` mode it keeps every part in the language it was spoken in. The language guidance is appended to the system instructions, and the transcript is sent as the input wrapped in `<transcript>` tags so instructions inside it are treated as speech. Requests use `temperature: 0` (so `REFINEMENT_MODEL` must be a model that accepts it, such as `gpt-4.1`) and `store: false`.
 
 | Status | Code | When |
 | --- | --- | --- |

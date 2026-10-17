@@ -182,8 +182,8 @@ describe('POST /api/process', () => {
 
     const params = openai.responses.create.mock.calls[0][0]
     expect(params.model).toBe('gpt-4.1')
-    expect(params.input).toContain('<transcript>\nHello world.\n</transcript>')
-    expect(params.input).toContain('Mandarin')
+    expect(params.input).toBe('<transcript>\nHello world.\n</transcript>')
+    expect(params.instructions).toContain('Mandarin')
   })
 
   it('keeps the raw transcript when refinement fails', async () => {

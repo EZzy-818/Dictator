@@ -1,6 +1,6 @@
 import { ApiError } from '../lib/errors.js'
 import { isSupportedLanguage } from '../lib/languages.js'
-import { REFINEMENT_SYSTEM_PROMPT, buildRefinementInput } from '../prompts/refinement.js'
+import { buildRefinementInput, buildRefinementInstructions } from '../prompts/refinement.js'
 
 export const MAX_TRANSCRIPT_CHARS = 10_000
 const MAX_OUTPUT_TOKENS = 4_000
@@ -32,9 +32,11 @@ export async function refineTranscript({ client, model, transcript, language }) 
   try {
     response = await client.responses.create({
       model,
-      instructions: REFINEMENT_SYSTEM_PROMPT,
-      input: buildRefinementInput(transcript, language),
+      instructions: buildRefinementInstructions(language),
+      input: buildRefinementInput(transcript),
       max_output_tokens: MAX_OUTPUT_TOKENS,
+      // Editing should be as repeatable as possible. Reasoning models reject this parameter.
+      temperature: 0,
       // Do not keep dictated text on OpenAI's side beyond the request.
       store: false,
     })
@@ -50,7 +52,8 @@ export async function refineTranscript({ client, model, transcript, language }) 
 
   const polished = typeof response?.output_text === 'string' ? stripTranscriptTags(response.output_text).trim() : ''
   if (polished === '') {
-    console.error('Refinement response had no text.')
+    const refused = response?.output?.some((item) => item.content?.some((part) => part.type === 'refusal'))
+    console.error(refused ? 'Refinement model refused the request.' : 'Refinement response had no text.')
     throw new ApiError(502, 'refinement_failed', REFINEMENT_FAILED)
   }
 

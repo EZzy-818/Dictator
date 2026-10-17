@@ -36,18 +36,19 @@ describe('POST /api/refine', () => {
 
     const params = openai.responses.create.mock.calls[0][0]
     expect(params.model).toBe('gpt-4.1')
-    expect(params.instructions).toBe(REFINEMENT_SYSTEM_PROMPT)
-    expect(params.input).toBe(`${LANGUAGE_GUIDANCE.auto}\n\n<transcript>\n${transcript}\n</transcript>`)
+    expect(params.instructions).toBe(`${REFINEMENT_SYSTEM_PROMPT}\n\n${LANGUAGE_GUIDANCE.auto}`)
+    expect(params.input).toBe(`<transcript>\n${transcript}\n</transcript>`)
     expect(params.store).toBe(false)
+    expect(params.temperature).toBe(0)
   })
 
   it.each(['en', 'zh', 'auto'])('uses guidance for %s that never asks for translation', async (language) => {
     const { app, openai } = createTestApp()
     await refine(app, { transcript: 'hello', language })
 
-    const { input } = openai.responses.create.mock.calls[0][0]
-    expect(input.startsWith(LANGUAGE_GUIDANCE[language])).toBe(true)
-    expect(input).not.toMatch(/translate (it|this|the transcript) (in)?to/i)
+    const { instructions } = openai.responses.create.mock.calls[0][0]
+    expect(instructions.endsWith(LANGUAGE_GUIDANCE[language])).toBe(true)
+    expect(instructions).not.toMatch(/translate (it|this|the transcript) (in)?to/i)
   })
 
   it('includes every roadmap rule in the system prompt', () => {
@@ -75,6 +76,7 @@ describe('POST /api/refine', () => {
     ['an incomplete response', async () => ({ status: 'incomplete', output_text: 'Partial', incomplete_details: { reason: 'max_output_tokens' } })],
     ['an empty response', async () => ({ status: 'completed', output_text: '   ' })],
     ['a malformed response', async () => ({})],
+    ['a refusal', async () => ({ status: 'completed', output_text: '', output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'no' }] }] })],
   ])('returns a safe 502 for %s', async (_, output) => {
     const { app } = createTestApp({ openai: fakeOpenAI(undefined, output) })
     const res = await refine(app, { transcript: 'hello', language: 'en' })
