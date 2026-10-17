@@ -7,10 +7,12 @@ import Recorder from './components/Recorder.jsx'
 import TranscriptPanel from './components/TranscriptPanel.jsx'
 import OutputEditor from './components/OutputEditor.jsx'
 
-// Tells the browser which glyphs to prefer. Text with any Chinese in it is marked Chinese,
-// which still shows English words normally.
+// Tells the browser which glyphs to prefer. Text with any Chinese or Hindi in it is marked
+// as that language, which still shows English words normally.
 function textLangOf(text) {
-  return /\p{Script=Han}/u.test(text) ? 'zh-CN' : 'en'
+  if (/\p{Script=Han}/u.test(text)) return 'zh-CN'
+  if (/\p{Script=Devanagari}/u.test(text)) return 'hi'
+  return 'en'
 }
 
 const REFINEMENT_FAILED = 'Refinement failed. Your raw transcript is preserved; you can retry refinement.'

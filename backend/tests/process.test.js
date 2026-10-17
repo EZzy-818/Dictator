@@ -36,7 +36,7 @@ describe('POST /api/process', () => {
     })
   })
 
-  it('transcribes as mixed Mandarin and English with the configured model', async () => {
+  it('transcribes as mixed Mandarin, English and Hindi with the configured model', async () => {
     const { app, openai } = createTestApp({ env: { TRANSCRIPTION_MODEL: 'gpt-transcribe' } })
     await postAudio(app)
 

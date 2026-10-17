@@ -326,6 +326,15 @@ describe('App', () => {
     })
   })
 
+  it('tags Hindi text as Hindi', async () => {
+    processResponse = () =>
+      jsonResponse(processResult({ rawTranscript: 'उम, कल मीटिंग है।', polishedTranscript: 'कल मीटिंग है।' }))
+    render(<App />)
+    await record()
+
+    expect(screen.getByLabelText('Polished text').lang).toBe('hi')
+  })
+
   it('keeps English text in an English-tagged field', async () => {
     processResponse = () =>
       jsonResponse(processResult({ rawTranscript: 'Um, hello.', polishedTranscript: 'Hello.' }))

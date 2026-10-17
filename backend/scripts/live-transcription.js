@@ -22,6 +22,8 @@ const SAMPLES = [
   { name: 'mixed', script: '我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。' },
   // gpt-4o-transcribe with no language wrote the English sentences of these in Chinese.
   { name: 'mixed-english-led', script: 'Okay so the main problem is the API latency. 我看了一下监控，平均响应时间大概是八百毫秒，which is way too slow for our users.' },
+  { name: 'hindi', script: 'मुझे लगता है कि हमें, उम्म, अगले हफ्ते तक यह काम पूरा कर लेना चाहिए।' },
+  { name: 'hindi-english', script: 'Yaar, mujhe lagta hai ki we should finish the login page first, उसके बाद dashboard पर काम करेंगे।' },
   { name: 'mixed-sentences', script: '我跟客户聊了一下，他们说 they are not happy with the current timeline, and they want us to deliver by the end of November. 所以我们得重新排一下优先级。' },
 ]
 

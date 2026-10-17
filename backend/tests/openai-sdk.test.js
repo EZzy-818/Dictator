@@ -67,7 +67,7 @@ describe('OpenAI SDK requests', () => {
       model: 'gpt-transcribe',
       response_format: 'json',
       prompt: TRANSCRIPTION_PROMPT,
-      languages: ['zh', 'en'],
+      languages: ['zh', 'en', 'hi'],
     })
     expect(received.file.originalname).toBe('recording.webm')
     expect(received.file.mimetype).toBe('audio/webm')

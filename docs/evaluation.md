@@ -21,6 +21,10 @@ The 31 samples are mostly Chinese with English terms, which every model handled.
 
 The old Auto-detect also removed fillers before refinement ever ran, which is why **None** still showed text without um or 嗯. `gpt-4o-transcribe` has no option for verbatim output; a prompt helps somewhat. `gpt-transcribe` keeps them far more consistently, though a very short filler can still be missed.
 
+## Update: Hindi added
+
+`languages` is now `["zh", "en", "hi"]` and the prompt names Hindi in Devanagari. On 6 synthetic Hindi and Hindi-English clips (2 runs each), every Hindi word stayed Hindi and every English clause stayed English, with or without `hi` in the list; the 7 Chinese-English clips above gave the same transcripts with `hi` added (one run kept an extra 呃). English words spoken inside Hindi sentences are sometimes written in Devanagari (सर्वर लॉग्स, टाइमआउट), which is a common way to write Hindi. Light and Medium refinement of Hindi and Hindi-English transcripts removed fillers (उम, उम्म, अं), resolved a Hindi correction (सोमवार, नहीं मतलब बुधवार → बुधवार) and translated nothing. Raw output: `eval-runs/mixed-language/hindi.txt` in the project files.
+
 ## Earlier run with `gpt-4o-transcribe` and a language setting
 
 Commit 482ceab, 31 synthetic samples, `gpt-4o-transcribe` and `gpt-4.1`, each sample sent with its own language option. That report is in the repository history at commit 482ceab (`backend/eval/results/synthetic.md`).

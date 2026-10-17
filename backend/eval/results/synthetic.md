@@ -1,6 +1,6 @@
 # Accuracy evaluation: synthetic recordings
 
-Run 2026-10-17T04:15:36.284Z. Transcription model `gpt-transcribe`, refinement model `gpt-4.1`.
+Run 2026-10-17T04:26:52.284Z. Transcription model `gpt-transcribe`, refinement model `gpt-4.1`.
 
 31 of 31 samples transcribed.
 
@@ -121,7 +121,7 @@ English corrections and fillers.
 English corrections and fillers.
 
 - Script: The deadline is the end of May, sorry, I mean the end of June.
-- Raw transcript: The deadline is the end of May, sorry I mean the end of June.
+- Raw transcript: The deadline is the end of May, sorry, I mean the end of June.
 - WER: 0.0% (0 / 14; with fillers counted 0.0%). Errors: none
 - Refined: The deadline is the end of June.
 - Intended refinement: The deadline is the end of June.
