@@ -12,7 +12,8 @@
     "eval:fidelity": "node scripts/eval-fidelity.js",
     "test:acceptance": "node scripts/acceptance.js",
     "test:live:levels": "node scripts/live-refinement-levels.js",
-    "benchmark:latency": "node scripts/benchmark-latency.js"
+    "benchmark:latency": "node scripts/benchmark-latency.js",
+    "benchmark:models": "node scripts/benchmark-models.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

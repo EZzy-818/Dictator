@@ -27,6 +27,12 @@ function stripTranscriptTags(text) {
   return text.replace(/^\s*<transcript>\s*/i, '').replace(/\s*<\/transcript>\s*$/i, '')
 }
 
+// Reasoning models (gpt-5 and later) accept temperature only with reasoning turned off, which is
+// also their fastest setting. gpt-4.1 takes no reasoning parameter.
+export function refinementParams(model) {
+  return /^gpt-([5-9]|\d{2})/.test(model) ? { reasoning: { effort: 'none' } } : {}
+}
+
 // One model call. keepLanguages and keepWords: what a previous attempt translated, to warn about.
 async function requestRefinement({ client, model, transcript, level, keepLanguages, keepWords }) {
   let response
@@ -37,8 +43,9 @@ async function requestRefinement({ client, model, transcript, level, keepLanguag
         instructions: buildRefinementInstructions(level, { keepLanguages, keepWords }),
         input: buildRefinementInput(transcript),
         max_output_tokens: MAX_OUTPUT_TOKENS,
-        // Editing should be as repeatable as possible. Reasoning models reject this parameter.
+        // Editing should be as repeatable as possible.
         temperature: 0,
+        ...refinementParams(model),
         // Do not keep dictated text on OpenAI's side beyond the request.
         store: false,
       },

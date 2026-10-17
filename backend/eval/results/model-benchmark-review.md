@@ -1,0 +1,319 @@
+# Human review sheet
+
+Source: synthetic.
+
+## Transcription: unintended translations
+
+- **mixed-15-a** · `gpt-transcribe` #1: "because it handles relational data better" → "系 型 数 据 更 好"
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - heard: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **mixed-5-a** · `gpt-4o-mini-transcribe-2025-12-15` #2: "这 个" → "jacob"
+  - said: 这个 bug 我明天 fix 一下。
+  - heard: Jacob吧,我明天fix一下。
+- **mixed-15-a** · `gpt-transcribe` #2: "because it handles relational data better" → "系 型 数 据 更 好"
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - heard: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **mixed-15-a** · `gpt-transcribe` #3: "because it handles relational data better" → "系 型 数 据 更 好"
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - heard: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **mixed-30-c** · `gpt-4o-mini-transcribe-2025-12-15` #3: "一 个" → "a"
+  - said: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - heard: OK, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来. Lisa 会在 Wednesday 之前 send out a proposal. We should not announce anything publicly until 合同签完.
+
+## Transcription: check the audio
+
+Spans where both models made the same error on repeat 1. The text-to-speech audio may not say exactly what the script says there; listen and correct the reference if so.
+
+- **zh-30-a**: I ∅ → 啊; D 大 → ∅; D 家 → ∅; D 提 → ∅; D 前 → ∅; D 安 → ∅; D 排 → ∅; D 好 → ∅; D 工 → ∅; D 作 → ∅
+- **mixed-15-a**: D t → ∅; D e → ∅; D a → ∅
+
+## Refinement: every rule failure
+
+- **zh-30-c** · `gpt-5.4-mini` · light #1: correction: kept retracted 七个人
+  - input: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - output: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+- **hi-30-c** · `gpt-5.4-mini` · light #1: lost number: छह; correction: missing छह; correction: kept retracted चार लोगों
+  - input: आज की मीटिंग में तीन बातें तय हुईं। पहली, अगली तिमाही का बजट दस प्रतिशत बढ़ेगा। दूसरी, हम चार लोगों को, नहीं मतलब छह लोगों को हायर करेंगे। तीसरी, ऑफ़िस शिफ़्ट अब अगले साल अप्रैल में होगा। नेहा शुक्रवार तक सबको मीटिंग के नोट्स भेज देगी, अलग से मीटिंग करने की ज़रूरत नहीं है।
+  - output: आज की मीटिंग में तीन बातें तय हुईं। पहली, अगली तिमाही का बजट दस प्रतिशत बढ़ेगा। दूसरी, हम चार लोगों को हायर करेंगे। तीसरी, ऑफ़िस शिफ़्ट अब अगले साल अप्रैल में होगा। नेहा शुक्रवार तक सबको मीटिंग के नोट्स भेज देगी, अलग से मीटिंग करने की ज़रूरत नहीं है。
+- **mixed-15-a** · `gpt-5.4-mini` · medium #1: translated words: because
+  - input: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL，因为 it handles relational data better，而且 team 里大家都比较熟。
+- **mixed-30-b** · `gpt-6-luna` · medium #1: translated span: "we need more time to test it properly" → "时 间 才 能 充 分 测 试"
+  - input: 这个 feature 我觉得 we need more time to test it properly，所以 release date 可能要推迟到 next Monday。嗯，QA 那边发现了三个 critical bugs，其中两个跟 payment flow 有关，另外一个是 iOS 上的 crash。我已经跟 Sarah 说了，她会 update 一下 roadmap。
+  - output: 这个 feature 我觉得需要更多时间才能充分测试，所以 release date 可能要推迟到 next Monday。QA 那边发现了三个 critical bugs，其中两个跟 payment flow 有关，另外一个是 iOS 上的 crash。我已经跟 Sarah 说了，她会更新一下 roadmap。
+- **mixed-30-c** · `gpt-4.1` · light #1: translated span: "one for" → "个 做"; translated span: "and one for" → "一 个 做"
+  - input: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - output: Okay, quick update on the Shanghai office。我们下个月要招两个 senior engineers，一个做 backend，一个做 data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **mixed-30-c** · `gpt-4.1` · medium #1: translated span: "one for" → "负 责"; translated span: "and one for" → "个 负 责"
+  - input: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - output: Okay, quick update on the Shanghai office。我们下个月要招两个 senior engineers，一个负责 backend，一个负责 data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **mixed-30-c** · `gpt-6-luna` · medium #1: translated span: "one for" → "负 责"; translated span: "and one for" → "个 负 责"
+  - input: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - output: Quick update on the Shanghai office. 我们下个月要招两个 senior engineers，一个负责 backend，一个负责 data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **zh-30-c** · `gpt-5.4-mini` · light #2: correction: kept retracted 七个人
+  - input: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - output: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+- **mixed-30-c** · `gpt-4.1` · light #2: translated span: "one for" → "个 做"; translated span: "and one for" → "一 个 做"
+  - input: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - output: Okay, quick update on the Shanghai office。我们下个月要招两个 senior engineers，一个做 backend，一个做 data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **mixed-30-b** · `gpt-6-luna` · medium #2: translated span: "we need more time to test it properly" → "时 间 才 能 充 分 测 试"
+  - input: 这个 feature 我觉得 we need more time to test it properly，所以 release date 可能要推迟到 next Monday。嗯，QA 那边发现了三个 critical bugs，其中两个跟 payment flow 有关，另外一个是 iOS 上的 crash。我已经跟 Sarah 说了，她会 update 一下 roadmap。
+  - output: 这个 feature 我觉得需要更多时间才能充分测试，所以 release date 可能要推迟到 next Monday。QA 那边发现了三个 critical bugs，其中两个跟 payment flow 有关，另一个是 iOS 上的 crash。我已经跟 Sarah 说了，她会更新一下 roadmap。
+- **mixed-30-c** · `gpt-4.1` · medium #2: translated span: "one for" → "负 责"; translated span: "and one for" → "个 负 责"
+  - input: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - output: Okay, quick update on the Shanghai office。我们下个月要招两个 senior engineers，一个负责 backend，一个负责 data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **mixed-15-a** · `gpt-5.4-mini` · medium #3: translated words: because
+  - input: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL，因为 it handles relational data better，而且 team 里大家都比较熟。
+- **mixed-30-c** · `gpt-4.1` · light #3: translated span: "and one" → "一 个"
+  - input: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - output: Okay, quick update on the Shanghai office。我们下个月要招两个 senior engineers，一个 for backend，一个 for data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **mixed-30-c** · `gpt-4.1` · medium #3: translated span: "one for" → "个 做"; translated span: "and one for" → "一 个 做"
+  - input: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - output: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，一个做 backend，一个做 data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **mixed-30-c** · `gpt-6-luna` · medium #3: translated span: "one for" → "负 责"; translated span: "and one for" → "个 负 责"
+  - input: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - output: Quick update on the Shanghai office: 我们下个月要招两个 senior engineers，一个负责 backend，一个负责 data。The budget has been approved, 但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **mixed-30-b** · `gpt-6-luna` · medium #3: translated span: "we need more time to test it properly" → "时 间 才 能 充 分 测 试"
+  - input: 这个 feature 我觉得 we need more time to test it properly，所以 release date 可能要推迟到 next Monday。嗯，QA 那边发现了三个 critical bugs，其中两个跟 payment flow 有关，另外一个是 iOS 上的 crash。我已经跟 Sarah 说了，她会 update 一下 roadmap。
+  - output: 这个 feature 需要更多时间才能充分测试，所以 release date 可能要推迟到 next Monday。QA 那边发现了三个 critical bugs，其中两个跟 payment flow 有关，另外一个是 iOS 上的 crash。我已经跟 Sarah 说了，她会更新一下 roadmap。
+
+## Refinement: judge flags that rules missed (subjective, check them)
+
+- **en-15-a** · `gpt-4.1` · medium: Changed tentative “I think we need” to definite “We need”
+  - input: So, uh, the Kubernetes cluster ran out of memory twice last night, and I think we need to bump the node size to sixteen gigabytes before the launch on March 12th.
+  - output: The Kubernetes cluster ran out of memory twice last night. We need to bump the node size to sixteen gigabytes before the launch on March 12th.
+- **mixed-5-c** · `gpt-5.4-mini` · medium: Translated the spoken Mandarin word “到” into English
+  - input: Don't push 到 main branch，先开 PR。
+  - output: Don't push to main branch，先开 PR。
+- **mixed-15-b** · `gpt-5.4-mini` · medium: “sync” was translated to “同步”
+  - input: 嗯，今天的 standup 我们主要 sync 一下 sprint progress，然后 Kevin 会 demo 一下新的 dashboard。
+  - output: 今天的 standup 我们主要同步一下 sprint progress，然后 Kevin 会 demo 一下新的 dashboard。
+
+## Refinement: random passing outputs to spot-check
+
+- **en-30-c** · `gpt-4.1` · medium
+  - input: Hey team, quick reminder that the quarterly planning offsite is on May eighth, sorry, May ninth, in Denver. Flights should be booked by the end of this week, and the budget is six hundred dollars per person. If you can't make it, let Rachel know by Monday so she can update the headcount. Uh, we'll cover the product roadmap in the morning and the hiring plan in the afternoon. Please don't share the agenda outside the team yet.
+  - output: Hey team, quick reminder that the quarterly planning offsite is on May ninth in Denver. Flights should be booked by the end of this week, and the budget is six hundred dollars per person. If you can't make it, let Rachel know by Monday so she can update the headcount. We'll cover the product roadmap in the morning and the hiring plan in the afternoon. Please don't share the agenda outside the team yet.
+- **hi-15-c** · `gpt-4.1` · medium
+  - input: नया डिज़ाइन हरे रंग में होगा, सॉरी, नीले रंग में, क्योंकि ब्रांड गाइडलाइन में यही लिखा है।
+  - output: नया डिज़ाइन नीले रंग में होगा, क्योंकि ब्रांड गाइडलाइन में यही लिखा है।
+- **zh-30-a** · `gpt-4.1` · medium
+  - input: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。呃，另外测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+  - output: 好的，我说一下这周的进度。新版本的设计稿已经全部确认，开发团队周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。另外，测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+- **en-15-c** · `gpt-4.1` · medium
+  - input: The demo is on Thursday at ten, no wait, eleven thirty, in the Hudson conference room. Bring the latest build and, um, the slides from Elena.
+  - output: The demo is on Thursday at eleven thirty in the Hudson conference room. Bring the latest build and the slides from Elena.
+- **hi-5-b** · `gpt-4.1` · light
+  - input: हम सोमवार, नहीं मतलब मंगलवार को लॉन्च करेंगे।
+  - output: हम मंगलवार को लॉन्च करेंगे।
+- **hi-15-c** · `gpt-4.1` · light
+  - input: नया डिज़ाइन हरे रंग में होगा, सॉरी, नीले रंग में, क्योंकि ब्रांड गाइडलाइन में यही लिखा है।
+  - output: नया डिज़ाइन नीले रंग में होगा, क्योंकि ब्रांड गाइडलाइन में यही लिखा है।
+- **hi-5-a** · `gpt-4.1` · light
+  - input: उम्म, कल सुबह दस बजे मीटिंग है।
+  - output: कल सुबह दस बजे मीटिंग है।
+- **en-5-a** · `gpt-4.1` · medium
+  - input: Um, send the invoice to Priya by Friday.
+  - output: Send the invoice to Priya by Friday.
+- **hi-30-a** · `gpt-4.1` · light
+  - input: ठीक है, तो इस हफ़्ते का अपडेट देता हूँ। उम्म, नए ऐप का डिज़ाइन पूरा हो चुका है और डेवलपर्स ने सोमवार से कोडिंग शुरू कर दी है। सबसे बड़ा जोखिम पेमेंट गेटवे है, क्योंकि उनकी टीम ने अभी तक डॉक्यूमेंटेशन नहीं भेजा है। अगर अगले हफ़्ते तक जवाब नहीं आया, तो हमें लॉन्च एक हफ़्ता आगे बढ़ाना पड़ेगा। अमित टेस्टिंग संभालेगा और सीमा क्लाइंट से बात करेगी।
+  - output: ठीक है, तो इस हफ़्ते का अपडेट देता हूँ। नए ऐप का डिज़ाइन पूरा हो चुका है और डेवलपर्स ने सोमवार से कोडिंग शुरू कर दी है। सबसे बड़ा जोखिम पेमेंट गेटवे है, क्योंकि उनकी टीम ने अभी तक डॉक्यूमेंटेशन नहीं भेजा है। अगर अगले हफ़्ते तक जवाब नहीं आया, तो हमें लॉन्च एक हफ़्ता आगे बढ़ाना पड़ेगा। अमित टेस्टिंग संभालेगा और सीमा क्लाइंट से बात करेगी।
+- **en-30-a** · `gpt-4.1` · light
+  - input: Okay, so here's the update on the mobile app. Um, the iOS build passed review yesterday, and the Android build is still waiting on the store. We fixed forty two bugs this sprint, and the crash rate dropped to under one percent. Uh, the analytics dashboard is late because the data team is short on people, so I asked Daniel to help them out until the twentieth. The launch is still planned for the first week of June, as long as nothing new comes up.
+  - output: Okay, so here's the update on the mobile app. The iOS build passed review yesterday, and the Android build is still waiting on the store. We fixed forty-two bugs this sprint, and the crash rate dropped to under one percent. The analytics dashboard is late because the data team is short on people, so I asked Daniel to help them out until the twentieth. The launch is still planned for the first week of June, as long as nothing new comes up.
+- **zh-5-c** · `gpt-6-luna` · light
+  - input: 这个版本先不要发布。
+  - output: 这个版本先不要发布。
+- **hi-30-b** · `gpt-6-luna` · medium
+  - input: डेटाबेस माइग्रेशन के बारे में, हमने तय किया है कि पहले यूज़र टेबल को नए सर्वर पर ले जाएँगे। माइग्रेशन रात दो बजे से चार बजे के बीच होगा और लगभग दस मिनट तक सर्विस बंद रहेगी। उम्म, माइग्रेशन से पहले पूरा बैकअप लेना ज़रूरी है, बिना बैकअप के काम शुरू नहीं होगा। विकास रोलबैक प्लान बनाएगा।
+  - output: डेटाबेस माइग्रेशन के बारे में, हमने तय किया है कि पहले यूज़र टेबल को नए सर्वर पर ले जाएँगे। माइग्रेशन रात दो बजे से चार बजे के बीच होगा और लगभग दस मिनट तक सर्विस बंद रहेगी। माइग्रेशन से पहले पूरा बैकअप लेना ज़रूरी है। बिना बैकअप के काम शुरू नहीं होगा। विकास रोलबैक प्लान बनाएगा।
+- **hi-15-c** · `gpt-6-luna` · medium
+  - input: नया डिज़ाइन हरे रंग में होगा, सॉरी, नीले रंग में, क्योंकि ब्रांड गाइडलाइन में यही लिखा है।
+  - output: नया डिज़ाइन नीले रंग में होगा, क्योंकि ब्रांड गाइडलाइन में यही लिखा है।
+- **en-30-b** · `gpt-6-luna` · medium
+  - input: Okay, so for the API redesign, uh, we're moving from REST to GraphQL for the mobile client only. The web app keeps the current endpoints for now. Latency on the search endpoint is around four hundred fifty milliseconds at p95, and the target is under two hundred. Jordan will own the schema, and, um, Aisha will handle the caching layer with Redis. We are not changing the authentication flow in this phase.
+  - output: For the API redesign, we're moving from REST to GraphQL for the mobile client only. The web app will keep the current endpoints for now. Latency on the search endpoint is around 450 milliseconds at p95, and the target is under 200 milliseconds. Jordan will own the schema, and Aisha will handle the caching layer with Redis. We are not changing the authentication flow in this phase.
+- **en-5-a** · `gpt-6-luna` · medium
+  - input: Um, send the invoice to Priya by Friday.
+  - output: Send the invoice to Priya by Friday.
+- **hi-15-a** · `gpt-6-luna` · medium
+  - input: राहुल ने बताया कि सर्वर का बिल पिछले महीने बीस प्रतिशत बढ़ गया है, इसलिए हमें शुक्रवार तक खर्च की समीक्षा करनी होगी।
+  - output: राहुल ने बताया कि सर्वर का बिल पिछले महीने बीस प्रतिशत बढ़ गया है, इसलिए हमें शुक्रवार तक खर्च की समीक्षा करनी होगी।
+- **hi-15-b** · `gpt-6-luna` · medium
+  - input: अं, कृपया प्रिया को रिपोर्ट भेज दीजिए और उन्हें बताइए कि डेडलाइन पंद्रह मार्च है, लेकिन बजट अभी फ़ाइनल नहीं हुआ है।
+  - output: कृपया प्रिया को रिपोर्ट भेज दीजिए और उन्हें बताइए कि डेडलाइन पंद्रह मार्च है, लेकिन बजट अभी फ़ाइनल नहीं हुआ है।
+- **hi-15-b** · `gpt-6-luna` · light
+  - input: अं, कृपया प्रिया को रिपोर्ट भेज दीजिए और उन्हें बताइए कि डेडलाइन पंद्रह मार्च है, लेकिन बजट अभी फ़ाइनल नहीं हुआ है।
+  - output: कृपया प्रिया को रिपोर्ट भेज दीजिए और उन्हें बताइए कि डेडलाइन पंद्रह मार्च है, लेकिन बजट अभी फ़ाइनल नहीं हुआ है।
+- **hi-15-c** · `gpt-6-luna` · light
+  - input: नया डिज़ाइन हरे रंग में होगा, सॉरी, नीले रंग में, क्योंकि ब्रांड गाइडलाइन में यही लिखा है।
+  - output: नया डिज़ाइन नीले रंग में होगा, क्योंकि ब्रांड गाइडलाइन में यही लिखा है।
+- **mixed-15-c** · `gpt-6-luna` · light
+  - input: So basically, I think we should 先把 login page 做完, and then we can move on to the dashboard, 呃, 最晚周四，不对，周五之前。
+  - output: So basically, I think we should 先把 login page 做完, and then we can move on to the dashboard, 最晚周五之前。
+- **hi-5-a** · `gpt-5.4-mini` · light
+  - input: उम्म, कल सुबह दस बजे मीटिंग है।
+  - output: कल सुबह दस बजे मीटिंग है।
+- **zh-30-c** · `gpt-5.4-mini` · medium
+  - input: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - output: 今天的会议主要讨论了三件事。第一，下个季度的预算增加 15%。第二，招聘计划从五个人调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+- **mixed-5-b** · `gpt-5.4-mini` · light
+  - input: 我们用 MySQL，不对，PostgreSQL。
+  - output: 我们用 PostgreSQL。
+- **hi-30-a** · `gpt-5.4-mini` · medium
+  - input: ठीक है, तो इस हफ़्ते का अपडेट देता हूँ। उम्म, नए ऐप का डिज़ाइन पूरा हो चुका है और डेवलपर्स ने सोमवार से कोडिंग शुरू कर दी है। सबसे बड़ा जोखिम पेमेंट गेटवे है, क्योंकि उनकी टीम ने अभी तक डॉक्यूमेंटेशन नहीं भेजा है। अगर अगले हफ़्ते तक जवाब नहीं आया, तो हमें लॉन्च एक हफ़्ता आगे बढ़ाना पड़ेगा। अमित टेस्टिंग संभालेगा और सीमा क्लाइंट से बात करेगी।
+  - output: ठीक है, तो इस हफ़्ते का अपडेट देता हूँ। नए ऐप का डिज़ाइन पूरा हो चुका है और डेवलपर्स ने सोमवार से कोडिंग शुरू कर दी है। सबसे बड़ा जोखिम पेमेंट गेटवे है, क्योंकि उनकी टीम ने अभी तक डॉक्यूमेंटेशन नहीं भेजा है। अगर अगले हफ़्ते तक जवाब नहीं आया, तो हमें लॉन्च एक हफ़्ता आगे बढ़ाना पड़ेगा। अमित टेस्टिंग संभालेगा और सीमा क्लाइंट से बात करेगी。
+- **en-5-a** · `gpt-5.4-mini` · light
+  - input: Um, send the invoice to Priya by Friday.
+  - output: Send the invoice to Priya by Friday.
+- **zh-5-b** · `gpt-5.4-mini` · light
+  - input: 我们周二，不对，周三上线。
+  - output: 我们周三上线。
+- **en-5-c** · `gpt-5.4-mini` · light
+  - input: Please don't merge the Redis migration yet.
+  - output: Please don't merge the Redis migration yet.
+- **zh-5-a** · `gpt-5.4-mini` · medium
+  - input: 嗯，明天下午三点开会。
+  - output: 明天下午三点开会。
+- **hi-15-a** · `gpt-5.4-mini` · light
+  - input: राहुल ने बताया कि सर्वर का बिल पिछले महीने बीस प्रतिशत बढ़ गया है, इसलिए हमें शुक्रवार तक खर्च की समीक्षा करनी होगी।
+  - output: राहुल ने बताया कि सर्वर का बिल पिछले महीने बीस प्रतिशत बढ़ गया है, इसलिए हमें शुक्रवार तक खर्च की समीक्षा करनी होगी。
+- **hi-5-c** · `gpt-5.4-mini` · light
+  - input: अभी यह फ़ाइल किसी को मत भेजना।
+  - output: अभी यह फ़ाइल किसी को मत भेजना।
+
+## End to end: failures per configuration
+
+- **en-15-a** · Baseline · medium: judge: Changed tentative “I think we need” to definite “We need”
+  - said: So, uh, the Kubernetes cluster ran out of memory twice last night, and I think we need to bump the node size to sixteen gigabytes before the launch on March 12th.
+  - transcript: So the Kubernetes cluster ran out of memory twice last night, and I think we need to bump the node size to 16 gigabytes before the launch on March 12.
+  - output: The Kubernetes cluster ran out of memory twice last night. We need to increase the node size to 16 gigabytes before the launch on March 12.
+- **zh-30-a** · Baseline · light: judge: Omitted the request for everyone to arrange their work in advance.
+  - said: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。呃，另外测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+  - transcript: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。啊，另外测试环境的服务器下周四会停机维护两个小时。
+  - output: 好的，我说一下这周的进度。新版本的设计稿已经全部确认了，开发团队周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。另外，测试环境的服务器下周四会停机维护两个小时。
+- **zh-30-a** · Baseline · medium: judge: Omitted the instruction for everyone to arrange work in advance.
+  - said: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。呃，另外测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+  - transcript: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。啊，另外测试环境的服务器下周四会停机维护两个小时。
+  - output: 好的，我说一下这周的进度。新版本的设计稿已经全部确认，开发团队周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。另外，测试环境的服务器下周四会停机维护两个小时。
+- **zh-30-c** · Baseline · light: lost number: 百分之十五; lost name: 刘洋; new numbers: 15; judge: “百分之十五”被写成“15”，缺少百分比单位; judge: 姓名“刘洋”误写为“刘阳”
+  - said: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - transcript: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15；第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - output: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15；第二，招聘计划从五个人调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+- **zh-30-c** · Baseline · medium: lost name: 刘洋; judge: 将人名“刘洋”改成了“刘阳”
+  - said: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - transcript: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15；第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - output: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15%；第二，招聘计划从五个人调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题直接找他，不用再单独开会。
+- **mixed-15-a** · Baseline · light: lost term: relational data; translated: English; translated span: "because it handles relational data better" → "系 型 数 据 更 好"; translated words: because; judge: Translated the English clause into Mandarin instead of preserving the spoken language mix.
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - transcript: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **mixed-15-a** · Baseline · medium: lost term: relational data; translated: English; translated span: "because it handles relational data better" → "系 型 数 据 更 好"; translated words: because; judge: Translated English clauses into Mandarin instead of preserving the original language mix
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - transcript: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟悉。
+- **mixed-30-c** · Baseline · medium: translated span: "one for" → "负 责"; translated span: "and one for" → "个 负 责"
+  - said: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - transcript: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来。嗯, Lisa 会在 Wednesday 之前 send out 一个 proposal. We should not announce anything publicly until 合同签完。
+  - output: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，一个负责 backend，一个负责 data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **en-15-a** · A · medium: judge: Changed tentative “I think we need” to definite “We need”
+  - said: So, uh, the Kubernetes cluster ran out of memory twice last night, and I think we need to bump the node size to sixteen gigabytes before the launch on March 12th.
+  - transcript: So, the Kubernetes cluster ran out of memory twice last night, and I think we need to bump the node size to 16 gigabytes before the launch on March 12th.
+  - output: The Kubernetes cluster ran out of memory twice last night. We need to bump the node size to 16 gigabytes before the launch on March 12th.
+- **zh-30-a** · A · light: judge: Omitted the request for everyone to arrange work in advance.
+  - said: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。呃，另外测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+  - transcript: 好的,我说一下这周的进度,嗯,新版本的设计稿已经全部确认了,开发团队周一,不对,周二开始写代码,目前最大的风险是第三方支付接口,对方说文档要下周才能给我们,如果拿到得晚,我们可能需要把上线时间往后推一周,啊,另外测试环境的服务器,下周四会停机维护两个小时。
+  - output: 好的，我说一下这周的进度。新版本的设计稿已经全部确认了，开发团队周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。另外，测试环境的服务器下周四会停机维护两个小时。
+- **zh-30-a** · A · medium: judge: Omitted the request for everyone to arrange their work in advance.
+  - said: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。呃，另外测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+  - transcript: 好的,我说一下这周的进度,嗯,新版本的设计稿已经全部确认了,开发团队周一,不对,周二开始写代码,目前最大的风险是第三方支付接口,对方说文档要下周才能给我们,如果拿到得晚,我们可能需要把上线时间往后推一周,啊,另外测试环境的服务器,下周四会停机维护两个小时。
+  - output: 好的，我说一下这周的进度。新版本的设计稿已经全部确认，开发团队周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。另外，测试环境的服务器下周四会停机维护两个小时。
+- **hi-5-c** · A · medium: judge: “मत भेजना” was changed to the more directive “मत भेजो”
+  - said: अभी यह फ़ाइल किसी को मत भेजना।
+  - transcript: अभी यह फाइल किसी को मत भेजना।
+  - output: अभी यह फाइल किसी को मत भेजो।
+- **mixed-5-a** · A · medium: lost term: bug; lost term: fix; judge: Changed “bug” to unsupported “JacobBug”; judge: Translated English “fix” into Mandarin
+  - said: 这个 bug 我明天 fix 一下。
+  - transcript: JacobBug,我明天fix一下。
+  - output: JacobBug，我明天修一下。
+- **mixed-5-a** · A · light: lost term: bug; judge: “这个 bug” was changed to the unsupported name “JacobBug”
+  - said: 这个 bug 我明天 fix 一下。
+  - transcript: JacobBug,我明天fix一下。
+  - output: JacobBug，我明天 fix 一下。
+- **mixed-15-a** · A · light: lost term: team; judge: Added unsupported phrase “挺利”; judge: Changed “team 里” to omit “team”
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - transcript: 我觉得我们应该用PostgreSQL, because it handles relational data better, 而且挺力,大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL, because it handles relational data better，而且挺利，大家都比较熟。
+- **mixed-15-a** · A · medium: lost term: team; judge: Added unsupported phrase “而且挺利”; judge: Changed “team 里” to omit the team context; judge: Awkward and likely incomplete Chinese phrase “挺利”
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - transcript: 我觉得我们应该用PostgreSQL, because it handles relational data better, 而且挺力,大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL, because it handles relational data better，而且挺利，大家都比较熟。
+- **mixed-30-c** · A · light: translated span: "and one" → "一 个"; judge: Translated the spoken English word “one” into Chinese “一个” twice
+  - said: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - transcript: Okay, quick update on the Shanghai office. 我们下个月要招两个senior engineers, one for backend and one for data. The budget has been approved, 但是office space还没有定下来。Lisa会在Wednesday之前 send out一个proposal. We should not announce anything publicly until合同签完。
+  - output: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，一个 for backend，一个 for data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **mixed-30-c** · A · medium: translated span: "one for" → "个 做"; translated span: "and one for" → "一 个 做"
+  - said: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - transcript: Okay, quick update on the Shanghai office. 我们下个月要招两个senior engineers, one for backend and one for data. The budget has been approved, 但是office space还没有定下来。Lisa会在Wednesday之前 send out一个proposal. We should not announce anything publicly until合同签完。
+  - output: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，一个做 backend，一个做 data。The budget has been approved，但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **zh-30-a** · B · light: judge: Omitted the request for everyone to arrange their work in advance
+  - said: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。呃，另外测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+  - transcript: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。啊，另外测试环境的服务器下周四会停机维护两个小时。
+  - output: 好的，我说一下这周的进度。新版本的设计稿已经全部确认了，开发团队周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。另外，测试环境的服务器下周四会停机维护两个小时。
+- **zh-30-a** · B · medium: judge: Omitted the request for everyone to arrange their work in advance.
+  - said: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。呃，另外测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+  - transcript: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。啊，另外测试环境的服务器下周四会停机维护两个小时。
+  - output: 这周的进度如下：新版本的设计稿已经全部确认，开发团队周二开始写代码。目前最大的风险是第三方支付接口，对方说下周才能给我们文档。如果拿到得晚，我们可能需要把上线时间往后推一周。另外，测试环境的服务器下周四会停机维护两个小时。
+- **zh-30-c** · B · light: lost number: 百分之十五; lost name: 刘洋; new numbers: 15; judge: “百分之十五”被写成“15”，缺少百分比单位; judge: 人名“刘洋”误写为“刘阳”
+  - said: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - transcript: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15；第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - output: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15；第二，招聘计划从五个人调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+- **zh-30-c** · B · medium: lost number: 百分之十五; lost name: 刘洋; new numbers: 15; judge: “百分之十五”误写为“15”，丢失百分比单位; judge: “刘洋”误写为“刘阳”
+  - said: 今天的会议主要讨论了三件事。第一，下个季度的预算增加百分之十五。第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人。第三，办公室搬迁推迟到明年三月。刘洋会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - transcript: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15；第二，招聘计划从五个人调整到七个人，呃，不对，调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家，有问题的话直接找他，不用再单独开会了。
+  - output: 今天的会议主要讨论了三件事：第一，下个季度的预算增加15；第二，招聘计划从五个人调整到八个人；第三，办公室搬迁推迟到明年三月。刘阳会在周五之前把会议纪要发给大家。有问题的话直接找他，不用再单独开会了。
+- **mixed-15-a** · B · light: lost term: relational data; translated: English; translated span: "because it handles relational data better" → "系 型 数 据 更 好"; translated words: because; judge: Translated the English clause into Mandarin
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - transcript: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+- **mixed-15-a** · B · medium: lost term: relational data; translated: English; translated span: "because it handles relational data better" → "系 型 数 据 更 好"; translated words: because; judge: Translated the English clause into Mandarin; judge: “team 里的大家” is slightly awkward
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - transcript: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL，因为它处理关系型数据更好，而且 team 里的大家都比较熟。
+- **mixed-30-b** · B · medium: translated span: "we need more time to test it properly" → "时 间 才 能 充 分 测 试"; judge: Translated “we need more time to test it properly” into Mandarin; judge: Translated “update 一下 roadmap” into Mandarin
+  - said: 这个 feature 我觉得 we need more time to test it properly，所以 release date 可能要推迟到 next Monday。嗯，QA 那边发现了三个 critical bugs，其中两个跟 payment flow 有关，另外一个是 iOS 上的 crash。我已经跟 Sarah 说了，她会 update 一下 roadmap。
+  - transcript: 这个 feature 我觉得 we need more time to test it properly，所以 release date 可能要推迟到 next Monday。嗯，QA 那边发现了三个 critical bugs，其中两个跟 payment flow 有关，另外一个是 iOS 上的 crash。我已经跟 Sarah 说了，她会 update 一下 roadmap。
+  - output: 这个 feature 我觉得需要更多时间才能充分测试，所以 release date 可能要推迟到 next Monday。QA 那边发现了三个 critical bugs，其中两个跟 payment flow 有关，另一个是 iOS 上的 crash。我已经跟 Sarah 说了，她会更新 roadmap。
+- **mixed-30-c** · B · medium: translated span: "one for" → "负 责"; translated span: "and one for" → "个 负 责"; judge: Translated “one for backend and one for data” into Mandarin
+  - said: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers，one for backend and one for data。The budget has been approved，但是 office space 还没有定下来。嗯，Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+  - transcript: Okay, quick update on the Shanghai office. 我们下个月要招两个 senior engineers, one for backend and one for data. The budget has been approved, 但是 office space 还没有定下来。嗯, Lisa 会在 Wednesday 之前 send out 一个 proposal. We should not announce anything publicly until 合同签完。
+  - output: Quick update on the Shanghai office: 我们下个月要招两个 senior engineers，一个负责 backend，一个负责 data。The budget has been approved, 但是 office space 还没有定下来。Lisa 会在 Wednesday 之前 send out 一个 proposal。We should not announce anything publicly until 合同签完。
+- **zh-30-a** · A+B · light: judge: Omitted the request for everyone to arrange work in advance.
+  - said: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。呃，另外测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+  - transcript: 好的,我说一下这周的进度,嗯,新版本的设计稿已经全部确认了,开发团队周一,不对,周二开始写代码,目前最大的风险是第三方支付接口,对方说文档要下周才能给我们,如果拿到得晚,我们可能需要把上线时间往后推一周,啊,另外测试环境的服务器,下周四会停机维护两个小时。
+  - output: 好的，我说一下这周的进度。新版本的设计稿已经全部确认了，开发团队周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。另外，测试环境的服务器下周四会停机维护两个小时。
+- **zh-30-a** · A+B · medium: judge: Omitted the request for everyone to arrange their work in advance.
+  - said: 好的，我说一下这周的进度。嗯，新版本的设计稿已经全部确认了，开发团队周一，不对，周二开始写代码。目前最大的风险是第三方支付接口，对方说文档要下周才能给我们。如果拿到得晚，我们可能需要把上线时间往后推一周。呃，另外测试环境的服务器下周四会停机维护两个小时，大家提前安排好工作。
+  - transcript: 好的,我说一下这周的进度,嗯,新版本的设计稿已经全部确认了,开发团队周一,不对,周二开始写代码,目前最大的风险是第三方支付接口,对方说文档要下周才能给我们,如果拿到得晚,我们可能需要把上线时间往后推一周,啊,另外测试环境的服务器,下周四会停机维护两个小时。
+  - output: 好的，我说一下这周的进度。新版本的设计稿已经全部确认，开发团队周二开始写代码。目前最大的风险是第三方支付接口，对方说下周才能给我们文档。如果拿到得晚，我们可能需要把上线时间往后推一周。另外，测试环境的服务器下周四会停机维护两个小时。
+- **mixed-5-a** · A+B · medium: lost term: bug; lost term: fix; judge: Changed “这个 bug” to unsupported “JacobBug”; judge: Translated English “fix” into Chinese “修”
+  - said: 这个 bug 我明天 fix 一下。
+  - transcript: JacobBug,我明天fix一下。
+  - output: JacobBug，我明天修一下。
+- **mixed-5-a** · A+B · light: lost term: bug; judge: “这个 bug” was changed to the unsupported name “JacobBug”
+  - said: 这个 bug 我明天 fix 一下。
+  - transcript: JacobBug,我明天fix一下。
+  - output: JacobBug，我明天 fix 一下。
+- **mixed-15-a** · A+B · light: lost term: team; judge: “team 里” was replaced with unsupported “挺力”; judge: English “team” was unnecessarily translated into Chinese script; judge: The replacement makes the sentence unclear and ungrammatical
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - transcript: 我觉得我们应该用PostgreSQL, because it handles relational data better, 而且挺力,大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL, because it handles relational data better，而且挺力，大家都比较熟。
+- **mixed-15-a** · A+B · medium: lost term: team; judge: Added unsupported claim “而且挺有力”; judge: Omitted the team context in “team 里”
+  - said: 我觉得我们应该用 PostgreSQL，because it handles relational data better，而且 team 里大家都比较熟。
+  - transcript: 我觉得我们应该用PostgreSQL, because it handles relational data better, 而且挺力,大家都比较熟。
+  - output: 我觉得我们应该用 PostgreSQL, because it handles relational data better，而且挺有力，大家都比较熟。
+
+## End to end: extra failures from combining A and B
+
+- none

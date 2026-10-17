@@ -16,3 +16,4 @@ coverage/
 *.local
 .live-samples/
 .eval-samples/
+.eval-runs/
