@@ -56,7 +56,8 @@ export function formatDuration(ms) {
  * Records microphone audio with MediaRecorder.
  *
  * status: 'idle' | 'requesting' (waiting for microphone permission) | 'recording'
- * recording: { blob, mimeType, durationMs } after a successful stop, otherwise null
+ * recording: { blob, mimeType, durationMs, timing } after a successful stop, otherwise null.
+ *   timing: { stopRequestedAt, blobReadyAt }, performance.now() readings for the latency panel
  * stream: the microphone MediaStream while recording, otherwise null
  * onRecordingComplete: called with that same object when a recording finishes successfully
  */
@@ -74,6 +75,7 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
   const streamRef = useRef(null)
   const timerRef = useRef(null)
   const limitRef = useRef(null)
+  const stopRequestedAtRef = useRef(null)
   const onCompleteRef = useRef(onRecordingComplete)
 
   useEffect(() => {
@@ -91,6 +93,7 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
   const stop = useCallback(() => {
     const recorder = recorderRef.current
     if (recorder && recorder.state !== 'inactive') {
+      stopRequestedAtRef.current = performance.now()
       recorder.stop()
     }
   }, [])
@@ -112,6 +115,7 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
     setRecording(null)
     setStoppedAtLimit(false)
     setElapsedMs(0)
+    stopRequestedAtRef.current = null
 
     // Browsers hide the microphone API on plain http pages (localhost excepted).
     if (window.isSecureContext === false) {
@@ -154,6 +158,7 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
       const durationMs = Date.now() - startedAt
       const type = recorder.mimeType || mimeType
       const blob = new Blob(chunks, { type })
+      const timing = { stopRequestedAt: stopRequestedAtRef.current, blobReadyAt: performance.now() }
 
       if (failed) return fail(recorderError('recording-failed'))
       if (blob.size === 0) return fail(recorderError('empty'))
@@ -161,7 +166,7 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
 
       releaseMicrophone()
       recorderRef.current = null
-      const result = { blob, mimeType: type, durationMs }
+      const result = { blob, mimeType: type, durationMs, timing }
       setElapsedMs(durationMs)
       setRecording(result)
       setStatus('idle')

@@ -7,6 +7,8 @@ import Recorder from './components/Recorder.jsx'
 import TranscriptPanel from './components/TranscriptPanel.jsx'
 import OutputEditor from './components/OutputEditor.jsx'
 import { LockIcon, WaveLogo } from './components/icons.jsx'
+import LatencyPanel from './components/LatencyPanel.jsx'
+import { addRun, buildLatencyReport, isLatencyPanelEnabled, newRequestId } from './latency/report.js'
 
 // Tells the browser which glyphs to prefer. Text with any Chinese or Hindi in it is marked
 // as that language, which still shows English words normally.
@@ -44,6 +46,11 @@ function App() {
   const [copyStatus, setCopyStatus] = useState('idle')
   const requestIdRef = useRef(0)
   const copyTimerRef = useRef(null)
+  // Developer latency panel. Off for regular visitors, who then pay for none of the display tracking.
+  const [latencyEnabled] = useState(() => isLatencyPanelEnabled())
+  const [latencyRuns, setLatencyRuns] = useState([])
+  const [latencyCommit, setLatencyCommit] = useState(0)
+  const pendingLatencyRef = useRef(null)
 
   const resetResults = () => {
     requestIdRef.current++
@@ -59,28 +66,55 @@ function App() {
   const handleRecordingComplete = useCallback(
     async (recording) => {
       const requestId = ++requestIdRef.current
+      // Latency marks for this recording; only durations and IDs, never audio or text.
+      const trace = { requestId: newRequestId(), refinementLevel, ...recording.timing }
       // The level is captured here, when processing begins.
       setOutputLevel(refinementLevel)
       setProcessing(true)
       try {
-        const data = await processAudio(recording, refinementLevel)
+        const data = await processAudio(recording, refinementLevel, trace)
         if (requestId !== requestIdRef.current) return
+        trace.server = data.timings
         setServerUnavailable(false)
         setTranscript({ rawTranscript: data.rawTranscript })
         setOutputLevel(data.refinementLevel ?? refinementLevel)
         if (data.refinementStatus === 'success' || data.refinementStatus === 'skipped') {
           setPolishedText(data.polishedTranscript)
+          trace.outcome = 'success'
         } else {
           setRefinementError(REFINEMENT_FAILED)
+          trace.outcome = 'refinement_failed'
         }
       } catch (err) {
         if (requestId === requestIdRef.current) setProcessError(err.message)
+        Object.assign(trace, { server: err.timings, outcome: 'failed', errorCode: err.code ?? 'unknown' })
       } finally {
-        if (requestId === requestIdRef.current) setProcessing(false)
+        if (requestId === requestIdRef.current) {
+          setProcessing(false)
+          // The result commits with this render; the effect below times its paint.
+          if (latencyEnabled) {
+            pendingLatencyRef.current = trace
+            setLatencyCommit((count) => count + 1)
+          }
+        }
       }
     },
-    [refinementLevel],
+    [refinementLevel, latencyEnabled],
   )
+
+  // Runs after the result is in the DOM. The browser paints before the next animation frame's
+  // callbacks finish, so the mark after it is when the text became visible.
+  useEffect(() => {
+    const trace = pendingLatencyRef.current
+    if (!trace) return
+    pendingLatencyRef.current = null
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        trace.displayedAt = performance.now()
+        setLatencyRuns((runs) => addRun(runs, buildLatencyReport(trace)))
+      }),
+    )
+  }, [latencyCommit])
 
   const recorder = useAudioRecorder({ onRecordingComplete: handleRecordingComplete })
 
@@ -226,6 +260,8 @@ function App() {
           </details>
         </footer>
       </div>
+
+      {latencyEnabled && <LatencyPanel runs={latencyRuns} onClear={() => setLatencyRuns([])} />}
     </main>
   )
 }

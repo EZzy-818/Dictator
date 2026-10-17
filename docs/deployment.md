@@ -14,6 +14,7 @@ Everything that differs between local development and production is set through 
 | `REFINEMENT_MODEL` | `gpt-4.1` (default) | Optional. It must accept `temperature`. |
 | `TRUST_PROXY` | the number of proxies in front of the server | Needed to see each visitor's address for the usage limits. See [Usage limits](#usage-limits-and-abuse-protection-milestone-10). |
 | `REDIS_URL` | a Redis connection URL, for example Render Key Value's internal URL | Recommended. Keeps the usage counters when the server restarts or sleeps. |
+| `EXPOSE_TIMINGS` | `true` or `false` | Optional. `true` adds stage timings (durations only) to `/api/process` responses for the developer latency panel. Off in production by default. See [Latency profiling](latency.md). |
 | `PROCESS_LIMIT_…`, `REFINE_LIMIT_…`, `MAX_CONCURRENT_…` | optional | Change the usage limits. See the table below. |
 
 When `NODE_ENV=production`, the server **refuses to start** if `OPENAI_API_KEY` or `CORS_ORIGINS` is missing, if an origin is not a plain origin, or if an origin uses `http` for anything other than localhost. It prints the reason, so a misconfigured deploy fails visibly instead of running half-broken. In development the defaults stay as before: the key is optional, and `http://localhost:5173` is allowed.

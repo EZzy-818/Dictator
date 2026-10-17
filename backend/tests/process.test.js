@@ -23,7 +23,7 @@ describe('POST /api/process', () => {
   })
 
   it('returns the documented response shape', async () => {
-    const { app } = createTestApp()
+    const { app } = createTestApp({ env: { EXPOSE_TIMINGS: 'false' } })
     const res = await postAudio(app)
 
     expect(res.status).toBe(200)
@@ -184,6 +184,7 @@ describe('POST /api/process', () => {
       refinementLevel: 'light',
       transcriptionStatus: 'success',
       refinementStatus: 'failed',
+      timings: expect.objectContaining({ refinementStatus: 'failed' }),
     })
   })
 
@@ -220,6 +221,7 @@ describe('POST /api/process', () => {
         refinementLevel: 'none',
         transcriptionStatus: 'success',
         refinementStatus: 'skipped',
+        timings: expect.objectContaining({ refinementMs: 0, refinementStatus: 'skipped' }),
       })
       expect(openai.audio.transcriptions.create).toHaveBeenCalledTimes(1)
       expect(openai.responses.create).not.toHaveBeenCalled()

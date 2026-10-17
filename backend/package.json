@@ -10,7 +10,8 @@
     "test:live:refine": "node scripts/live-refinement.js",
     "eval": "node scripts/eval-accuracy.js",
     "test:acceptance": "node scripts/acceptance.js",
-    "test:live:levels": "node scripts/live-refinement-levels.js"
+    "test:live:levels": "node scripts/live-refinement-levels.js",
+    "benchmark:latency": "node scripts/benchmark-latency.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

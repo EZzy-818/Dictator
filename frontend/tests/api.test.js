@@ -90,3 +90,49 @@ describe('api service', () => {
     await expect(getHealth()).resolves.toEqual({ status: 'ok' })
   })
 })
+
+describe('processAudio latency trace', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sends the request ID before the audio and marks when the request started and answered', async () => {
+    fetch.mockResolvedValue(response({ json: async () => ({ rawTranscript: 'hi', timings: { totalMs: 5 } }) }))
+    const trace = { requestId: 'rec-1234abcd' }
+
+    const data = await processAudio(recording(), 'none', trace)
+
+    const form = fetch.mock.calls[0][1].body
+    expect([...form.keys()]).toEqual(['requestId', 'refinementLevel', 'audio'])
+    expect(form.get('requestId')).toBe('rec-1234abcd')
+    expect(fetch.mock.calls[0][1].headers).toBeUndefined()
+    expect(trace.responseAt).toBeGreaterThanOrEqual(trace.requestStartedAt)
+    expect(data.timings).toEqual({ totalMs: 5 })
+  })
+
+  it('marks failed requests and keeps the server timings on the error', async () => {
+    const timings = { transcriptionStatus: 'failed' }
+    fetch.mockResolvedValue(response({ ok: false, status: 502, json: async () => ({ error: 'Failed.', code: 'transcription_failed', timings }) }))
+    const trace = { requestId: 'rec-1234abcd' }
+
+    await expect(processAudio(recording(), 'light', trace)).rejects.toMatchObject({ code: 'transcription_failed', timings })
+    expect(trace.responseAt).toBeGreaterThanOrEqual(trace.requestStartedAt)
+  })
+
+  it('marks requests that never reach the server', async () => {
+    fetch.mockRejectedValue(new TypeError('Failed to fetch'))
+    const trace = {}
+    await expect(processAudio(recording(), 'light', trace)).rejects.toMatchObject({ code: 'network_error' })
+    expect(trace.responseAt).toBeGreaterThanOrEqual(trace.requestStartedAt)
+  })
+
+  it('sends no request ID without a trace', async () => {
+    fetch.mockResolvedValue(response({ json: async () => ({ rawTranscript: 'hi' }) }))
+    await processAudio(recording())
+    expect(fetch.mock.calls[0][1].body.has('requestId')).toBe(false)
+  })
+})

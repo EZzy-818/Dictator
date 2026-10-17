@@ -101,6 +101,17 @@ describe('useAudioRecorder', () => {
     expect(result.current.stream).toBeNull()
   })
 
+  it('marks when stop was pressed and when the audio was ready', async () => {
+    const { result } = renderHook(() => useAudioRecorder())
+    await startRecording(result)
+    advance(1_000)
+    act(() => result.current.stop())
+
+    const { stopRequestedAt, blobReadyAt } = result.current.recording.timing
+    expect(stopRequestedAt).toEqual(expect.any(Number))
+    expect(blobReadyAt).toBeGreaterThanOrEqual(stopRequestedAt)
+  })
+
   it('uses the format the browser actually supports', async () => {
     removeMediaMocks()
     media = installMediaMocks({ supportedTypes: ['audio/mp4'] })
