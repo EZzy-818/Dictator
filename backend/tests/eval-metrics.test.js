@@ -13,7 +13,7 @@ import {
 } from '../eval/metrics.js'
 import { addNoise } from '../eval/noise.js'
 import { FIDELITY_CASES, FIDELITY_GROUPS } from '../eval/fidelity-dataset.js'
-import { compareFillers, compareLanguages, fillerCounts, scoreFidelity, verbatimErrorRate } from '../eval/fidelity.js'
+import { compareFillers, compareLanguages, compareTerms, fillerCounts, scoreFidelity, verbatimErrorRate } from '../eval/fidelity.js'
 
 const byId = (id) => CASES.find((testCase) => testCase.id === id)
 
@@ -228,6 +228,23 @@ describe('fidelity metrics', () => {
     for (const testCase of FIDELITY_CASES) {
       expect(FIDELITY_GROUPS[testCase.group]).toBeTruthy()
       expect(scoreFidelity(testCase.script, testCase.script)).toMatchObject({ languages: { preserved: true }, fillers: { missed: 0, invented: 0 }, verbatim: { errors: 0 } })
+    }
+  })
+})
+
+describe('compareTerms', () => {
+  it('finds names written in another language than spoken', () => {
+    const transcript = 'I just graduated from New York University with a bachelor degree in 计算机科学.'
+    expect(compareTerms(['纽约大学', '计算机科学'], transcript)).toEqual({ expected: 2, kept: 1, missing: ['纽约大学'] })
+  })
+
+  it('ignores spacing and case', () => {
+    expect(compareTerms(['New York University'], '我明年想去new york  University读研究生')).toMatchObject({ kept: 1, missing: [] })
+  })
+
+  it('gives every name case terms that appear in its script', () => {
+    for (const testCase of FIDELITY_CASES.filter((c) => c.terms)) {
+      expect(compareTerms(testCase.terms, testCase.script).missing).toEqual([])
     }
   })
 })

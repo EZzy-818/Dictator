@@ -75,6 +75,7 @@ export function createProcessRouter({ config, getOpenAIClient, usageLimiters = [
         transcribeAudio({
           client,
           model: config.transcriptionModel,
+          nameCheckModel: config.nameCheckModel,
           audio: { buffer: req.file.buffer, ...format },
         }),
       )

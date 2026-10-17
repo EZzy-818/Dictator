@@ -114,6 +114,18 @@ const CASES = [
     keep: ['我们应该用', 'PostgreSQL'], drop: ['MongoDB', 'actually no'],
   },
   {
+    level: 'light', language: 'auto', name: 'Light keeps Chinese names inside English (reported sentence)',
+    input: "嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。",
+    expected: "你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。",
+    keep: ['王宇辰', '纽约大学', '计算机科学', 'to meet you', '我想要更多地了解你'], drop: ['New York University', 'NYU', 'computer science', '嗯'],
+  },
+  {
+    level: 'medium', language: 'auto', name: 'Medium keeps Chinese names inside English (reported sentence)',
+    input: "嗯，你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。",
+    expected: "你好，我的名字叫王宇辰, and I just graduated from 纽约大学 with a bachelor degree in 计算机科学. So it's really nice for me to meet you today. 我想要更多地了解你。",
+    keep: ['王宇辰', '纽约大学', '计算机科学', 'to meet you', '我想要更多地了解你'], drop: ['New York University', 'NYU', 'computer science', '嗯'],
+  },
+  {
     level: 'medium', language: 'en', name: 'Medium spec example',
     input: 'Um, I was thinking that maybe we could potentially have a meeting sometime on Tuesday, actually no, Wednesday at 3 PM, to sort of discuss the project progress.',
     expected: "Let's meet Wednesday at 3 PM to discuss the project's progress.",

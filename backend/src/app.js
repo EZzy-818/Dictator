@@ -94,6 +94,7 @@ export function createApp(config, { openai, createStore, log = logEvent } = {}) 
       openaiConfigured: Boolean(config.openaiApiKey),
       // Which models are live, so a deployment's TRANSCRIPTION_MODEL override can be checked from outside.
       transcriptionModel: config.transcriptionModel,
+      nameCheckModel: config.nameCheckModel || null,
       refinementModel: config.refinementModel,
     })
   })

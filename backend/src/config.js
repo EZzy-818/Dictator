@@ -35,6 +35,9 @@ export function loadConfig(env = process.env) {
     openaiApiKey: env.OPENAI_API_KEY || '',
     transcriptionModel: env.TRANSCRIPTION_MODEL || 'gpt-transcribe',
     refinementModel: env.REFINEMENT_MODEL || 'gpt-4.1',
+    // Second transcription of the same audio, used only to put names back in the language they
+    // were spoken in (see src/lib/names.js). NAME_CHECK_MODEL= (empty) turns it off.
+    nameCheckModel: env.NAME_CHECK_MODEL ?? 'gpt-4o-transcribe',
     limits: Object.fromEntries(
       Object.entries(LIMIT_SETTINGS).map(([key, [name, fallback]]) => [key, positiveInt(env[name], fallback)]),
     ),
