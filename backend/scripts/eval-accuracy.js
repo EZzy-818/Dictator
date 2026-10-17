@@ -17,7 +17,7 @@ import dotenv from 'dotenv'
 import OpenAI from 'openai'
 import request from 'supertest'
 import { createApp } from '../src/app.js'
-import { loadConfig } from '../src/config.js'
+import { loadConfig, withoutUsageLimits } from '../src/config.js'
 import { isSupportedLanguage } from '../src/lib/languages.js'
 import { CASES, CATEGORIES } from '../eval/dataset.js'
 import { aggregate, checkRefinement, missingTerms, scoreTranscript } from '../eval/metrics.js'
@@ -58,7 +58,8 @@ if (languageOverride && !isSupportedLanguage(languageOverride)) {
   process.exit(1)
 }
 
-const config = loadConfig()
+// These runs send many requests in a row with your own key, so the public usage limits are off.
+const config = withoutUsageLimits(loadConfig())
 if (!config.openaiApiKey) {
   console.error('OPENAI_API_KEY is not set. The evaluation needs a real key.')
   process.exit(1)
@@ -80,7 +81,7 @@ function withAutoHint(hint) {
   }
 }
 
-const app = createApp(config, autoHint ? { openai: withAutoHint(autoHint) } : {})
+const app = createApp(config, { log: () => {}, ...(autoHint ? { openai: withAutoHint(autoHint) } : {}) })
 
 async function syntheticSample(testCase, index) {
   const file = path.join(SAMPLES_DIR, 'synthetic', `${testCase.id}.wav`)

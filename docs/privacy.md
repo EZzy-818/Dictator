@@ -13,7 +13,9 @@ This is the full version of the notice shown at the bottom of the app under "How
 
 ## What Dictator logs
 
-The backend logs start-up messages and, when something fails, the error type and status code (for example a failed or refused OpenAI request), without the content. It never logs audio, transcripts or refined text. The hosting providers (for example Render and Vercel) keep their own request logs, such as IP addresses, URLs and times, under their own policies.
+The backend logs start-up messages and, when something fails, the error type and status code (for example a failed or refused OpenAI request), without the content. For abuse monitoring it also logs one line per request: the time, the endpoint, the result, how long it took, the upload size, the language option, and a hashed visitor tag that cannot be turned back into an IP address and changes when the server restarts. It never logs audio, transcripts, refined text or IP addresses.
+
+To enforce usage limits, the backend counts requests per IP address. The counters hold only the address, a count and an expiry time, and expire within 24 hours. They are kept in the server's memory or, when configured, in a Redis store. The hosting providers (for example Render and Vercel) keep their own request logs, such as IP addresses, URLs and times, under their own policies.
 
 ## What OpenAI keeps
 

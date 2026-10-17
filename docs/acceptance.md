@@ -2,6 +2,8 @@
 
 Run at commit 482ceab with `npm run test:acceptance --prefix backend`, against the app started with `npm run dev` and a real OpenAI key.
 
+Since Milestone 10 the backend limits recordings to 5 per minute per visitor. The suite records less often than that, but if a run is refused with "Too many recordings", raise `PROCESS_LIMIT_PER_MINUTE` in `backend/.env` for the run.
+
 The script opens the app in Chromium and drives it like a user: it picks the language, clicks Start Recording and Stop Recording, waits for the result, and reads the Raw transcript and Polished text boxes. The speech is OpenAI text-to-speech played into Chromium's fake microphone, so the browser records it with `MediaRecorder` and the app uploads it exactly as it would a real voice. A person speaking into a real microphone has not been tested.
 
 | Test | Language option | Result |

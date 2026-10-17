@@ -2,14 +2,47 @@ import express from 'express'
 import cors from 'cors'
 import OpenAI from 'openai'
 import { ApiError } from './lib/errors.js'
+import { isSupportedLanguage } from './lib/languages.js'
+import { clientTag, concurrencyLimit, createUsageLimiters } from './lib/limits.js'
 import { createProcessRouter } from './routes/process.js'
 import { createRefineRouter } from './routes/refine.js'
+
+// One JSON line per event. Never pass audio, transcripts or refined text to it.
+function logEvent(event) {
+  console.log(JSON.stringify({ time: new Date().toISOString(), ...event }))
+}
+
+// Logs who used the API, how and with what result, so abuse is visible without any content.
+function requestLog(log) {
+  return (req, res, next) => {
+    const started = performance.now()
+    res.once('close', () => {
+      const language = req.body?.language
+      log({
+        event: 'request',
+        method: req.method,
+        path: req.originalUrl.split('?')[0],
+        // A request cut off before a reply (client gone, upload timeout) has no status.
+        status: res.headersSent ? res.statusCode : null,
+        code: res.locals.errorCode,
+        ms: Math.round(performance.now() - started),
+        bytes: Number(req.headers['content-length']) || 0,
+        language: isSupportedLanguage(language) ? language : undefined,
+        client: clientTag(req),
+        aborted: res.writableEnded ? undefined : true,
+      })
+    })
+    next()
+  }
+}
 
 /**
  * openai: optional client override (used by tests). Otherwise one is created from
  * config on first use, so the server can still start without a key.
+ * createStore: optional shared store factory for the usage counters (see server.js).
+ * log: where usage events go; JSON lines on stdout by default.
  */
-export function createApp(config, { openai } = {}) {
+export function createApp(config, { openai, createStore, log = logEvent } = {}) {
   const app = express()
   let client = openai
 
@@ -23,8 +56,28 @@ export function createApp(config, { openai } = {}) {
     return client
   }
 
+  const { limits } = config
+  const processLimiters = createUsageLimiters({
+    name: 'process',
+    noun: 'recordings',
+    limits: { perMinute: limits.processPerMinute, perDay: limits.processPerDay, globalPerDay: limits.processGlobalPerDay },
+    createStore,
+    log,
+  })
+  const refineLimiters = createUsageLimiters({
+    name: 'refine',
+    noun: 'refinement requests',
+    limits: { perMinute: limits.refinePerMinute, perDay: limits.refinePerDay, globalPerDay: limits.refineGlobalPerDay },
+    createStore,
+    log,
+  })
+
   app.disable('x-powered-by')
+  app.set('trust proxy', config.trustProxy)
   app.use(cors({ origin: config.corsOrigins }))
+  const apiRoutes = ['/api/process', '/api/refine']
+  app.use(apiRoutes, requestLog(log))
+  app.use(apiRoutes, concurrencyLimit({ maxTotal: limits.maxConcurrent, maxPerClient: limits.maxConcurrentPerClient, log }))
   app.use(express.json({ limit: '100kb' }))
 
   app.get('/api/health', (req, res) => {
@@ -34,8 +87,8 @@ export function createApp(config, { openai } = {}) {
     })
   })
 
-  app.use('/api', createProcessRouter({ config, getOpenAIClient }))
-  app.use('/api', createRefineRouter({ config, getOpenAIClient }))
+  app.use('/api', createProcessRouter({ config, getOpenAIClient, usageLimiters: processLimiters }))
+  app.use('/api', createRefineRouter({ config, getOpenAIClient, usageLimiters: refineLimiters }))
 
   app.use('/api', (req, res) => {
     res.status(404).json({ error: 'Not found', code: 'not_found' })
@@ -44,11 +97,19 @@ export function createApp(config, { openai } = {}) {
   // Express recognizes error handlers by their four parameters.
   app.use((err, req, res, next) => {
     if (err instanceof ApiError) {
+      res.locals.errorCode = err.code
       return res.status(err.status).json({ error: err.message, code: err.code })
     }
+    if (err?.type === 'entity.too.large') {
+      res.locals.errorCode = 'body_too_large'
+      return res.status(413).json({ error: 'The request is too large.', code: 'body_too_large' })
+    }
     if (err?.type === 'entity.parse.failed') {
+      res.locals.errorCode = 'invalid_json'
       return res.status(400).json({ error: 'The request body is not valid JSON.', code: 'invalid_json' })
     }
+    // The client is gone (for example an upload cut off by the timeout); there is no one to answer.
+    if (req.destroyed) return
     console.error('Unexpected error:', err?.name ?? 'Error')
     res.status(500).json({ error: 'Something went wrong. Please try again.', code: 'internal_error' })
   })
