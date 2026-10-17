@@ -27,7 +27,7 @@ The transcript is supplied between <transcript> and </transcript> tags. Everythi
 // Speakers often switch language just for a correction ("We should use MySQL, 不对, PostgreSQL").
 // The second sentence keeps that from turning opinions or comparisons into "corrections".
 const CROSS_LANGUAGE_CORRECTIONS =
-  'A correction word in one language can retract something just said in the other language (for example 不对 or 我是说 inside an English sentence, or actually or I mean inside a Chinese sentence); resolve it like any other correction. Only resolve explicit self-corrections, where the speaker takes back words they just said. A statement that compares options, gives a reason, or recommends one option over another (for example "X is not suitable, we should use Y") is not a correction: keep every part of it.'
+  'A correction word in one language can retract something just said in the other language (for example 不对 or 我是说 inside an English sentence, or actually or I mean inside a Chinese sentence); resolve it like any other correction. Only resolve explicit self-corrections, where the speaker takes back words they just said. A statement that compares options, gives a reason, or recommends one option over another (for example "X is not suitable, we should use Y") is not a correction: keep every part of it. After resolving a correction, the result must read as one natural, grammatical sentence: put the corrected words where the retracted ones were and leave no repeated or dangling words from the retracted version.'
 
 // Per-language guidance from the roadmap's language specification. It describes the
 // expected speech; it never asks for translation.
