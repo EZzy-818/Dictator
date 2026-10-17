@@ -176,6 +176,16 @@ describe('useAudioRecorder', () => {
     expect(media.getUserMedia).not.toHaveBeenCalled()
   })
 
+  it('explains that recording needs https on an insecure page', async () => {
+    vi.stubGlobal('isSecureContext', false)
+    const { result } = renderHook(() => useAudioRecorder())
+
+    await startRecording(result)
+    expect(result.current.error.code).toBe('insecure-context')
+    expect(result.current.error.message).toMatch(/https/)
+    expect(media.getUserMedia).not.toHaveBeenCalled()
+  })
+
   it('reports a browser without MediaRecorder', async () => {
     vi.stubGlobal('MediaRecorder', undefined)
     const { result } = renderHook(() => useAudioRecorder())

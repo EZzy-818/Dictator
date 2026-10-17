@@ -24,7 +24,7 @@ function Notice({ tone, children }) {
 }
 
 function App() {
-  const [backendStatus, setBackendStatus] = useState('checking')
+  const [serverUnavailable, setServerUnavailable] = useState(false)
   const [language, setLanguage] = useState('auto')
   const [processing, setProcessing] = useState(false)
   const [processError, setProcessError] = useState(null)
@@ -55,6 +55,7 @@ function App() {
       try {
         const data = await processAudio(recording, language)
         if (requestId !== requestIdRef.current) return
+        setServerUnavailable(false)
         setTranscript({ rawTranscript: data.rawTranscript, selectedLanguage: data.selectedLanguage })
         if (data.refinementStatus === 'success') {
           setPolishedText(data.polishedTranscript)
@@ -108,10 +109,11 @@ function App() {
 
   useEffect(() => () => clearTimeout(copyTimerRef.current), [])
 
+  // Checking early also wakes a hosted backend that sleeps when idle.
   useEffect(() => {
     getHealth()
-      .then(() => setBackendStatus('connected'))
-      .catch(() => setBackendStatus('unreachable'))
+      .then((health) => setServerUnavailable(health.openaiConfigured === false))
+      .catch(() => setServerUnavailable(true))
   }, [])
 
   const isRecording = recorder.status === 'recording' || recorder.status === 'requesting'
@@ -145,6 +147,10 @@ function App() {
         onStop={recorder.stop}
       />
 
+      {serverUnavailable && (
+        <Notice tone="warning">The speech service is not responding right now. If recording fails, try again in a moment.</Notice>
+      )}
+
       {error && <Notice tone="error">{error}</Notice>}
 
       {recorder.stoppedAtLimit && (
@@ -174,9 +180,35 @@ function App() {
         </>
       )}
 
-      <p className="text-sm text-slate-500" data-testid="backend-status">
-        Backend: {backendStatus}
-      </p>
+      <footer className="border-t border-slate-200 pt-4 text-sm text-slate-500">
+        <p>
+          Your recording is sent to the Dictator server and to OpenAI to be transcribed and refined. Dictator does not
+          store your recordings or text.
+        </p>
+        <details className="mt-2">
+          <summary className="cursor-pointer text-slate-600 hover:text-slate-800">How your audio is handled</summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>
+              Recording starts only when you click Start Recording and stops when you click Stop Recording or after{' '}
+              {formatDuration(recorder.maxDurationMs)}. The microphone is released as soon as recording stops.
+            </li>
+            <li>
+              The audio is uploaded over an encrypted connection, kept in the server&apos;s memory only while it is
+              processed, and never saved to disk.
+            </li>
+            <li>
+              The audio is sent to OpenAI for transcription, and the transcript is sent to OpenAI for refinement. OpenAI
+              does not use this data to train its models. Under its API data policy, OpenAI may keep the text sent for
+              refinement for up to 30 days to monitor abuse.
+            </li>
+            <li>
+              Dictator does not log transcripts and keeps no history or accounts. Your results exist only in this page
+              and are gone when you close or reload it.
+            </li>
+            <li>Avoid dictating passwords or other information you would not want to send to these services.</li>
+          </ul>
+        </details>
+      </footer>
     </main>
   )
 }
