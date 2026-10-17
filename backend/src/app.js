@@ -5,8 +5,6 @@ import { ApiError } from './lib/errors.js'
 import { createProcessRouter } from './routes/process.js'
 import { createRefineRouter } from './routes/refine.js'
 
-const OPENAI_TIMEOUT_MS = 60_000
-
 /**
  * openai: optional client override (used by tests). Otherwise one is created from
  * config on first use, so the server can still start without a key.
@@ -20,7 +18,8 @@ export function createApp(config, { openai } = {}) {
     if (!config.openaiApiKey) {
       throw new ApiError(503, 'service_unavailable', 'The speech service is not configured on the server.')
     }
-    client = new OpenAI({ apiKey: config.openaiApiKey, timeout: OPENAI_TIMEOUT_MS, maxRetries: 1 })
+    // Per-request timeouts are set by each service.
+    client = new OpenAI({ apiKey: config.openaiApiKey, maxRetries: 1 })
     return client
   }
 

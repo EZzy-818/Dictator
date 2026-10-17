@@ -1,6 +1,9 @@
-import { toFile } from 'openai'
+import { APIConnectionTimeoutError, toFile } from 'openai'
 import { ApiError } from '../lib/errors.js'
 import { isSupportedLanguage } from '../lib/languages.js'
+
+// Per attempt; the client retries once, so the worst case is about twice this.
+export const TRANSCRIPTION_TIMEOUT_MS = 45_000
 
 // Short vocabulary hints written in the expected language. Auto mode gets none so the
 // model is not nudged toward either language.
@@ -27,14 +30,20 @@ export async function transcribeAudio({ client, model, audio, language }) {
 
   let response
   try {
-    response = await client.audio.transcriptions.create({
-      file,
-      model,
-      response_format: 'json',
-      ...params,
-    })
+    response = await client.audio.transcriptions.create(
+      {
+        file,
+        model,
+        response_format: 'json',
+        ...params,
+      },
+      { timeout: TRANSCRIPTION_TIMEOUT_MS },
+    )
   } catch (err) {
     console.error('Transcription request failed:', err?.status ?? '', err?.name ?? '', err?.code ?? '')
+    if (err instanceof APIConnectionTimeoutError) {
+      throw new ApiError(504, 'transcription_timeout', 'Transcription took too long. Please try again.')
+    }
     throw new ApiError(502, 'transcription_failed', 'Transcription failed. Please try again.')
   }
 

@@ -2,7 +2,7 @@
 
 AI voice-to-text in the browser. Record speech in English, Mandarin Chinese, or a mix of both, get a raw transcript, and a refined version you can edit and copy.
 
-> Status: Milestone 5 (multilingual frontend integration). Reliability hardening arrives in Milestone 6.
+> Status: Milestone 6 (reliability and error handling). Accuracy evaluation arrives in Milestone 7.
 
 ## Stack
 
@@ -102,6 +102,7 @@ Errors return `{ "error": "<safe message>", "code": "<code>" }`:
 | 422 | `no_speech` | The transcription contained no speech |
 | 502 | `transcription_failed` | The OpenAI request failed |
 | 503 | `service_unavailable` | `OPENAI_API_KEY` is not configured |
+| 504 | `transcription_timeout` | OpenAI did not answer in time |
 
 ### `POST /api/refine`
 
@@ -115,8 +116,18 @@ Refinement uses the OpenAI Responses API with `REFINEMENT_MODEL`, the roadmap's 
 | 413 | `transcript_too_long` | Over 10,000 characters |
 | 502 | `refinement_failed` | The OpenAI request failed or returned no text |
 | 503 | `service_unavailable` | `OPENAI_API_KEY` is not configured |
+| 504 | `refinement_timeout` | OpenAI did not answer in time |
 
 Recordings are processed in memory and never written to disk. Transcripts and refined text are not logged.
+
+### Timeouts
+
+| Step | Limit |
+| --- | --- |
+| Transcription request to OpenAI | 45 s per attempt, 1 retry |
+| Refinement request to OpenAI | 30 s per attempt, 1 retry |
+| Whole backend request (`server.requestTimeout`) | 180 s |
+| Browser wait for `/api/process` / `/api/refine` | 170 s / 70 s |
 
 ## Using the app
 
@@ -126,6 +137,24 @@ Recordings are processed in memory and never written to disk. Transcripts and re
 4. The **Polished text** is editable. **Copy** copies exactly what is in the box. **Retry Refinement** refines the same raw transcript again through `/api/refine`, without transcribing again, and replaces the polished text. **Record Again** clears the results and starts a new recording.
 
 If refinement fails, the raw transcript stays on screen with a warning and Retry Refinement stays available.
+
+## Error handling
+
+Every failure shows a readable message and never produces invented text:
+
+| Situation | What happens |
+| --- | --- |
+| Microphone permission denied, no microphone, microphone busy | Message explaining what to do; Start Recording stays available |
+| Browser without `MediaRecorder` or a supported format | Message instead of recording |
+| Empty or accidental sub-second recording | Message; nothing is uploaded |
+| Recording reaches 120 s | Stops automatically and is processed, with a notice |
+| Recording over 10 MB | Rejected in the browser before upload (and by the server) |
+| Transcription fails, times out, or hears no speech | Message; refinement is not attempted |
+| Refinement fails or times out | Raw transcript kept, warning shown, Retry Refinement available |
+| Server unreachable, offline, or an unexpected/non-JSON reply | Message; the page keeps working |
+| Copy blocked by the browser | Message asking to select and copy manually |
+| Repeated clicks | Start is disabled while recording or processing; Retry ignores clicks while running |
+| Unexpected rendering error | An error boundary shows a message instead of a blank page |
 
 ## Browser recording
 
