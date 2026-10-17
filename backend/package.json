@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:live": "node scripts/live-transcription.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

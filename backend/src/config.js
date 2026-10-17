@@ -10,5 +10,5 @@ export function loadConfig(env = process.env) {
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean),
-  };
+  }
 }

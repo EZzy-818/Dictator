@@ -1,0 +1,71 @@
+import { Router } from 'express'
+import multer from 'multer'
+import { ApiError } from '../lib/errors.js'
+import { MAX_AUDIO_BYTES, identifyAudio } from '../lib/audio.js'
+import { DEFAULT_LANGUAGE, isSupportedLanguage } from '../lib/languages.js'
+import { transcribeAudio } from '../services/transcription.js'
+
+// Audio is held in memory only for the duration of the request and never written to disk.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_AUDIO_BYTES, files: 1, fields: 5 },
+})
+
+function receiveAudio(req, res, next) {
+  upload.single('audio')(req, res, (err) => {
+    if (!err) return next()
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return next(new ApiError(413, 'file_too_large', 'The recording is larger than the 10 MB limit.'))
+    }
+    if (err instanceof multer.MulterError) {
+      return next(new ApiError(400, 'invalid_upload', 'The upload could not be read. Send one audio file in the "audio" field.'))
+    }
+    next(err)
+  })
+}
+
+export function createProcessRouter({ config, getOpenAIClient }) {
+  const router = Router()
+
+  router.post('/process', receiveAudio, async (req, res, next) => {
+    try {
+      const language = req.body?.language || DEFAULT_LANGUAGE
+      if (!isSupportedLanguage(language)) {
+        throw new ApiError(400, 'invalid_language', 'Unsupported language. Choose English, 中文, or Auto-detect.')
+      }
+
+      if (!req.file) {
+        throw new ApiError(400, 'missing_audio', 'No recording was received.')
+      }
+      if (req.file.size === 0) {
+        throw new ApiError(400, 'empty_audio', 'The recording is empty.')
+      }
+
+      const format = identifyAudio(req.file.buffer, req.file.mimetype)
+      if (!format) {
+        throw new ApiError(415, 'unsupported_audio', 'Unsupported audio format. Please record again in a supported browser.')
+      }
+
+      const client = getOpenAIClient()
+      const rawTranscript = await transcribeAudio({
+        client,
+        model: config.transcriptionModel,
+        audio: { buffer: req.file.buffer, ...format },
+        language,
+      })
+
+      // Refinement is added in Milestone 4.
+      res.json({
+        rawTranscript,
+        polishedTranscript: null,
+        selectedLanguage: language,
+        transcriptionStatus: 'success',
+        refinementStatus: 'skipped',
+      })
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  return router
+}
