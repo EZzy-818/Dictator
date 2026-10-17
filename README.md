@@ -2,7 +2,7 @@
 
 AI voice-to-text in the browser. Record speech in English, Mandarin Chinese, or a mix of both, get a raw transcript, and a refined version you can edit and copy.
 
-> Status: Milestone 4 (multilingual AI refinement). The full editing UI arrives in Milestone 5.
+> Status: Milestone 5 (multilingual frontend integration). Reliability hardening arrives in Milestone 6.
 
 ## Stack
 
@@ -117,6 +117,15 @@ Refinement uses the OpenAI Responses API with `REFINEMENT_MODEL`, the roadmap's 
 | 503 | `service_unavailable` | `OPENAI_API_KEY` is not configured |
 
 Recordings are processed in memory and never written to disk. Transcripts and refined text are not logged.
+
+## Using the app
+
+1. Pick **Auto-detect**, **English**, or **中文**. The choice stays selected until you change it.
+2. Click **Start Recording**, speak, then **Stop Recording**. The recording is uploaded with the selected language.
+3. The **Raw transcript** shows exactly what the transcription model returned (read-only).
+4. The **Polished text** is editable. **Copy** copies exactly what is in the box. **Retry Refinement** refines the same raw transcript again through `/api/refine`, without transcribing again, and replaces the polished text. **Record Again** clears the results and starts a new recording.
+
+If refinement fails, the raw transcript stays on screen with a warning and Retry Refinement stays available.
 
 ## Browser recording
 
