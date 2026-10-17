@@ -8,8 +8,8 @@ export const MIN_RECORDING_MS = 500
 export const PREFERRED_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
 
 export const RECORDER_ERRORS = {
-  'unsupported-browser':
-    'This browser cannot record audio. Use a recent version of Chrome, Edge, Firefox, or Safari over a secure (HTTPS) connection.',
+  'insecure-context': 'Recording needs a secure connection. Open this page with an https:// address.',
+  'unsupported-browser': 'This browser cannot record audio. Use a recent version of Chrome, Edge, Firefox, or Safari.',
   'unsupported-format': 'This browser cannot record audio in a supported format (WebM or MP4).',
   'permission-denied':
     'Microphone access was denied. Allow microphone access for this site in your browser settings, then try again.',
@@ -109,6 +109,10 @@ export function useAudioRecorder({ maxDurationMs = MAX_RECORDING_MS, onRecording
     setStoppedAtLimit(false)
     setElapsedMs(0)
 
+    // Browsers hide the microphone API on plain http pages (localhost excepted).
+    if (window.isSecureContext === false) {
+      return fail(recorderError('insecure-context'))
+    }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       return fail(recorderError('unsupported-browser'))
     }

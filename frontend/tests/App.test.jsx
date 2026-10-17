@@ -234,4 +234,42 @@ describe('App', () => {
 
     expect(screen.getByLabelText('Polished text').lang).toBe('en')
   })
+  it('warns when the server cannot be reached and clears the warning once a recording succeeds', async () => {
+    const healthy = fetch.getMockImplementation()
+    fetch.mockImplementation(async (url, options) => {
+      if (url.endsWith('/api/health')) throw new TypeError('Failed to fetch')
+      return healthy(url, options)
+    })
+    render(<App />)
+    await act(async () => {})
+    expect(screen.getByRole('alert').textContent).toMatch(/not responding/)
+
+    await record()
+    expect(state()).toBe('completed')
+    expect(screen.queryByText(/not responding/)).toBeNull()
+  })
+
+  it('warns when the server reports that OpenAI is not configured', async () => {
+    const healthy = fetch.getMockImplementation()
+    fetch.mockImplementation(async (url, options) =>
+      url.endsWith('/api/health') ? jsonResponse({ status: 'ok', openaiConfigured: false }) : healthy(url, options),
+    )
+    render(<App />)
+    await act(async () => {})
+    expect(screen.getByText(/not responding/)).toBeTruthy()
+  })
+
+  it('shows no server warning or developer status when the server is healthy', async () => {
+    render(<App />)
+    await act(async () => {})
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText(/Backend:/)).toBeNull()
+  })
+
+  it('explains how audio is handled', () => {
+    render(<App />)
+    expect(screen.getByText(/sent to the Dictator server and to OpenAI/)).toBeTruthy()
+    expect(screen.getByText('How your audio is handled')).toBeTruthy()
+    expect(screen.getByText(/never saved to disk/)).toBeTruthy()
+  })
 })

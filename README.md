@@ -2,7 +2,7 @@
 
 AI voice-to-text in the browser. Record speech in English, Mandarin Chinese, or a mix of both, get a raw transcript, and a refined version you can edit and copy.
 
-> Status: Milestone 8 (local MVP acceptance). The app runs locally end to end; public deployment is the next phase.
+> Status: Milestone 9 (production readiness). The app is configured for deployment through environment variables; see [docs/deployment.md](docs/deployment.md).
 
 ## Stack
 
@@ -36,20 +36,21 @@ Then set `OPENAI_API_KEY` in `backend/.env`.
 | `TRANSCRIPTION_MODEL` | `gpt-4o-transcribe` | Speech-to-text model |
 | `REFINEMENT_MODEL` | `gpt-4.1` | Text refinement model |
 | `PORT` | `3001` | Port the API listens on |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated browser origins allowed to call the API |
+| `CORS_ORIGINS` | `http://localhost:5173` (development only) | Comma-separated browser origins allowed to call the API |
+| `NODE_ENV` | `development` | `production` on the hosted server: the server then refuses to start without `OPENAI_API_KEY` and https `CORS_ORIGINS` |
 
 ### Frontend environment (`frontend/.env`)
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | `http://localhost:3001` | Backend base URL. Everything prefixed `VITE_` is public, so never put secrets here. |
+| `VITE_API_BASE_URL` | `http://localhost:3001` (development only) | Backend base URL. Required for `npm run build`, and must be https unless it is localhost. Everything prefixed `VITE_` is public, so never put secrets here. |
 
 ## Development
 
 ```bash
 npm run dev      # starts backend (http://localhost:3001) and frontend (http://localhost:5173)
 npm test         # backend and frontend tests (OpenAI is mocked)
-npm run build    # production build of the frontend
+npm run build    # production build of the frontend, then a check that the bundle holds no OpenAI key
 npm run test:live --prefix backend          # live transcription + refinement smoke test; needs OPENAI_API_KEY and network access
 npm run test:live:refine --prefix backend   # live refinement test cases from the roadmap, for human review
 npm run eval --prefix backend               # accuracy evaluation (WER/CER) on 31 samples; see docs/evaluation.md
@@ -122,7 +123,7 @@ Refinement uses the OpenAI Responses API with `REFINEMENT_MODEL`, the roadmap's 
 | 503 | `service_unavailable` | `OPENAI_API_KEY` is not configured |
 | 504 | `refinement_timeout` | OpenAI did not answer in time |
 
-Recordings are processed in memory and never written to disk. Transcripts and refined text are not logged.
+Recordings are processed in memory and never written to disk. Transcripts and refined text are not logged. The app shows a short notice about this; the full version is in [docs/privacy.md](docs/privacy.md).
 
 ### Timeouts
 
@@ -156,6 +157,8 @@ Every failure shows a readable message and never produces invented text:
 | Transcription fails, times out, or hears no speech | Message; refinement is not attempted |
 | Refinement fails or times out | Raw transcript kept, warning shown, Retry Refinement available |
 | Server unreachable, offline, or an unexpected/non-JSON reply | Message; the page keeps working |
+| Speech service unreachable or not configured when the page loads | Warning; it clears after the next successful recording |
+| Page opened over plain `http://` (not localhost) | Message that recording needs an https address |
 | Copy blocked by the browser | Message asking to select and copy manually |
 | Repeated clicks | Start is disabled while recording or processing; Retry ignores clicks while running |
 | Unexpected rendering error | An error boundary shows a message instead of a blank page |
@@ -179,4 +182,4 @@ Recording uses `getUserMedia` and `MediaRecorder`. The first supported format is
 
 The audio is kept in the format the browser produced. Recordings stop automatically after 120 seconds, and the microphone is released as soon as recording stops.
 
-Browsers only allow microphone access on `https://` pages or `http://localhost`. Browsers without `MediaRecorder` or without any of the formats above show an error instead of recording.
+Browsers only allow microphone access on `https://` pages or `http://localhost`. On a plain `http://` page the app says that recording needs a secure connection. Browsers without `MediaRecorder` or without any of the formats above show an error instead of recording.
