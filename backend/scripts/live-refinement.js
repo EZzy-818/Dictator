@@ -2,7 +2,7 @@
 // Milestone 4 test cases plus a few safety cases. Results are for human review:
 // the expected text shows the intent, and other wordings can be acceptable.
 //
-// Usage: npm run test:live:refine
+// Usage: npm run test:live:refine [-- --repeat=3]
 import dotenv from 'dotenv'
 import request from 'supertest'
 import { createApp } from '../src/app.js'
@@ -23,6 +23,7 @@ const CASES = [
   // Mixed (roadmap)
   ['auto', 'Mixed terms', '我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。', '我觉得 backend 应该用 Python，但是 frontend 还是用 React 比较好。'],
   ['auto', 'Mixed correction', 'We should use MySQL, 不对，PostgreSQL would be better.', 'We should use PostgreSQL instead of MySQL.'],
+  ['en', 'Mixed correction in English mode', 'We should use MySQL, 不对，PostgreSQL would be better.', 'We should use PostgreSQL instead of MySQL.'],
   ['auto', 'Mixed correction (section 3)', '我觉得我们应该用 MongoDB，不对，还是 PostgreSQL 比较好，因为我们需要 relational data。', '我觉得我们还是应该用 PostgreSQL，因为我们需要 relational data。'],
   ['zh', 'Mixed, no spaces (live Milestone 3 output)', '我觉得这个backend应该用Python，但是frontend还是用React比较好。', '我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。'],
   // Safety
@@ -39,22 +40,29 @@ if (!config.openaiApiKey) {
   process.exit(1)
 }
 
+const repeat = Number(process.argv.find((arg) => arg.startsWith('--repeat='))?.split('=')[1]) || 1
 const app = createApp(config)
 let failures = 0
-console.log(`Refinement model: ${config.refinementModel}\n`)
+console.log(`Refinement model: ${config.refinementModel}, runs per case: ${repeat}\n`)
 
 for (const [language, name, transcript, expected] of CASES) {
-  const res = await request(app).post('/api/refine').send({ transcript, language })
   console.log(`## ${name} (${language})`)
   console.log(`input:    ${transcript}`)
   console.log(`expected: ${expected}`)
-  if (res.status === 200) {
-    const exact = res.body.polishedTranscript === expected ? '  [exact match]' : ''
-    console.log(`output:   ${res.body.polishedTranscript}${exact}\n`)
-  } else {
-    failures++
-    console.log(`output:   HTTP ${res.status} ${res.body.code}\n`)
+
+  // Count identical outputs so repeated runs show how stable each case is.
+  const outputs = new Map()
+  for (let run = 0; run < repeat; run++) {
+    const res = await request(app).post('/api/refine').send({ transcript, language })
+    const output = res.status === 200 ? res.body.polishedTranscript : `HTTP ${res.status} ${res.body.code}`
+    if (res.status !== 200) failures++
+    outputs.set(output, (outputs.get(output) ?? 0) + 1)
   }
+  for (const [output, count] of outputs) {
+    const exact = output === expected ? '  [exact match]' : ''
+    console.log(`output:   ${output}${exact}${repeat > 1 ? `  (${count}/${repeat})` : ''}`)
+  }
+  console.log()
 }
 
 process.exit(failures ? 1 : 0)
