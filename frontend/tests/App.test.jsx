@@ -15,11 +15,11 @@ describe('App', () => {
     vi.useFakeTimers()
     processResponse = () =>
       jsonResponse({
-        rawTranscript: '我觉得我们应该用 PostgreSQL。',
-        polishedTranscript: null,
+        rawTranscript: '嗯，我觉得我们应该用 PostgreSQL。',
+        polishedTranscript: '我觉得我们应该用 PostgreSQL。',
         selectedLanguage: 'zh',
         transcriptionStatus: 'success',
-        refinementStatus: 'skipped',
+        refinementStatus: 'success',
       })
     vi.stubGlobal(
       'fetch',
@@ -65,7 +65,8 @@ describe('App', () => {
     expect(options.body.get('audio').size).toBeGreaterThan(0)
     expect(options.body.get('audio').name).toBe('recording.webm')
 
-    expect(screen.getByLabelText('Raw transcript').value).toBe('我觉得我们应该用 PostgreSQL。')
+    expect(screen.getByLabelText('Raw transcript').value).toBe('嗯，我觉得我们应该用 PostgreSQL。')
+    expect(screen.getByLabelText('Polished text').value).toBe('我觉得我们应该用 PostgreSQL。')
     expect(screen.getByLabelText('中文').checked).toBe(true)
   })
 
@@ -82,6 +83,23 @@ describe('App', () => {
 
     expect(screen.getByRole('alert').textContent).toBe('No speech was detected in the recording.')
     expect(screen.queryByLabelText('Raw transcript')).toBeNull()
+  })
+
+  it('keeps the raw transcript and reports a refinement failure', async () => {
+    processResponse = () =>
+      jsonResponse({
+        rawTranscript: 'Hello world.',
+        polishedTranscript: null,
+        selectedLanguage: 'auto',
+        transcriptionStatus: 'success',
+        refinementStatus: 'failed',
+      })
+    render(<App />)
+    await record()
+
+    expect(screen.getByLabelText('Raw transcript').value).toBe('Hello world.')
+    expect(screen.queryByLabelText('Polished text')).toBeNull()
+    expect(screen.getByRole('alert').textContent).toMatch(/Refinement failed/)
   })
 
   it('shows a network error when the server is unreachable', async () => {

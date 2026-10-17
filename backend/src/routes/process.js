@@ -4,6 +4,7 @@ import { ApiError } from '../lib/errors.js'
 import { MAX_AUDIO_BYTES, identifyAudio } from '../lib/audio.js'
 import { DEFAULT_LANGUAGE, isSupportedLanguage } from '../lib/languages.js'
 import { transcribeAudio } from '../services/transcription.js'
+import { refineTranscript } from '../services/refinement.js'
 
 // Audio is held in memory only for the duration of the request and never written to disk.
 const upload = multer({
@@ -54,13 +55,26 @@ export function createProcessRouter({ config, getOpenAIClient }) {
         language,
       })
 
-      // Refinement is added in Milestone 4.
+      // A refinement failure keeps the raw transcript; the client can retry via /api/refine.
+      let polishedTranscript = null
+      let refinementStatus = 'success'
+      try {
+        polishedTranscript = await refineTranscript({
+          client,
+          model: config.refinementModel,
+          transcript: rawTranscript,
+          language,
+        })
+      } catch {
+        refinementStatus = 'failed'
+      }
+
       res.json({
         rawTranscript,
-        polishedTranscript: null,
+        polishedTranscript,
         selectedLanguage: language,
         transcriptionStatus: 'success',
-        refinementStatus: 'skipped',
+        refinementStatus,
       })
     } catch (err) {
       next(err)

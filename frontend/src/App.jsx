@@ -74,7 +74,17 @@ function App() {
         </p>
       )}
 
-      {result && <TranscriptPanel transcript={result.rawTranscript} />}
+      {result && <TranscriptPanel id="raw-transcript" label="Raw transcript" transcript={result.rawTranscript} />}
+
+      {/* Read-only until the editor, copy, and retry controls arrive in Milestone 5. */}
+      {result?.refinementStatus === 'success' && (
+        <TranscriptPanel id="polished-transcript" label="Polished text" transcript={result.polishedTranscript} />
+      )}
+      {result?.refinementStatus === 'failed' && (
+        <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Refinement failed. Your raw transcript is shown above.
+        </p>
+      )}
 
       <p className="text-sm text-slate-500" data-testid="backend-status">
         Backend: {backendStatus}

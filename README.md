@@ -2,7 +2,7 @@
 
 AI voice-to-text in the browser. Record speech in English, Mandarin Chinese, or a mix of both, get a raw transcript, and a refined version you can edit and copy.
 
-> Status: Milestone 3 (multilingual speech-to-text). AI refinement arrives in Milestone 4.
+> Status: Milestone 4 (multilingual AI refinement). The full editing UI arrives in Milestone 5.
 
 ## Stack
 
@@ -50,7 +50,8 @@ Then set `OPENAI_API_KEY` in `backend/.env`.
 npm run dev      # starts backend (http://localhost:3001) and frontend (http://localhost:5173)
 npm test         # backend and frontend tests (OpenAI is mocked)
 npm run build    # production build of the frontend
-npm run test:live --prefix backend   # live transcription smoke test; needs OPENAI_API_KEY and network access
+npm run test:live --prefix backend          # live transcription + refinement smoke test; needs OPENAI_API_KEY and network access
+npm run test:live:refine --prefix backend   # live refinement test cases from the roadmap, for human review
 ```
 
 Or run each side on its own with `npm run dev` inside `backend/` or `frontend/`.
@@ -60,7 +61,8 @@ Or run each side on its own with `npm run dev` inside `backend/` or `frontend/`.
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Returns `{ "status": "ok", "openaiConfigured": true \| false }` |
-| `POST` | `/api/process` | Transcribes one recording. See below. |
+| `POST` | `/api/process` | Transcribes and refines one recording. See below. |
+| `POST` | `/api/refine` | Refines a transcript again (used to retry refinement). See below. |
 
 ### `POST /api/process`
 
@@ -80,14 +82,14 @@ Success (`200`):
 ```json
 {
   "rawTranscript": "我们应该用 PostgreSQL。",
-  "polishedTranscript": null,
+  "polishedTranscript": "我们应该使用 PostgreSQL。",
   "selectedLanguage": "zh",
   "transcriptionStatus": "success",
-  "refinementStatus": "skipped"
+  "refinementStatus": "success"
 }
 ```
 
-`polishedTranscript` stays `null` and `refinementStatus` stays `"skipped"` until refinement is added in Milestone 4. `selectedLanguage` echoes the user's choice; it is not a detected language.
+`selectedLanguage` echoes the user's choice; it is not a detected language. If transcription succeeds but refinement fails, the response is still `200` with the raw transcript, `"polishedTranscript": null` and `"refinementStatus": "failed"`, so the client can retry with `/api/refine` without transcribing again. If transcription fails, refinement is not attempted.
 
 Errors return `{ "error": "<safe message>", "code": "<code>" }`:
 
@@ -101,7 +103,20 @@ Errors return `{ "error": "<safe message>", "code": "<code>" }`:
 | 502 | `transcription_failed` | The OpenAI request failed |
 | 503 | `service_unavailable` | `OPENAI_API_KEY` is not configured |
 
-Recordings are processed in memory and never written to disk. Transcripts are not logged.
+### `POST /api/refine`
+
+JSON body `{ "transcript": "Raw recognized speech", "language": "en" }` (`language` is required: `en`, `zh`, or `auto`). Returns `{ "polishedTranscript": "Refined text" }`.
+
+Refinement uses the OpenAI Responses API with `REFINEMENT_MODEL`, the roadmap's system prompt (`backend/src/prompts/refinement.js`), and short guidance for the selected language. It never asks the model to translate; in `auto` mode it keeps every part in the language it was spoken in. The transcript is wrapped in `<transcript>` tags so instructions inside it are treated as speech, and requests are sent with `store: false`.
+
+| Status | Code | When |
+| --- | --- | --- |
+| 400 | `invalid_language` / `missing_transcript` / `invalid_json` | Bad input |
+| 413 | `transcript_too_long` | Over 10,000 characters |
+| 502 | `refinement_failed` | The OpenAI request failed or returned no text |
+| 503 | `service_unavailable` | `OPENAI_API_KEY` is not configured |
+
+Recordings are processed in memory and never written to disk. Transcripts and refined text are not logged.
 
 ## Browser recording
 

@@ -1,4 +1,4 @@
-// Live smoke test for POST /api/process against the real OpenAI API.
+// Live smoke test for POST /api/process (transcription + refinement) against the real OpenAI API.
 // Needs OPENAI_API_KEY and network access. Speech samples are synthesized with
 // OpenAI text-to-speech, so they are clean studio-like audio, not real recordings.
 //
@@ -62,7 +62,7 @@ const client = new OpenAI({ apiKey: config.openaiApiKey })
 const app = createApp(config)
 let failures = 0
 
-console.log(`Transcription model: ${config.transcriptionModel}\n`)
+console.log(`Transcription model: ${config.transcriptionModel}, refinement model: ${config.refinementModel}\n`)
 
 for (const sample of SAMPLES) {
   const audio = await ensureSample(client, sample)
@@ -75,7 +75,9 @@ for (const sample of SAMPLES) {
       .attach('audio', audio, { filename: `${sample.name}.wav`, contentType: 'audio/wav' })
 
     if (res.status === 200) {
-      console.log(`[${sample.name}] ${language.padEnd(4)} -> ${res.body.rawTranscript}`)
+      console.log(`[${sample.name}] ${language.padEnd(4)} raw      -> ${res.body.rawTranscript}`)
+      console.log(`[${sample.name}] ${language.padEnd(4)} polished -> ${res.body.polishedTranscript} (${res.body.refinementStatus})`)
+      if (res.body.refinementStatus !== 'success') failures++
     } else {
       failures++
       console.log(`[${sample.name}] ${language.padEnd(4)} -> HTTP ${res.status} ${res.body.code}: ${res.body.error}`)

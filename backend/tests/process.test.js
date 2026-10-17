@@ -27,10 +27,10 @@ describe('POST /api/process', () => {
     expect(res.status).toBe(200)
     expect(res.body).toEqual({
       rawTranscript: 'Hello world.',
-      polishedTranscript: null,
+      polishedTranscript: 'Hello, world.',
       selectedLanguage: 'en',
       transcriptionStatus: 'success',
-      refinementStatus: 'skipped',
+      refinementStatus: 'success',
     })
   })
 
@@ -174,6 +174,42 @@ describe('POST /api/process', () => {
 
     expect(res.status).toBe(502)
     expect(res.body.code).toBe('transcription_failed')
+  })
+
+  it('refines the raw transcript with the configured model and selected language', async () => {
+    const { app, openai } = createTestApp({ env: { REFINEMENT_MODEL: 'gpt-4.1' } })
+    await postAudio(app, { language: 'zh' })
+
+    const params = openai.responses.create.mock.calls[0][0]
+    expect(params.model).toBe('gpt-4.1')
+    expect(params.input).toContain('<transcript>\nHello world.\n</transcript>')
+    expect(params.input).toContain('Mandarin')
+  })
+
+  it('keeps the raw transcript when refinement fails', async () => {
+    const { app } = createTestApp({
+      openai: fakeOpenAI(undefined, async () => Promise.reject(new Error('boom'))),
+    })
+    const res = await postAudio(app, { language: 'en' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({
+      rawTranscript: 'Hello world.',
+      polishedTranscript: null,
+      selectedLanguage: 'en',
+      transcriptionStatus: 'success',
+      refinementStatus: 'failed',
+    })
+  })
+
+  it('does not call refinement when transcription fails or finds no speech', async () => {
+    for (const transcribe of [async () => Promise.reject(new Error('down')), async () => ({ text: ' ' })]) {
+      const { app, openai } = createTestApp({ openai: fakeOpenAI(transcribe) })
+      const res = await postAudio(app)
+
+      expect(res.status).toBeGreaterThanOrEqual(400)
+      expect(openai.responses.create).not.toHaveBeenCalled()
+    }
   })
 
   it('returns 503 when no API key is configured', async () => {

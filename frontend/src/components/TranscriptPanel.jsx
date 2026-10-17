@@ -1,11 +1,11 @@
-function TranscriptPanel({ transcript }) {
+function TranscriptPanel({ id, label, transcript }) {
   return (
     <section>
-      <label htmlFor="raw-transcript" className="mb-2 block text-sm font-medium text-slate-700">
-        Raw transcript
+      <label htmlFor={id} className="mb-2 block text-sm font-medium text-slate-700">
+        {label}
       </label>
       <textarea
-        id="raw-transcript"
+        id={id}
         readOnly
         value={transcript}
         rows={5}

@@ -1,0 +1,58 @@
+import { ApiError } from '../lib/errors.js'
+import { isSupportedLanguage } from '../lib/languages.js'
+import { REFINEMENT_SYSTEM_PROMPT, buildRefinementInput } from '../prompts/refinement.js'
+
+export const MAX_TRANSCRIPT_CHARS = 10_000
+const MAX_OUTPUT_TOKENS = 4_000
+
+const REFINEMENT_FAILED = 'Refinement failed. Your raw transcript is unchanged; please retry.'
+
+export function validateRefinementRequest(transcript, language) {
+  if (!isSupportedLanguage(language)) {
+    throw new ApiError(400, 'invalid_language', 'Unsupported language. Choose English, 中文, or Auto-detect.')
+  }
+  if (typeof transcript !== 'string' || transcript.trim() === '') {
+    throw new ApiError(400, 'missing_transcript', 'A transcript is required.')
+  }
+  if (transcript.length > MAX_TRANSCRIPT_CHARS) {
+    throw new ApiError(413, 'transcript_too_long', 'The transcript is too long to refine.')
+  }
+}
+
+// Removes the transcript tags if the model echoes them despite the instructions.
+function stripTranscriptTags(text) {
+  return text.replace(/^\s*<transcript>\s*/i, '').replace(/\s*<\/transcript>\s*$/i, '')
+}
+
+/** Returns the polished transcript. Throws ApiError on any failure. */
+export async function refineTranscript({ client, model, transcript, language }) {
+  validateRefinementRequest(transcript, language)
+
+  let response
+  try {
+    response = await client.responses.create({
+      model,
+      instructions: REFINEMENT_SYSTEM_PROMPT,
+      input: buildRefinementInput(transcript, language),
+      max_output_tokens: MAX_OUTPUT_TOKENS,
+      // Do not keep dictated text on OpenAI's side beyond the request.
+      store: false,
+    })
+  } catch (err) {
+    console.error('Refinement request failed:', err?.status ?? '', err?.name ?? '', err?.code ?? '')
+    throw new ApiError(502, 'refinement_failed', REFINEMENT_FAILED)
+  }
+
+  if (response?.status && response.status !== 'completed') {
+    console.error('Refinement response not completed:', response.status, response.incomplete_details?.reason ?? '')
+    throw new ApiError(502, 'refinement_failed', REFINEMENT_FAILED)
+  }
+
+  const polished = typeof response?.output_text === 'string' ? stripTranscriptTags(response.output_text).trim() : ''
+  if (polished === '') {
+    console.error('Refinement response had no text.')
+    throw new ApiError(502, 'refinement_failed', REFINEMENT_FAILED)
+  }
+
+  return polished
+}
