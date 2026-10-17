@@ -244,6 +244,7 @@ const name = [source, languageOverride, config.transcriptionModel !== 'gpt-4o-tr
 await fs.writeFile(path.join(RESULTS_DIR, `${name}.json`), `${JSON.stringify({ source, languageOverride: languageOverride ?? null, transcriptionModel: config.transcriptionModel, refinementModel: config.refinementModel, results }, null, 2)}\n`)
 await fs.writeFile(path.join(RESULTS_DIR, `${name}.md`), report)
 
-console.log(`\n${groups.map(([label, unit, list]) => summaryRow(label, unit, list)).filter(Boolean).join('\n')}`)
+console.log('\n| Group | Metric | Samples | Rate | S / D / I / N | With fillers counted |')
+console.log(`${groups.map(([label, unit, list]) => summaryRow(label, unit, list)).filter(Boolean).join('\n')}`)
 console.log(`\nReport: eval/results/${name}.md`)
 process.exit(results.some((result) => result.error) ? 1 : 0)

@@ -120,6 +120,12 @@ describe('checkRefinement', () => {
     expect(checks).toMatchObject({ correction: true, fillersRemoved: true, languagePreserved: true, termsKept: true, numbersKept: null })
   })
 
+  it('lets a correction drop the term it replaced', () => {
+    const raw = '我觉得我们应该用MongoDB，不对，还是PostgreSQL比较好，因为我们需要relational data。'
+    const { checks } = checkRefinement(byId('mixed-5'), raw, '我觉得我们应该用 PostgreSQL，因为我们需要 relational data。')
+    expect(checks).toMatchObject({ correction: true, termsKept: true })
+  })
+
   it('fails a refinement that keeps the replaced value', () => {
     const { checks } = checkRefinement(byId('zh-corrections-5'), '我们需要三台新服务器，哦不，是四台新服务器。', '我们需要三台或四台新服务器。')
     expect(checks.correction).toBe(false)

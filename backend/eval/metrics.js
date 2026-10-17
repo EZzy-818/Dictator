@@ -233,7 +233,8 @@ export function checkRefinement(testCase, raw, refined) {
   const refinedHan = prepareForMatch(refined).match(CJK_ALL)?.length ?? 0
   checks.languagePreserved = rawLanguage === refinedLanguage && !(rawHan >= 4 && refinedHan === 0)
 
-  const termsInRaw = (testCase.terms ?? []).filter((alternatives) => containsAny(raw, alternatives))
+  const mayDrop = testCase.refined?.mayDrop ?? []
+  const termsInRaw = (testCase.terms ?? []).filter((alternatives) => !mayDrop.includes(alternatives[0]) && containsAny(raw, alternatives))
   const termsLost = termsInRaw.filter((alternatives) => !containsAny(refined, alternatives)).map((alternatives) => alternatives[0])
   checks.termsKept = termsInRaw.length ? termsLost.length === 0 : null
   if (termsLost.length) review.push(`terms lost: ${termsLost.join(', ')}`)

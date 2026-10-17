@@ -14,7 +14,8 @@
 //   refined     expected: the intended refined text (a guide for review; other
 //               wordings can be fine). include: groups of accepted spellings the
 //               refined text must contain. exclude: text the refined text must
-//               not contain (the part a self-correction replaced).
+//               not contain (the part a self-correction replaced). mayDrop: terms the
+//               refined text may leave out because the correction replaced them.
 //   correction  true when the speaker corrects themselves, so a value is meant to change.
 //   noiseSnrDb  For synthetic samples, pink noise is mixed in at this signal-to-noise
 //               ratio. For your own recordings, record these with background noise.
@@ -252,6 +253,7 @@ export const CASES = [
       expected: 'We should use PostgreSQL instead of MySQL.',
       include: [['PostgreSQL', 'Postgres']],
       exclude: ['use MySQL', '不对'],
+      mayDrop: ['MySQL'],
     },
   },
   {
@@ -266,6 +268,7 @@ export const CASES = [
       expected: '我觉得我们还是应该用 PostgreSQL，因为我们需要 relational data。',
       include: [['PostgreSQL', 'Postgres'], ['relational data']],
       exclude: ['用 MongoDB', '用MongoDB', '不对'],
+      mayDrop: ['MongoDB'],
     },
   },
 
@@ -293,7 +296,11 @@ export const CASES = [
     language: 'zh',
     metric: 'cer',
     script: '会议定在2027年3月15日上午10点半，预算是两万五千元。',
-    accept: ['会议定在2027年3月15日上午10点半，预算是25000元。', '会议定在2027年3月15日上午10点半，预算是2.5万元。'],
+    accept: [
+      '会议定在2027年3月15日上午10点半，预算是25000元。',
+      '会议定在2027年3月15日上午10:30，预算是两万五千元。',
+      '会议定在2027年3月15日上午10:30，预算是25000元。',
+    ],
     terms: [['2027年'], ['3月15日'], ['10点半', '十点半', '10:30'], ['两万五千', '25000', '25,000', '2.5万']],
   },
   {
