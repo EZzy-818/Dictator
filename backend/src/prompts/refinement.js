@@ -32,8 +32,8 @@ const CROSS_LANGUAGE_CORRECTIONS =
 // Per-language guidance from the roadmap's language specification. It describes the
 // expected speech; it never asks for translation.
 export const LANGUAGE_GUIDANCE = {
-  en: `The speaker selected English. Expect primarily English speech. Do not translate any non-English words that were spoken. ${CROSS_LANGUAGE_CORRECTIONS}`,
-  zh: `The speaker selected Mandarin Chinese (中文). Expect primarily Mandarin speech. Use Simplified Chinese and Chinese punctuation. Remove fillers such as 嗯, 呃, and 那个 when they carry no meaning. Resolve corrections such as 不对, 我是说, and 应该是. Keep English terms as spoken, separated from adjacent Chinese characters by a space. Never translate Chinese into English. ${CROSS_LANGUAGE_CORRECTIONS}`,
+  en: `The speaker selected English. Expect primarily English speech, but keep every part of the transcript in the language it was spoken in. If the transcript contains Chinese, keep that Chinese as Chinese, even when most of the transcript is Chinese; never translate that Chinese into English. ${CROSS_LANGUAGE_CORRECTIONS}`,
+  zh: `The speaker selected Mandarin Chinese (中文). Expect primarily Mandarin speech. Use Simplified Chinese and Chinese punctuation. Remove fillers such as 嗯, 呃, and 那个 when they carry no meaning. Resolve corrections such as 不对, 我是说, and 应该是. Keep English terms as spoken, separated from adjacent Chinese characters by a space. Never translate Chinese into English or English into Chinese. ${CROSS_LANGUAGE_CORRECTIONS}`,
   auto: `The spoken language was detected automatically. Keep every part of the transcript in the language it was spoken in, including any mix of Chinese and English. Do not convert the text to a single language. When English terms appear inside Chinese sentences, separate them from adjacent Chinese characters with a space. ${CROSS_LANGUAGE_CORRECTIONS}`,
 }
 

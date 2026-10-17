@@ -2,7 +2,7 @@
 
 AI voice-to-text in the browser. Record speech in English, Mandarin Chinese, or a mix of both, get a raw transcript, and a refined version you can edit and copy.
 
-> Status: Milestone 6 (reliability and error handling). Accuracy evaluation arrives in Milestone 7.
+> Status: Milestone 8 (local MVP acceptance). The app runs locally end to end; public deployment is the next phase.
 
 ## Stack
 
@@ -52,7 +52,11 @@ npm test         # backend and frontend tests (OpenAI is mocked)
 npm run build    # production build of the frontend
 npm run test:live --prefix backend          # live transcription + refinement smoke test; needs OPENAI_API_KEY and network access
 npm run test:live:refine --prefix backend   # live refinement test cases from the roadmap, for human review
+npm run eval --prefix backend               # accuracy evaluation (WER/CER) on 31 samples; see docs/evaluation.md
+npm run test:acceptance --prefix backend    # acceptance tests A to E in Chromium against the running app; see docs/acceptance.md
 ```
+
+The live commands call the real OpenAI API and cost a small amount. `test:acceptance` also needs Playwright with Chromium (`npm install -g playwright`, then run it with `NODE_PATH=$(npm root -g)`).
 
 Or run each side on its own with `npm run dev` inside `backend/` or `frontend/`.
 
@@ -155,6 +159,15 @@ Every failure shows a readable message and never produces invented text:
 | Copy blocked by the browser | Message asking to select and copy manually |
 | Repeated clicks | Start is disabled while recording or processing; Retry ignores clicks while running |
 | Unexpected rendering error | An error boundary shows a message instead of a blank page |
+
+## Accuracy
+
+Measured on 31 synthetic (text-to-speech) samples: English word error rate 0.6%, Chinese character error rate 2.0%, mixed Chinese-English character error rate 5.6%, with every refinement target met. Synthetic speech is easier than real speech, so treat these as a best case. Details, the normalization policy and known limitations are in [docs/evaluation.md](docs/evaluation.md). The local acceptance tests are in [docs/acceptance.md](docs/acceptance.md).
+
+Known limitations:
+
+- A sentence that starts in English and switches to Chinese (for a correction such as 不对) can come back from transcription with the English part written in Chinese. Choosing a language does not reliably prevent it.
+- After resolving a correction, refined Chinese can keep a few words of the retracted half (我觉得这个项目我们应该用 PostgreSQL 会更合适), which reads slightly awkwardly. The meaning is right.
 
 ## Browser recording
 
