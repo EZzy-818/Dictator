@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { identifyAudio } from '../src/lib/audio.js'
-import { transcriptionLanguageParams } from '../src/services/transcription.js'
+import { TRANSCRIPTION_PROMPT, transcriptionParams } from '../src/services/transcription.js'
 import { AUDIO_SAMPLES } from './helpers.js'
 
 describe('identifyAudio', () => {
@@ -19,18 +19,20 @@ describe('identifyAudio', () => {
   })
 })
 
-describe('transcriptionLanguageParams', () => {
-  it('maps en and zh to the API language', () => {
-    expect(transcriptionLanguageParams('en').language).toBe('en')
-    expect(transcriptionLanguageParams('zh').language).toBe('zh')
+describe('transcriptionParams', () => {
+  it('asks gpt-transcribe for mixed Mandarin and English, verbatim', () => {
+    expect(transcriptionParams('gpt-transcribe')).toEqual({ prompt: TRANSCRIPTION_PROMPT, languages: ['zh', 'en'] })
+    expect(transcriptionParams('gpt-live-transcribe').languages).toEqual(['zh', 'en'])
   })
 
-  it('never sends "auto" to the API', () => {
-    expect(transcriptionLanguageParams('auto')).toEqual({})
+  it('sends only the prompt to models that reject a language list', () => {
+    expect(transcriptionParams('gpt-4o-transcribe')).toEqual({ prompt: TRANSCRIPTION_PROMPT })
+    expect(transcriptionParams('gpt-4o-mini-transcribe')).toEqual({ prompt: TRANSCRIPTION_PROMPT })
+    expect(transcriptionParams('whisper-1')).toEqual({ prompt: TRANSCRIPTION_PROMPT })
   })
 
-  it('throws for unsupported values', () => {
-    expect(() => transcriptionLanguageParams('fr')).toThrow()
-    expect(() => transcriptionLanguageParams(undefined)).toThrow()
+  it('asks the model to keep fillers and never translate', () => {
+    expect(TRANSCRIPTION_PROMPT).toMatch(/Keep every filler word/)
+    expect(TRANSCRIPTION_PROMPT).toMatch(/Never translate/)
   })
 })

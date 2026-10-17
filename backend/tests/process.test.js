@@ -3,7 +3,7 @@ import request from 'supertest'
 import { createApp } from '../src/app.js'
 import { loadConfig } from '../src/config.js'
 import { LEVEL_GUIDANCE, buildRefinementInstructions } from '../src/prompts/refinement.js'
-import { TRANSCRIPTION_HINTS } from '../src/services/transcription.js'
+import { SPOKEN_LANGUAGES, TRANSCRIPTION_PROMPT } from '../src/services/transcription.js'
 import { AUDIO_SAMPLES, createTestApp, fakeOpenAI } from './helpers.js'
 
 function postAudio(app, { buffer = AUDIO_SAMPLES.webm, contentType = 'audio/webm;codecs=opus', language, refinementLevel } = {}) {
@@ -24,76 +24,58 @@ describe('POST /api/process', () => {
 
   it('returns the documented response shape', async () => {
     const { app } = createTestApp()
-    const res = await postAudio(app, { language: 'en' })
+    const res = await postAudio(app)
 
     expect(res.status).toBe(200)
     expect(res.body).toEqual({
       rawTranscript: 'Hello world.',
       polishedTranscript: 'Hello, world.',
-      selectedLanguage: 'en',
       refinementLevel: 'light',
       transcriptionStatus: 'success',
       refinementStatus: 'success',
     })
   })
 
-  it('sends English with the English hint and the configured model', async () => {
-    const { app, openai } = createTestApp({ env: { TRANSCRIPTION_MODEL: 'gpt-4o-transcribe' } })
-    await postAudio(app, { language: 'en' })
+  it('transcribes as mixed Mandarin and English with the configured model', async () => {
+    const { app, openai } = createTestApp({ env: { TRANSCRIPTION_MODEL: 'gpt-transcribe' } })
+    await postAudio(app)
 
     const params = openai.audio.transcriptions.create.mock.calls[0][0]
     expect(params).toMatchObject({
-      model: 'gpt-4o-transcribe',
-      language: 'en',
-      prompt: TRANSCRIPTION_HINTS.en,
+      model: 'gpt-transcribe',
+      languages: SPOKEN_LANGUAGES,
+      prompt: TRANSCRIPTION_PROMPT,
       response_format: 'json',
     })
+    expect(params).not.toHaveProperty('language')
     expect(params.file.name).toBe('recording.webm')
     expect(params.file.type).toBe('audio/webm')
   })
 
-  it('sends Chinese with the Chinese hint', async () => {
-    const { app, openai } = createTestApp()
-    const res = await postAudio(app, { language: 'zh' })
+  it('sends only the prompt to models that do not accept a language list', async () => {
+    const { app, openai } = createTestApp({ env: { TRANSCRIPTION_MODEL: 'gpt-4o-transcribe' } })
+    await postAudio(app)
 
     const params = openai.audio.transcriptions.create.mock.calls[0][0]
-    expect(params.language).toBe('zh')
-    expect(params.prompt).toBe(TRANSCRIPTION_HINTS.zh)
-    expect(res.body.selectedLanguage).toBe('zh')
-  })
-
-  it('omits language and prompt in auto mode', async () => {
-    const { app, openai } = createTestApp()
-    const res = await postAudio(app, { language: 'auto' })
-
-    const params = openai.audio.transcriptions.create.mock.calls[0][0]
+    expect(params).toMatchObject({ model: 'gpt-4o-transcribe', prompt: TRANSCRIPTION_PROMPT })
+    expect(params).not.toHaveProperty('languages')
     expect(params).not.toHaveProperty('language')
-    expect(params).not.toHaveProperty('prompt')
-    expect(res.body.selectedLanguage).toBe('auto')
   })
 
-  it('defaults to auto when no language is sent', async () => {
-    const { app, openai } = createTestApp()
-    const res = await postAudio(app)
-
-    expect(res.status).toBe(200)
-    expect(res.body.selectedLanguage).toBe('auto')
-    expect(openai.audio.transcriptions.create.mock.calls[0][0]).not.toHaveProperty('language')
-  })
-
-  it.each(['fr', 'EN', 'english', 'zh-CN', ' auto'])('rejects unsupported language %j', async (language) => {
+  // Pages loaded before the language setting was removed still send it.
+  it.each(['en', 'zh', 'auto', 'fr'])('ignores a language field of %j', async (language) => {
     const { app, openai } = createTestApp()
     const res = await postAudio(app, { language })
 
-    expect(res.status).toBe(400)
-    expect(res.body.code).toBe('invalid_language')
-    expect(openai.audio.transcriptions.create).not.toHaveBeenCalled()
+    expect(res.status).toBe(200)
+    expect(res.body).not.toHaveProperty('selectedLanguage')
+    expect(openai.audio.transcriptions.create.mock.calls[0][0]).toMatchObject({ languages: SPOKEN_LANGUAGES })
   })
 
   it('returns the transcript exactly as the API produced it', async () => {
     const text = ' 嗯，我觉得我们应该用 MongoDB，不对，还是 PostgreSQL 比较好。 '
     const { app } = createTestApp({ openai: fakeOpenAI(async () => ({ text })) })
-    const res = await postAudio(app, { language: 'zh' })
+    const res = await postAudio(app)
 
     expect(res.body.rawTranscript).toBe(text)
   })
@@ -110,7 +92,7 @@ describe('POST /api/process', () => {
 
   it('rejects a request without audio', async () => {
     const { app } = createTestApp()
-    const res = await request(app).post('/api/process').field('language', 'en')
+    const res = await request(app).post('/api/process').field('refinementLevel', 'light')
 
     expect(res.status).toBe(400)
     expect(res.body.code).toBe('missing_audio')
@@ -179,9 +161,9 @@ describe('POST /api/process', () => {
     expect(res.body.code).toBe('transcription_failed')
   })
 
-  it('refines the raw transcript with the configured model and selected language', async () => {
+  it('refines the raw transcript with the configured model and mixed-language guidance', async () => {
     const { app, openai } = createTestApp({ env: { REFINEMENT_MODEL: 'gpt-4.1' } })
-    await postAudio(app, { language: 'zh' })
+    await postAudio(app)
 
     const params = openai.responses.create.mock.calls[0][0]
     expect(params.model).toBe('gpt-4.1')
@@ -193,13 +175,12 @@ describe('POST /api/process', () => {
     const { app } = createTestApp({
       openai: fakeOpenAI(undefined, async () => Promise.reject(new Error('boom'))),
     })
-    const res = await postAudio(app, { language: 'en' })
+    const res = await postAudio(app)
 
     expect(res.status).toBe(200)
     expect(res.body).toEqual({
       rawTranscript: 'Hello world.',
       polishedTranscript: null,
-      selectedLanguage: 'en',
       refinementLevel: 'light',
       transcriptionStatus: 'success',
       refinementStatus: 'failed',
@@ -209,7 +190,7 @@ describe('POST /api/process', () => {
   describe('refinement levels', () => {
     it('defaults to Light when no level is sent', async () => {
       const { app, openai } = createTestApp()
-      const res = await postAudio(app, { language: 'en' })
+      const res = await postAudio(app)
 
       expect(res.body.refinementLevel).toBe('light')
       expect(openai.responses.create.mock.calls[0][0].instructions).toContain(LEVEL_GUIDANCE.light)
@@ -217,26 +198,25 @@ describe('POST /api/process', () => {
 
     it.each(['light', 'medium'])('refines with the %s instructions', async (level) => {
       const { app, openai } = createTestApp()
-      const res = await postAudio(app, { language: 'auto', refinementLevel: level })
+      const res = await postAudio(app, { refinementLevel: level })
 
       expect(res.status).toBe(200)
       expect(res.body).toMatchObject({ refinementLevel: level, refinementStatus: 'success', polishedTranscript: 'Hello, world.' })
-      expect(openai.responses.create.mock.calls[0][0].instructions).toBe(buildRefinementInstructions('auto', level))
+      expect(openai.responses.create.mock.calls[0][0].instructions).toBe(buildRefinementInstructions(level))
     })
 
     it.each([
-      ['en', 'Um, I think we should, uh, meet on Tuesday, actually Wednesday, at 3 PM.'],
-      ['zh', '嗯，我觉得我们，呃，明天可以开始这个项目。'],
-      ['auto', '嗯，我觉得这个backend应该用Python，不对，用 Go。'],
-    ])('None returns the %s transcript unchanged with no refinement call', async (language, text) => {
+      'Um, I think we should, uh, meet on Tuesday, actually Wednesday, at 3 PM.',
+      '嗯，我觉得我们，呃，明天可以开始这个项目。',
+      '嗯，我觉得这个backend应该用Python，不对，用 Go。',
+    ])('None returns %j unchanged with no refinement call', async (text) => {
       const { app, openai } = createTestApp({ openai: fakeOpenAI(async () => ({ text })) })
-      const res = await postAudio(app, { language, refinementLevel: 'none' })
+      const res = await postAudio(app, { refinementLevel: 'none' })
 
       expect(res.status).toBe(200)
       expect(res.body).toEqual({
         rawTranscript: text,
         polishedTranscript: text,
-        selectedLanguage: language,
         refinementLevel: 'none',
         transcriptionStatus: 'success',
         refinementStatus: 'skipped',
@@ -247,9 +227,9 @@ describe('POST /api/process', () => {
 
     it('None does not change the transcription request', async () => {
       const { app, openai } = createTestApp()
-      await postAudio(app, { language: 'zh', refinementLevel: 'none' })
+      await postAudio(app, { refinementLevel: 'none' })
       const withLight = createTestApp()
-      await postAudio(withLight.app, { language: 'zh', refinementLevel: 'light' })
+      await postAudio(withLight.app, { refinementLevel: 'light' })
 
       const params = (client) => {
         const { file, ...rest } = client.audio.transcriptions.create.mock.calls[0][0]
@@ -260,7 +240,7 @@ describe('POST /api/process', () => {
 
     it.each(['heavy', 'None', 'LIGHT', ''])('rejects the level %j before calling OpenAI', async (level) => {
       const { app, openai } = createTestApp()
-      const res = await postAudio(app, { language: 'en', refinementLevel: level })
+      const res = await postAudio(app, { refinementLevel: level })
 
       expect(res.status).toBe(400)
       expect(res.body.code).toBe('invalid_refinement_level')

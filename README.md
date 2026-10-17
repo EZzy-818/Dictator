@@ -33,7 +33,7 @@ Then set `OPENAI_API_KEY` in `backend/.env`.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `OPENAI_API_KEY` | (none) | OpenAI secret key. Server-side only. |
-| `TRANSCRIPTION_MODEL` | `gpt-4o-transcribe` | Speech-to-text model |
+| `TRANSCRIPTION_MODEL` | `gpt-transcribe` | Speech-to-text model |
 | `REFINEMENT_MODEL` | `gpt-4.1` | Text refinement model |
 | `PORT` | `3001` | Port the API listens on |
 | `CORS_ORIGINS` | `http://localhost:5173` (development only) | Comma-separated browser origins allowed to call the API |
@@ -75,14 +75,9 @@ Or run each side on its own with `npm run dev` inside `backend/` or `frontend/`.
 `multipart/form-data` with:
 
 - `audio`: the recording (WebM, MP4/M4A, OGG, WAV, MP3, or FLAC; at most 10 MB). The bytes must match the declared type.
-- `language`: `en`, `zh`, or `auto` (default `auto`).
 - `refinementLevel`: `none`, `light`, or `medium` (default `light`). See [Refinement levels](#refinement-levels).
 
-| Option | Sent to the transcription API |
-| --- | --- |
-| `en` | `language: "en"` plus a short English technical-vocabulary hint |
-| `zh` | `language: "zh"` plus a short Chinese technical-vocabulary hint |
-| `auto` | No `language` and no hint; the model infers the language |
+There is no language setting. Every recording may be English, Mandarin, or both mixed in one sentence, so the transcription request always sends `languages: ["zh", "en"]` and a short prompt asking for a verbatim transcript that keeps each word in the language it was spoken in and keeps filler words (`TRANSCRIPTION_PROMPT` in `backend/src/services/transcription.js`). Only the `gpt-transcribe` family accepts `languages`; with another `TRANSCRIPTION_MODEL` only the prompt is sent. A `language` field from an older page is ignored.
 
 Success (`200`):
 
@@ -90,20 +85,18 @@ Success (`200`):
 {
   "rawTranscript": "我们应该用 PostgreSQL。",
   "polishedTranscript": "我们应该使用 PostgreSQL。",
-  "selectedLanguage": "zh",
   "refinementLevel": "light",
   "transcriptionStatus": "success",
   "refinementStatus": "success"
 }
 ```
 
-`selectedLanguage` echoes the user's choice; it is not a detected language. `refinementLevel` echoes the level used. With `none`, refinement is not attempted: `polishedTranscript` is exactly `rawTranscript` and `refinementStatus` is `"skipped"`. If transcription succeeds but refinement fails, the response is still `200` with the raw transcript, `"polishedTranscript": null` and `"refinementStatus": "failed"`, so the client can retry with `/api/refine` without transcribing again. If transcription fails, refinement is not attempted.
+`refinementLevel` echoes the level used. With `none`, refinement is not attempted: `polishedTranscript` is exactly `rawTranscript` and `refinementStatus` is `"skipped"`. If transcription succeeds but refinement fails, the response is still `200` with the raw transcript, `"polishedTranscript": null` and `"refinementStatus": "failed"`, so the client can retry with `/api/refine` without transcribing again. If transcription fails, refinement is not attempted.
 
 Errors return `{ "error": "<safe message>", "code": "<code>" }`:
 
 | Status | Code | When |
 | --- | --- | --- |
-| 400 | `invalid_language` | Language is not `en`, `zh`, or `auto` |
 | 400 | `invalid_refinement_level` | Refinement level is not `none`, `light`, or `medium` |
 | 400 | `missing_audio` / `empty_audio` / `invalid_upload` | No file, an empty file, or a malformed upload |
 | 413 | `file_too_large` | Over 10 MB |
@@ -119,7 +112,7 @@ Errors return `{ "error": "<safe message>", "code": "<code>" }`:
 
 ### `POST /api/refine`
 
-JSON body `{ "transcript": "Raw recognized speech", "language": "en", "refinementLevel": "medium" }` (`language` is required: `en`, `zh`, or `auto`; `refinementLevel` is optional and defaults to `light`). Returns `{ "polishedTranscript": "Refined text", "refinementLevel": "medium" }`. With `none` it returns the transcript unchanged without calling OpenAI, and the request does not count toward the usage limits.
+JSON body `{ "transcript": "Raw recognized speech", "refinementLevel": "medium" }` (`refinementLevel` is optional and defaults to `light`). Returns `{ "polishedTranscript": "Refined text", "refinementLevel": "medium" }`. With `none` it returns the transcript unchanged without calling OpenAI, and the request does not count toward the usage limits.
 
 #### Refinement levels
 
@@ -131,11 +124,11 @@ JSON body `{ "transcript": "Raw recognized speech", "language": "en", "refinemen
 
 Light and Medium use the same model and roadmap rules; each adds its own block of instructions (`LEVEL_GUIDANCE` in `backend/src/prompts/refinement.js`). `npm run test:live:levels --prefix backend` runs live English, Chinese and mixed cases for every level and scores them with checks (words that must stay or go, how much of the speaker's wording Light keeps, how much shorter Medium is) rather than exact strings; `npm run test:live:refine --prefix backend -- --level=medium` runs the roadmap cases at a given level.
 
-Refinement uses the OpenAI Responses API with `REFINEMENT_MODEL`, the roadmap's system prompt (`backend/src/prompts/refinement.js`), the selected level's guidance, and short guidance for the selected language, including how to treat corrections spoken in the other language. It never asks the model to translate; in `auto` mode it keeps every part in the language it was spoken in. The language guidance is appended to the system instructions, and the transcript is sent as the input wrapped in `<transcript>` tags so instructions inside it are treated as speech. Requests use `temperature: 0` (so `REFINEMENT_MODEL` must be a model that accepts it, such as `gpt-4.1`) and `store: false`.
+Refinement uses the OpenAI Responses API with `REFINEMENT_MODEL`, the roadmap's system prompt (`backend/src/prompts/refinement.js`), the selected level's guidance, and short guidance for English, Chinese and mixed speech, including how to treat corrections spoken in the other language. It never asks the model to translate and keeps every part in the language it was spoken in. The language guidance is appended to the system instructions, and the transcript is sent as the input wrapped in `<transcript>` tags so instructions inside it are treated as speech. Requests use `temperature: 0` (so `REFINEMENT_MODEL` must be a model that accepts it, such as `gpt-4.1`) and `store: false`.
 
 | Status | Code | When |
 | --- | --- | --- |
-| 400 | `invalid_language` / `invalid_refinement_level` / `missing_transcript` / `invalid_json` | Bad input |
+| 400 | `invalid_refinement_level` / `missing_transcript` / `invalid_json` | Bad input |
 | 413 | `transcript_too_long` / `body_too_large` | Over 10,000 characters, or a body over 100 KB |
 | 429, 503 | as for `/api/process` | A usage limit was reached |
 | 502 | `refinement_failed` | The OpenAI request failed or returned no text |
@@ -159,9 +152,9 @@ Recordings are processed in memory and never written to disk. Transcripts and re
 
 ## Using the app
 
-1. Pick **Auto-detect**, **English**, or **中文**, and an **AI refinement** level: **None**, **Light** (the default) or **Medium**. Both choices stay selected until you change them, and the level can be changed while recording without interrupting it. The level selected when you stop recording is the one used.
-2. Click **Start Recording**, speak, then **Stop Recording**. The recording is uploaded with the selected language.
-3. The **Raw transcript** shows exactly what the transcription model returned (read-only).
+1. Pick an **AI refinement** level: **None**, **Light** (the default) or **Medium**. It stays selected until you change it, and it can be changed while recording without interrupting it. The level selected when you stop recording is the one used. There is no language to choose: speak English, Mandarin, or a mix of both.
+2. Click **Start Recording**, speak, then **Stop Recording**.
+3. The **Raw transcript** shows exactly what the transcription model returned (read-only). It keeps filler words such as um and 嗯 as far as the model hears them, so **None** shows them too.
 4. The **Polished text** is editable. **Copy** copies exactly what is in the box. **Retry Refinement** refines the same raw transcript again through `/api/refine`, without transcribing again, and replaces the polished text. After choosing a different level, the button reads **Regenerate as Medium** (or None, or Light) and regenerates the polished text at that level; None simply shows the raw transcript. A label above the box says which level made the current text. **Record Again** clears the results and starts a new recording.
 
 If refinement fails, the raw transcript stays on screen with a warning and Retry Refinement stays available.
@@ -188,11 +181,12 @@ Every failure shows a readable message and never produces invented text:
 
 ## Accuracy
 
-Measured on 31 synthetic (text-to-speech) samples: English word error rate 0.6%, Chinese character error rate 2.0%, mixed Chinese-English character error rate 5.6%, with every refinement target met. Synthetic speech is easier than real speech, so treat these as a best case. Details, the normalization policy and known limitations are in [docs/evaluation.md](docs/evaluation.md). The local acceptance tests are in [docs/acceptance.md](docs/acceptance.md).
+Measured on 31 synthetic (text-to-speech) samples with `gpt-transcribe`: English word error rate 0.0%, mixed Chinese-English character error rate 0.0%, Chinese character error rate 3.6% (all of it one sample where 2027年3月15日 came back as 二零二七年三月十五日, the same date written in Chinese numerals), with every refinement target met. Synthetic speech is easier than real speech, so treat these as a best case. Details, the normalization policy and known limitations are in [docs/evaluation.md](docs/evaluation.md). The local acceptance tests are in [docs/acceptance.md](docs/acceptance.md).
 
 Known limitations:
 
-- A sentence that starts in English and switches to Chinese (for a correction such as 不对) can come back from transcription with the English part written in Chinese. Choosing a language does not reliably prevent it.
+- Numbers and dates spoken in Chinese may come back in Chinese numerals (十点半) rather than digits (10点半). Light and Medium keep them as transcribed.
+- Filler words are kept when the model hears them, but very short or soft ones (a quick 嗯) can still be left out, so None is close to verbatim rather than exact.
 - After resolving a correction, refined Chinese can keep a few words of the retracted half (我觉得这个项目我们应该用 PostgreSQL 会更合适), which reads slightly awkwardly. The meaning is right.
 
 ## Browser recording

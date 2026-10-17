@@ -1,6 +1,5 @@
 import { APIConnectionTimeoutError } from 'openai'
 import { ApiError } from '../lib/errors.js'
-import { isSupportedLanguage } from '../lib/languages.js'
 import { DEFAULT_REFINEMENT_LEVEL } from '../lib/refinementLevels.js'
 import { buildRefinementInput, buildRefinementInstructions } from '../prompts/refinement.js'
 
@@ -11,10 +10,7 @@ export const REFINEMENT_TIMEOUT_MS = 30_000
 
 const REFINEMENT_FAILED = 'Refinement failed. Your raw transcript is unchanged; please retry.'
 
-export function validateRefinementRequest(transcript, language) {
-  if (!isSupportedLanguage(language)) {
-    throw new ApiError(400, 'invalid_language', 'Unsupported language. Choose English, 中文, or Auto-detect.')
-  }
+export function validateRefinementRequest(transcript) {
   if (typeof transcript !== 'string' || transcript.trim() === '') {
     throw new ApiError(400, 'missing_transcript', 'A transcript is required.')
   }
@@ -32,8 +28,8 @@ function stripTranscriptTags(text) {
  * Returns the polished transcript. Throws ApiError on any failure.
  * level "none" returns the transcript exactly as given, without calling the model.
  */
-export async function refineTranscript({ client, model, transcript, language, level = DEFAULT_REFINEMENT_LEVEL }) {
-  validateRefinementRequest(transcript, language)
+export async function refineTranscript({ client, model, transcript, level = DEFAULT_REFINEMENT_LEVEL }) {
+  validateRefinementRequest(transcript)
   if (level === 'none') return transcript
 
   let response
@@ -41,7 +37,7 @@ export async function refineTranscript({ client, model, transcript, language, le
     response = await client.responses.create(
       {
         model,
-        instructions: buildRefinementInstructions(language, level),
+        instructions: buildRefinementInstructions(level),
         input: buildRefinementInput(transcript),
         max_output_tokens: MAX_OUTPUT_TOKENS,
         // Editing should be as repeatable as possible. Reasoning models reject this parameter.

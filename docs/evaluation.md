@@ -1,6 +1,29 @@
 # Accuracy evaluation (Milestone 7)
 
-Final run: commit 482ceab, 31 synthetic samples, `gpt-4o-transcribe` and `gpt-4.1`, each sample sent with its own language option. Full report: [backend/eval/results/synthetic.md](../backend/eval/results/synthetic.md).
+## Update: one mixed-language mode with `gpt-transcribe`
+
+The app no longer has a spoken-language setting. Every recording is sent to `gpt-transcribe` with `languages: ["zh", "en"]` and a prompt asking for a verbatim transcript that keeps each word in its spoken language and keeps fillers. Full report: [backend/eval/results/synthetic.md](../backend/eval/results/synthetic.md); the same 31 samples through `gpt-4o-transcribe` with the same prompt are in [synthetic-gpt-4o-transcribe.md](../backend/eval/results/synthetic-gpt-4o-transcribe.md).
+
+| Model | English WER | Chinese CER | Mixed CER | Mixed-token error rate |
+| --- | --- | --- | --- | --- |
+| `gpt-transcribe`, Chinese plus English | 0.0% | 3.6% (one sample, see below) | 0.0% | 0.0% |
+| `gpt-4o-transcribe`, same prompt | 0.6% | 0.8% | 0.0% | 0.0% |
+
+The Chinese errors are all in `special-3`, where 2027年3月15日上午10点半 came back as 二零二七年三月十五日上午十点半: the same date in Chinese numerals. `mixed-4`, the hard case below, was transcribed correctly. All refinement checks passed (31 / 31 languages preserved).
+
+The 31 samples are mostly Chinese with English terms, which every model handled. Users reported whole English clauses disappearing from mixed speech, so 11 harder synthetic clips (English clauses inside Chinese sentences, English-led sentences, fillers in both languages) were each run 3 times per setup:
+
+| Setup | Runs where English was written in Chinese or dropped | Fillers kept |
+| --- | --- | --- |
+| `gpt-4o-transcribe`, no language, no prompt (the old Auto-detect) | 7 of 33 (one run dropped "which is way too slow for our users" entirely) | often removed: 嗯, 呃, um, uh |
+| `gpt-4o-transcribe` plus the new prompt | 2 of 33 | some |
+| `gpt-transcribe` with `languages: ["zh", "en"]` plus the prompt | 0 of 33 | almost all, identical across runs |
+
+The old Auto-detect also removed fillers before refinement ever ran, which is why **None** still showed text without um or 嗯. `gpt-4o-transcribe` has no option for verbatim output; a prompt helps somewhat. `gpt-transcribe` keeps them far more consistently, though a very short filler can still be missed.
+
+## Earlier run with `gpt-4o-transcribe` and a language setting
+
+Commit 482ceab, 31 synthetic samples, `gpt-4o-transcribe` and `gpt-4.1`, each sample sent with its own language option. That report is in the repository history at commit 482ceab (`backend/eval/results/synthetic.md`).
 
 All samples are OpenAI text-to-speech, not human recordings. Clean synthetic speech is easier than real speech, so treat these numbers as a best case. Real-voice samples can be added later (see "How the evaluation works").
 
@@ -108,7 +131,7 @@ The 21 hand-written refinement cases (`npm run test:live:refine -- --repeat=3`) 
 
 - **Samples.** 31 scripts in the roadmap's six categories (at least 5 each). Each script is also the expected raw transcript, written by hand, with fillers and self-corrections as spoken.
 - **Synthetic audio.** On the first run each script is spoken by OpenAI text-to-speech (`gpt-4o-mini-tts`, six voices in turn) and cached in `backend/.eval-samples/synthetic/`. The two noisy samples (`special-5`, `special-6`) get pink noise mixed in at 10 dB signal-to-noise ratio. Synthetic speech is clean and evenly paced, so these numbers are a best case. Your own recordings go in `backend/.eval-samples/voice/<id>.<ext>` and run with `--source=voice`.
-- **Comparisons.** `--language=auto|en|zh` sends every sample with one language option. `TRANSCRIPTION_MODEL=<model>` swaps the transcription model. `--auto-hint="..."` adds a transcription prompt in Auto-detect mode, for testing whether a hint helps.
+- **Comparisons.** `TRANSCRIPTION_MODEL=<model>` swaps the transcription model. `--prompt="..."` replaces the transcription prompt, for testing whether a different one helps.
 
 ## Metrics
 

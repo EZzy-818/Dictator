@@ -1,31 +1,30 @@
 import { APIConnectionTimeoutError, toFile } from 'openai'
 import { ApiError } from '../lib/errors.js'
-import { isSupportedLanguage } from '../lib/languages.js'
 
 // Per attempt; the client retries once, so the worst case is about twice this.
 export const TRANSCRIPTION_TIMEOUT_MS = 45_000
 
-// Short vocabulary hints written in the expected language. Auto mode gets none so the
-// model is not nudged toward either language.
-export const TRANSCRIPTION_HINTS = {
-  en: 'This recording may contain technical terminology such as React, Python, PostgreSQL, MongoDB, and APIs.',
-  zh: '录音可能涉及软件开发、人工智能、数据库及技术术语，例如 React、Python、PostgreSQL 和 API。',
-}
+// Speakers mix Mandarin and English freely, so every recording is transcribed as both.
+// gpt-4o-transcribe has no way to say that: with no language it sometimes translates the
+// English parts into Chinese, and it drops fillers, which the None level must keep.
+export const SPOKEN_LANGUAGES = ['zh', 'en']
 
-export function transcriptionLanguageParams(language) {
-  if (!isSupportedLanguage(language)) {
-    throw new ApiError(400, 'invalid_language', 'Unsupported language. Choose English, 中文, or Auto-detect.')
-  }
-  if (language === 'auto') return {}
-  return { language, prompt: TRANSCRIPTION_HINTS[language] }
+export const TRANSCRIPTION_PROMPT =
+  'Verbatim transcript of dictation that may mix Mandarin Chinese and English in one sentence. Write each word in the language it was spoken in: Chinese in Simplified Chinese characters, English in English words. Never translate. Keep every filler word and hesitation as spoken, such as um, uh, like, you know, 嗯, 呃 and 那个.'
+
+// Only the gpt-transcribe family accepts a list of expected languages; older models reject it.
+export function transcriptionParams(model) {
+  const params = { prompt: TRANSCRIPTION_PROMPT }
+  if (/^gpt-(live-)?transcribe/.test(model)) params.languages = SPOKEN_LANGUAGES
+  return params
 }
 
 /**
  * Transcribes one audio file. Returns the transcript text exactly as the API returned it.
  * audio: { buffer, mimeType, extension } as produced by identifyAudio plus the bytes.
  */
-export async function transcribeAudio({ client, model, audio, language }) {
-  const params = transcriptionLanguageParams(language)
+export async function transcribeAudio({ client, model, audio }) {
+  const params = transcriptionParams(model)
   const file = await toFile(audio.buffer, `recording.${audio.extension}`, { type: audio.mimeType })
 
   let response

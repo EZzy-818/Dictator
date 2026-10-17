@@ -33,7 +33,7 @@ export function loadConfig(env = process.env) {
     production,
     port: Number(env.PORT) || 3001,
     openaiApiKey: env.OPENAI_API_KEY || '',
-    transcriptionModel: env.TRANSCRIPTION_MODEL || 'gpt-4o-transcribe',
+    transcriptionModel: env.TRANSCRIPTION_MODEL || 'gpt-transcribe',
     refinementModel: env.REFINEMENT_MODEL || 'gpt-4.1',
     limits: Object.fromEntries(
       Object.entries(LIMIT_SETTINGS).map(([key, [name, fallback]]) => [key, positiveInt(env[name], fallback)]),

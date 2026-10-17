@@ -48,7 +48,7 @@ describe('config', () => {
   it('uses roadmap defaults', () => {
     const config = loadConfig({})
     expect(config.port).toBe(3001)
-    expect(config.transcriptionModel).toBe('gpt-4o-transcribe')
+    expect(config.transcriptionModel).toBe('gpt-transcribe')
     expect(config.refinementModel).toBe('gpt-4.1')
   })
 

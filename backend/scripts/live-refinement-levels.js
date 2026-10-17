@@ -197,7 +197,7 @@ for (const testCase of CASES.filter((c) => !onlyLevel || c.level === onlyLevel))
   totals[level] ??= { passed: 0, runs: 0 }
 
   for (let run = 0; run < repeat; run++) {
-    const res = await request(app).post('/api/refine').send({ transcript: input, language, refinementLevel: level })
+    const res = await request(app).post('/api/refine').send({ transcript: input, refinementLevel: level })
     const output = res.status === 200 ? res.body.polishedTranscript : null
     const problems = output === null ? [`HTTP ${res.status} ${res.body.code}`] : check(testCase, output)
     totals[level].runs++

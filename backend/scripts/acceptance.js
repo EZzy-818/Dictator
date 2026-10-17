@@ -27,7 +27,6 @@ try {
 const SAMPLES_DIR = path.resolve(import.meta.dirname, '../.live-samples/acceptance')
 const APP_URL = process.argv.find((arg) => arg.startsWith('--url='))?.split('=')[1] ?? 'http://localhost:5173'
 const TTS_MODEL = 'gpt-4o-mini-tts'
-const LANGUAGE_LABEL = { auto: 'Auto-detect', en: 'English', zh: '中文' }
 const HAN = /\p{Script=Han}/u
 
 const has = (text, ...terms) => terms.some((term) => text.toLowerCase().includes(term.toLowerCase()))
@@ -36,7 +35,6 @@ const TESTS = [
   {
     name: 'A. English',
     id: 'test-a',
-    language: 'en',
     voice: 'alloy',
     speech: 'I want to schedule a meeting on Monday, actually Wednesday at 3 PM.',
     expected: 'I want to schedule a meeting on Wednesday at 3 PM.',
@@ -45,7 +43,6 @@ const TESTS = [
   {
     name: 'B. Mandarin',
     id: 'test-b',
-    language: 'zh',
     voice: 'nova',
     speech: '我想下周二开会，嗯，不对，下周三下午三点。',
     expected: '我想下周三下午三点开会。',
@@ -54,7 +51,6 @@ const TESTS = [
   {
     name: 'C. Mixed-language',
     id: 'test-c',
-    language: 'auto',
     voice: 'coral',
     speech: '我觉得这个项目我们应该用 MongoDB，啊不对，用 PostgreSQL 会更合适。',
     expected: '我觉得这个项目用 PostgreSQL 会更合适。',
@@ -62,18 +58,16 @@ const TESTS = [
     copy: '我觉得这个项目用 PostgreSQL 会更合适，backend 先用 Node.js（v22）。「已确认」✅',
   },
   {
-    name: 'D. Auto-detect, English clip',
+    name: 'D. English-only clip',
     id: 'test-d-en',
-    language: 'auto',
     voice: 'echo',
     speech: 'The quarterly report is ready, so please review it before Friday.',
     expected: 'English transcript, no Chinese characters',
     check: ({ raw }) => !HAN.test(raw) && has(raw, 'quarterly report', 'Friday'),
   },
   {
-    name: 'D. Auto-detect, Mandarin clip',
+    name: 'D. Mandarin-only clip',
     id: 'test-d-zh',
-    language: 'auto',
     voice: 'shimmer',
     speech: '季度报告已经准备好了，请大家在周五之前看一下。',
     expected: 'Chinese transcript, not translated',
@@ -105,7 +99,6 @@ async function runTest(test, recording) {
     const context = await browser.newContext({ permissions: ['microphone', 'clipboard-read', 'clipboard-write'] })
     const page = await context.newPage()
     await page.goto(APP_URL)
-    await page.getByText(LANGUAGE_LABEL[test.language], { exact: true }).click()
     await page.getByRole('button', { name: 'Start Recording' }).click()
     await page.getByRole('button', { name: 'Stop Recording' }).waitFor()
     await page.waitForTimeout(recording.durationMs + 1000)
@@ -146,7 +139,7 @@ for (const test of TESTS) {
   const result = await runTest(test, recording)
   const passed = result.state === 'completed' && test.check(result)
   if (!passed) failures++
-  console.log(`## ${test.name} (${LANGUAGE_LABEL[test.language]}): ${passed ? 'PASS' : 'FAIL'}`)
+  console.log(`## ${test.name}: ${passed ? 'PASS' : 'FAIL'}`)
   console.log(`spoken:   ${test.speech}`)
   console.log(`expected: ${test.expected}`)
   if (result.state !== 'completed') console.log(`state:    ${result.state} ${JSON.stringify(result.alerts)}`)

@@ -14,7 +14,6 @@ function processResult(overrides = {}) {
   return {
     rawTranscript: MIXED_RAW,
     polishedTranscript: MIXED_POLISHED,
-    selectedLanguage: 'zh',
     transcriptionStatus: 'success',
     refinementStatus: 'success',
     ...overrides,
@@ -73,11 +72,11 @@ describe('App', () => {
     return screen.getByRole('main').dataset.state
   }
 
-  it('shows the header and defaults to Auto-detect', () => {
+  it('shows the header and defaults to Light refinement', () => {
     render(<App />)
     expect(screen.getByRole('heading', { name: 'Dictator' })).toBeTruthy()
     expect(screen.getByText('AI Voice-to-Text')).toBeTruthy()
-    expect(screen.getByLabelText('Auto-detect').checked).toBe(true)
+    expect(screen.getByLabelText('Light').checked).toBe(true)
     expect(state()).toBe('idle')
   })
 
@@ -98,18 +97,17 @@ describe('App', () => {
     expect(state()).toBe('completed')
   })
 
-  it('uploads the selected language and shows raw and polished text exactly', async () => {
+  it('has no spoken-language setting and shows raw and polished text exactly', async () => {
     render(<App />)
-    fireEvent.click(screen.getByLabelText('中文'))
+    expect(screen.queryByText('Spoken language')).toBeNull()
     await record()
 
-    expect(calls('/api/process')[0][1].body.get('language')).toBe('zh')
+    expect(calls('/api/process')[0][1].body.has('language')).toBe(false)
     const raw = screen.getByLabelText('Raw transcript')
     expect(raw.value).toBe(MIXED_RAW)
     expect(raw.readOnly).toBe(true)
     expect(raw.lang).toBe('zh-CN')
     expect(screen.getByLabelText('Polished text').value).toBe(MIXED_POLISHED)
-    expect(screen.getByLabelText('中文').checked).toBe(true)
   })
 
   it('copies the edited text exactly, including Unicode', async () => {
@@ -147,13 +145,11 @@ describe('App', () => {
     expect(screen.getByLabelText('Polished text').disabled).toBe(true)
     expect(screen.getByRole('button', { name: 'Copy' }).disabled).toBe(true)
 
-    // Changing the selector afterwards must not change how this transcript is refined.
-    fireEvent.click(screen.getByLabelText('English'))
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry Refinement' })))
 
     expect(calls('/api/process')).toHaveLength(1)
     const [, options] = calls('/api/refine')[0]
-    expect(JSON.parse(options.body)).toEqual({ transcript: MIXED_RAW, language: 'zh', refinementLevel: 'light' })
+    expect(JSON.parse(options.body)).toEqual({ transcript: MIXED_RAW, refinementLevel: 'light' })
     expect(screen.getByLabelText('Polished text').value).toBe('Retried text。')
     expect(screen.queryByRole('alert')).toBeNull()
   })
@@ -308,7 +304,7 @@ describe('App', () => {
 
       expect(calls('/api/process')).toHaveLength(1)
       expect(media.getUserMedia).toHaveBeenCalledTimes(1)
-      expect(JSON.parse(calls('/api/refine')[0][1].body)).toEqual({ transcript: MIXED_RAW, language: 'zh', refinementLevel: 'medium' })
+      expect(JSON.parse(calls('/api/refine')[0][1].body)).toEqual({ transcript: MIXED_RAW, refinementLevel: 'medium' })
       expect(screen.getByLabelText('Polished text').value).toBe('用 Go 写 backend。')
       expect(screen.getByTestId('output-level').textContent).toBe('Medium refinement')
       expect(screen.getByRole('button', { name: 'Retry Refinement' })).toBeTruthy()
@@ -332,7 +328,7 @@ describe('App', () => {
 
   it('keeps English text in an English-tagged field', async () => {
     processResponse = () =>
-      jsonResponse(processResult({ rawTranscript: 'Um, hello.', polishedTranscript: 'Hello.', selectedLanguage: 'en' }))
+      jsonResponse(processResult({ rawTranscript: 'Um, hello.', polishedTranscript: 'Hello.' }))
     render(<App />)
     await record()
 

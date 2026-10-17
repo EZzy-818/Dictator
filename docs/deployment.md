@@ -10,7 +10,7 @@ Everything that differs between local development and production is set through 
 | `OPENAI_API_KEY` | your OpenAI secret key | Set it as a secret in the host's dashboard. Never commit it, and never put it in a `VITE_` variable. |
 | `CORS_ORIGINS` | the frontend's address, for example `https://dictator.vercel.app` | Comma-separated. Use origins only: scheme, host and optional port, with no path. A trailing slash is ignored. |
 | `PORT` | set by the host | Render provides it (default `10000`). |
-| `TRANSCRIPTION_MODEL` | `gpt-4o-transcribe` (default) | Optional. |
+| `TRANSCRIPTION_MODEL` | `gpt-transcribe` (default) | Optional. Leave it unset: only the `gpt-transcribe` family takes the Chinese-plus-English language list that keeps mixed speech intact. |
 | `REFINEMENT_MODEL` | `gpt-4.1` (default) | Optional. It must accept `temperature`. |
 | `TRUST_PROXY` | the number of proxies in front of the server | Needed to see each visitor's address for the usage limits. See [Usage limits](#usage-limits-and-abuse-protection-milestone-10). |
 | `REDIS_URL` | a Redis connection URL, for example Render Key Value's internal URL | Recommended. Keeps the usage counters when the server restarts or sleeps. |
@@ -50,7 +50,7 @@ Dictator has no accounts, so anyone who finds the API can call it, and every cal
 
 The page shows each message as it is. Limited responses also carry a `Retry-After` header and `RateLimit` headers.
 
-- **What counts.** A request counts toward the limits only after it passes validation (language, audio format, readable audio, length), right before OpenAI is called. Rejected uploads never reach OpenAI and do not count. Requests that reach OpenAI count even if OpenAI fails, because they may still cost money. The recording that `/api/process` refines does not count toward the Retry Refinement limits.
+- **What counts.** A request counts toward the limits only after it passes validation (refinement level, audio format, readable audio, length), right before OpenAI is called. Rejected uploads never reach OpenAI and do not count. Requests that reach OpenAI count even if OpenAI fails, because they may still cost money. The recording that `/api/process` refines does not count toward the Retry Refinement limits.
 - **Windows.** Each counter is a fixed window that starts with the first counted request: one minute or 24 hours.
 - **Visitors.** A visitor is an IP address. IPv6 addresses are grouped by `/56` subnet, since one household or phone usually controls a whole subnet. People behind one shared address (an office, a school) share one allowance.
 - **Recording length.** The server reads the length from the audio itself. Browsers write WebM recordings without a length header, so the server reads the time stamps of the audio blocks (`backend/src/lib/duration.js`); MP4, Ogg, WAV, MP3 and FLAC are read with `music-metadata`. Audio whose length cannot be read is rejected with 415 `unreadable_audio`.
@@ -82,6 +82,7 @@ How this was tested: the browser test in this milestone recorded twice with `PRO
 
 Prices from OpenAI's [pricing page](https://developers.openai.com/api/docs/pricing) and [GPT-4.1 model page](https://developers.openai.com/api/docs/models/gpt-4.1), checked on 2026-10-17:
 
+- `gpt-transcribe` (the default since the language setting was removed): $0.0045 per minute of audio, as reported by third-party price trackers in October 2026; not yet checked against OpenAI's own pricing page. The table below was worked out for `gpt-4o-transcribe`, which costs more, so it remains an upper bound.
 - `gpt-4o-transcribe`: about $0.006 per minute of audio; $2.50 per million input tokens and $10 per million output tokens; a 16,000-token context and at most 2,000 output tokens.
 - `gpt-4.1`: $2 per million input tokens and $8 per million output tokens.
 
@@ -103,7 +104,7 @@ The server's limits are the first line of defense. As a backstop, set a hard mon
 Every request to `/api/process` and `/api/refine` writes one JSON line to the server log:
 
 ```json
-{"time":"2026-10-17T02:49:29.495Z","event":"request","method":"POST","path":"/api/process","status":429,"code":"rate_limited","ms":4,"bytes":16185,"language":"auto","client":"a17b73a8e926"}
+{"time":"2026-10-17T02:49:29.495Z","event":"request","method":"POST","path":"/api/process","status":429,"code":"rate_limited","ms":4,"bytes":16185,"refinementLevel":"light","client":"a17b73a8e926"}
 ```
 
 Each refusal also writes a `"event":"limit"` line naming the limit, such as `process-minute` or `process-global-day`. `client` is a keyed hash of the visitor's address. It is stable while the server runs, so one visitor's requests can be grouped, but it cannot be turned back into the address, and it changes when the server restarts. The log never contains audio, transcripts, refined text, or IP addresses. On Render the lines appear in the service's Logs tab; filter on `"event":"limit"` to see who is being limited.

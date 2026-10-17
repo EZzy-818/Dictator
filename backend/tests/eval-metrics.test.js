@@ -24,10 +24,9 @@ describe('evaluation dataset', () => {
     for (const count of Object.values(counts)) expect(count).toBeGreaterThanOrEqual(5)
   })
 
-  it('uses unique ids and supported options', () => {
+  it('uses unique ids and supported metrics', () => {
     expect(new Set(CASES.map((testCase) => testCase.id)).size).toBe(CASES.length)
     for (const testCase of CASES) {
-      expect(['en', 'zh', 'auto']).toContain(testCase.language)
       expect(['wer', 'cer', 'mixed']).toContain(testCase.metric)
     }
   })

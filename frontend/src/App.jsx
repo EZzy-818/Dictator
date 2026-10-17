@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getHealth, processAudio, refineTranscript } from './services/api.js'
 import { formatDuration, useAudioRecorder } from './hooks/useAudioRecorder.js'
-import LanguageSelector from './components/LanguageSelector.jsx'
 import RefinementLevelSelector from './components/RefinementLevelSelector.jsx'
 import { DEFAULT_REFINEMENT_LEVEL } from './refinementLevels.js'
 import Recorder from './components/Recorder.jsx'
 import TranscriptPanel from './components/TranscriptPanel.jsx'
 import OutputEditor from './components/OutputEditor.jsx'
 
-// Tells the browser which glyphs to prefer; auto-detected text may be either language.
-const TEXT_LANG = { en: 'en', zh: 'zh-CN', auto: undefined }
+// Tells the browser which glyphs to prefer. Text with any Chinese in it is marked Chinese,
+// which still shows English words normally.
+function textLangOf(text) {
+  return /\p{Script=Han}/u.test(text) ? 'zh-CN' : 'en'
+}
 
 const REFINEMENT_FAILED = 'Refinement failed. Your raw transcript is preserved; you can retry refinement.'
 
@@ -27,11 +29,10 @@ function Notice({ tone, children }) {
 
 function App() {
   const [serverUnavailable, setServerUnavailable] = useState(false)
-  const [language, setLanguage] = useState('auto')
   const [refinementLevel, setRefinementLevel] = useState(DEFAULT_REFINEMENT_LEVEL)
   const [processing, setProcessing] = useState(false)
   const [processError, setProcessError] = useState(null)
-  // { rawTranscript, selectedLanguage } from the last successful transcription.
+  // { rawTranscript } from the last successful transcription.
   const [transcript, setTranscript] = useState(null)
   const [polishedText, setPolishedText] = useState(null)
   // The level the polished text was made with (or last attempted at, after a failure).
@@ -61,10 +62,10 @@ function App() {
       setOutputLevel(refinementLevel)
       setProcessing(true)
       try {
-        const data = await processAudio(recording, language, refinementLevel)
+        const data = await processAudio(recording, refinementLevel)
         if (requestId !== requestIdRef.current) return
         setServerUnavailable(false)
-        setTranscript({ rawTranscript: data.rawTranscript, selectedLanguage: data.selectedLanguage })
+        setTranscript({ rawTranscript: data.rawTranscript })
         setOutputLevel(data.refinementLevel ?? refinementLevel)
         if (data.refinementStatus === 'success' || data.refinementStatus === 'skipped') {
           setPolishedText(data.polishedTranscript)
@@ -77,7 +78,7 @@ function App() {
         if (requestId === requestIdRef.current) setProcessing(false)
       }
     },
-    [language, refinementLevel],
+    [refinementLevel],
   )
 
   const recorder = useAudioRecorder({ onRecordingComplete: handleRecordingComplete })
@@ -87,7 +88,7 @@ function App() {
     recorder.start()
   }
 
-  // Refines the same transcript again at the selected level, reusing the language it was recorded with.
+  // Refines the same transcript again at the selected level.
   const retryRefinement = async () => {
     if (!transcript || refining) return
     const level = refinementLevel
@@ -101,7 +102,7 @@ function App() {
     const requestId = requestIdRef.current
     setRefining(true)
     try {
-      const data = await refineTranscript(transcript.rawTranscript, transcript.selectedLanguage, level)
+      const data = await refineTranscript(transcript.rawTranscript, level)
       if (requestId === requestIdRef.current) setPolishedText(data.polishedTranscript)
     } catch (err) {
       if (requestId === requestIdRef.current) {
@@ -144,7 +145,7 @@ function App() {
         : transcript
           ? 'completed'
           : 'idle'
-  const textLang = transcript ? TEXT_LANG[transcript.selectedLanguage] : undefined
+  const textLang = transcript ? textLangOf(transcript.rawTranscript) : undefined
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-10" data-state={uiState}>
@@ -153,10 +154,7 @@ function App() {
         <p className="text-slate-600">AI Voice-to-Text</p>
       </header>
 
-      <div className="flex flex-wrap gap-x-8 gap-y-4">
-        <LanguageSelector value={language} onChange={setLanguage} />
-        <RefinementLevelSelector value={refinementLevel} onChange={setRefinementLevel} />
-      </div>
+      <RefinementLevelSelector value={refinementLevel} onChange={setRefinementLevel} />
 
       <Recorder
         status={processing ? 'processing' : recorder.status}

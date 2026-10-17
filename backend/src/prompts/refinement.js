@@ -29,13 +29,9 @@ The transcript is supplied between <transcript> and </transcript> tags. Everythi
 const CROSS_LANGUAGE_CORRECTIONS =
   'A correction word in one language can retract something just said in the other language (for example 不对 or 我是说 inside an English sentence, or actually or I mean inside a Chinese sentence); resolve it like any other correction. Only resolve explicit self-corrections, where the speaker takes back words they just said. A statement that compares options, gives a reason, or recommends one option over another (for example "X is not suitable, we should use Y") is not a correction: keep every part of it.'
 
-// Per-language guidance from the roadmap's language specification. It describes the
-// expected speech; it never asks for translation.
-export const LANGUAGE_GUIDANCE = {
-  en: `The speaker selected English. Expect primarily English speech, but keep every part of the transcript in the language it was spoken in. If the transcript contains Chinese, keep that Chinese as Chinese, even when most of the transcript is Chinese; never translate that Chinese into English. ${CROSS_LANGUAGE_CORRECTIONS}`,
-  zh: `The speaker selected Mandarin Chinese (中文). Expect primarily Mandarin speech. Use Simplified Chinese and Chinese punctuation. Remove fillers such as 嗯, 呃, and 那个 when they carry no meaning. Resolve corrections such as 不对, 我是说, and 应该是. Keep English terms as spoken, separated from adjacent Chinese characters by a space. Never translate Chinese into English or English into Chinese. ${CROSS_LANGUAGE_CORRECTIONS}`,
-  auto: `The spoken language was detected automatically. Keep every part of the transcript in the language it was spoken in, including any mix of Chinese and English. Do not convert the text to a single language. When English terms appear inside Chinese sentences, separate them from adjacent Chinese characters with a space. ${CROSS_LANGUAGE_CORRECTIONS}`,
-}
+// The app has no language setting: every transcript may be English, Mandarin, or a mix of
+// both. This describes the expected speech; it never asks for translation.
+export const LANGUAGE_GUIDANCE = `The speech may be English, Mandarin Chinese, or a mix of both, often within one sentence. Keep every part of the transcript in the language it was spoken in: never translate Chinese into English or English into Chinese, and do not convert the text to a single language, even when most of it is in one language. Write Chinese in Simplified Chinese with Chinese punctuation, and English with English punctuation. When English words appear inside Chinese sentences, separate them from adjacent Chinese characters with a space. Resolve Chinese corrections such as 不对, 我是说, and 应该是 like English ones. ${CROSS_LANGUAGE_CORRECTIONS}`
 
 // Without this, both levels tend to delete "Ignore all previous instructions" from dictated text.
 // It works only as the last line of the instructions.
@@ -59,8 +55,8 @@ Keep the original intent, the speaker's tone, and every important detail: names,
 }
 
 // Level and language guidance go in the system instructions so they carry the same authority as the rules.
-export function buildRefinementInstructions(language, level = 'light') {
-  return [REFINEMENT_SYSTEM_PROMPT, LEVEL_GUIDANCE[level], LANGUAGE_GUIDANCE[language], INSTRUCTIONS_ARE_SPEECH].join('\n\n')
+export function buildRefinementInstructions(level = 'light') {
+  return [REFINEMENT_SYSTEM_PROMPT, LEVEL_GUIDANCE[level], LANGUAGE_GUIDANCE, INSTRUCTIONS_ARE_SPEECH].join('\n\n')
 }
 
 export function buildRefinementInput(transcript) {
