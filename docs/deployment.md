@@ -63,7 +63,7 @@ On Render and similar hosts, requests reach the server through the host's proxie
 - Unset, every visitor looks like the same address and shares one allowance, which locks everyone out together.
 - Set too high, a visitor can send a fake `X-Forwarded-For` header and get a fresh allowance on every request.
 
-The right number for Render is checked during deployment (Milestone 11): compare the `client` value in the logs for two requests from different networks, and for a request with a made-up `X-Forwarded-For` header.
+The Blueprint sets `TRUST_PROXY=1`. Render's documentation does not say how many proxies it uses, so this is checked after the first deploy. Successful API responses carry a `RateLimit-Policy` header whose `pk` value is a hash of the address the server counted. It must match the hash of the caller's real public address, with and without a made-up `X-Forwarded-For` header. The `client` values in the logs give the same check.
 
 ### Shared counters (`REDIS_URL`)
 
@@ -130,6 +130,27 @@ Settings for a Vercel project:
 - Build command: `npm run build`
 - Output directory: `dist`
 - Environment variable: `VITE_API_BASE_URL`
+
+## Deploying (Milestone 11)
+
+The backend goes to Render from the Blueprint in [`render.yaml`](../render.yaml), and the frontend to Vercel. Both deploy from the `main` branch of the GitHub repository and redeploy on every push to it.
+
+The Blueprint creates two free Render services in the Oregon region (the region cannot be changed later):
+
+- `dictator-api`: the Express backend, with `NODE_ENV=production`, Node 22, `TRUST_PROXY=1` and `REDIS_URL` filled in automatically.
+- `dictator-limits`: a Key Value (Redis) instance for the usage counters, reachable only from Render's private network.
+
+Steps:
+
+1. **OpenAI.** Create an API key in a project used only by Dictator, and set a hard monthly spend limit on that project (see [Spend limit at OpenAI](#spend-limit-at-openai)).
+2. **Render.** In the Render Dashboard choose New → Blueprint and connect this repository. Render lists the two services and asks for the two secret values:
+   - `OPENAI_API_KEY`: the key from step 1.
+   - `CORS_ORIGINS`: the address the frontend will have, `https://<vercel-project-name>.vercel.app`. Vercel only knows it for sure after step 3, so this is corrected in step 4 if needed.
+   Create the services. When the deploy finishes, open `https://<render-service>.onrender.com/api/health`; it should answer `{"status":"ok","openaiConfigured":true}`.
+3. **Vercel.** Choose Add New → Project and import this repository. Set Root Directory to `frontend` (Vercel detects Vite), add the environment variable `VITE_API_BASE_URL` with the Render address from step 2, and deploy.
+4. If the Vercel production address differs from `CORS_ORIGINS`, change `CORS_ORIGINS` in the Render service's Environment settings and save; Render redeploys.
+
+The free Render web service sleeps after 15 minutes without traffic and takes up to about a minute to wake. The page checks `/api/health` as soon as it opens, so it usually wakes while the visitor picks a language. The counters in Key Value survive the sleep. Free Key Value instances do not save to disk, so the counters reset if the Key Value instance itself restarts.
 
 ## HTTPS and the microphone
 
