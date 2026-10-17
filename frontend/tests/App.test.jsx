@@ -133,6 +133,7 @@ describe('App', () => {
 
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })))
     expect(screen.getByRole('button', { name: 'Copy failed' })).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toMatch(/Select the polished text/)
     expect(screen.getByLabelText('Polished text').value).toBe(MIXED_POLISHED)
   })
 
@@ -157,14 +158,14 @@ describe('App', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('shows an error when retrying refinement fails again', async () => {
+  it('shows the server message when retrying refinement fails again', async () => {
     processResponse = () => jsonResponse(processResult({ polishedTranscript: null, refinementStatus: 'failed' }))
-    refineResponse = () => jsonResponse({ error: 'Refinement failed.', code: 'refinement_failed' }, 502)
+    refineResponse = () => jsonResponse({ error: 'Refinement took too long.', code: 'refinement_timeout' }, 504)
     render(<App />)
     await record()
 
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry Refinement' })))
-    expect(screen.getByRole('alert').textContent).toMatch(/Refinement failed/)
+    expect(screen.getByRole('alert').textContent).toBe('Refinement took too long.')
     expect(screen.getByLabelText('Raw transcript').value).toBe(MIXED_RAW)
   })
 
@@ -197,6 +198,32 @@ describe('App', () => {
     await record()
 
     expect(screen.getByRole('alert').textContent).toMatch(/Could not reach the server/)
+  })
+
+  it('ignores a second Retry Refinement click while one is in flight', async () => {
+    let resolveRefine
+    refineResponse = () => new Promise((resolve) => (resolveRefine = resolve))
+    render(<App />)
+    await record()
+
+    const retry = screen.getByRole('button', { name: 'Retry Refinement' })
+    await act(async () => fireEvent.click(retry))
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Refining…' })))
+    expect(calls('/api/refine')).toHaveLength(1)
+
+    await act(async () => resolveRefine(jsonResponse({ polishedTranscript: 'Done.' })))
+    expect(screen.getByLabelText('Polished text').value).toBe('Done.')
+  })
+
+  it('cannot start a second recording while one is being processed', async () => {
+    processResponse = () => new Promise(() => {})
+    render(<App />)
+    await record()
+
+    const start = screen.getByRole('button', { name: 'Start Recording' })
+    expect(start.disabled).toBe(true)
+    await act(async () => fireEvent.click(start))
+    expect(media.getUserMedia).toHaveBeenCalledTimes(1)
   })
 
   it('keeps English text in an English-tagged field', async () => {

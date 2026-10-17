@@ -1,9 +1,12 @@
+import { APIConnectionTimeoutError } from 'openai'
 import { ApiError } from '../lib/errors.js'
 import { isSupportedLanguage } from '../lib/languages.js'
 import { buildRefinementInput, buildRefinementInstructions } from '../prompts/refinement.js'
 
 export const MAX_TRANSCRIPT_CHARS = 10_000
 const MAX_OUTPUT_TOKENS = 4_000
+// Per attempt; the client retries once, so the worst case is about twice this.
+export const REFINEMENT_TIMEOUT_MS = 30_000
 
 const REFINEMENT_FAILED = 'Refinement failed. Your raw transcript is unchanged; please retry.'
 
@@ -30,18 +33,24 @@ export async function refineTranscript({ client, model, transcript, language }) 
 
   let response
   try {
-    response = await client.responses.create({
-      model,
-      instructions: buildRefinementInstructions(language),
-      input: buildRefinementInput(transcript),
-      max_output_tokens: MAX_OUTPUT_TOKENS,
-      // Editing should be as repeatable as possible. Reasoning models reject this parameter.
-      temperature: 0,
-      // Do not keep dictated text on OpenAI's side beyond the request.
-      store: false,
-    })
+    response = await client.responses.create(
+      {
+        model,
+        instructions: buildRefinementInstructions(language),
+        input: buildRefinementInput(transcript),
+        max_output_tokens: MAX_OUTPUT_TOKENS,
+        // Editing should be as repeatable as possible. Reasoning models reject this parameter.
+        temperature: 0,
+        // Do not keep dictated text on OpenAI's side beyond the request.
+        store: false,
+      },
+      { timeout: REFINEMENT_TIMEOUT_MS },
+    )
   } catch (err) {
     console.error('Refinement request failed:', err?.status ?? '', err?.name ?? '', err?.code ?? '')
+    if (err instanceof APIConnectionTimeoutError) {
+      throw new ApiError(504, 'refinement_timeout', 'Refinement took too long. Your raw transcript is unchanged; please retry.')
+    }
     throw new ApiError(502, 'refinement_failed', REFINEMENT_FAILED)
   }
 

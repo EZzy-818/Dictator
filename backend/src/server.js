@@ -10,6 +10,9 @@ if (!config.openaiApiKey) {
   console.warn('OPENAI_API_KEY is not set. Transcription and refinement will be unavailable.')
 }
 
-createApp(config).listen(config.port, () => {
+const server = createApp(config).listen(config.port, () => {
   console.log(`Dictator backend listening on http://localhost:${config.port}`)
 })
+
+// Upper bound for one request, above the worst case of transcription plus refinement with one retry each.
+server.requestTimeout = 180_000

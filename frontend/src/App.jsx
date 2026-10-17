@@ -88,7 +88,7 @@ function App() {
       if (requestId === requestIdRef.current) setPolishedText(data.polishedTranscript)
     } catch (err) {
       if (requestId === requestIdRef.current) {
-        setRefinementError(err.code === 'network_error' ? err.message : REFINEMENT_FAILED)
+        setRefinementError(err.message || REFINEMENT_FAILED)
       }
     } finally {
       if (requestId === requestIdRef.current) setRefining(false)
@@ -103,7 +103,7 @@ function App() {
     } catch {
       setCopyStatus('failed')
     }
-    copyTimerRef.current = setTimeout(() => setCopyStatus('idle'), 2000)
+    copyTimerRef.current = setTimeout(() => setCopyStatus((status) => (status === 'copied' ? 'idle' : status)), 2000)
   }
 
   useEffect(() => () => clearTimeout(copyTimerRef.current), [])
@@ -156,6 +156,9 @@ function App() {
           <TranscriptPanel transcript={transcript.rawTranscript} lang={textLang} />
 
           {refinementError && <Notice tone="warning">{refinementError}</Notice>}
+          {copyStatus === 'failed' && (
+            <Notice tone="warning">Could not copy automatically. Select the polished text and press Ctrl+C (⌘C on a Mac).</Notice>
+          )}
 
           <OutputEditor
             value={polishedText}
