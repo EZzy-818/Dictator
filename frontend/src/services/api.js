@@ -2,8 +2,10 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:300
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
-// Slightly above the backend's worst case (transcription + refinement, one retry each).
-const PROCESS_TIMEOUT_MS = 170_000
+// Slightly above the backend's worst case: transcription, then refinement asked twice when the
+// first answer translated part of the speech; each request retried once.
+const PROCESS_TIMEOUT_MS = 230_000
+const REFINE_TIMEOUT_MS = 140_000
 const HEALTH_TIMEOUT_MS = 10_000
 
 const MESSAGES = {
@@ -89,5 +91,16 @@ export async function processAudio({ blob, mimeType }, refinementLevel = 'light'
   form.append('audio', blob, `recording.${EXTENSIONS[baseType] ?? 'webm'}`)
   const data = await send('/api/process', { method: 'POST', body: form }, PROCESS_TIMEOUT_MS, trace)
   if (typeof data?.rawTranscript !== 'string') throw clientError('bad_response')
+  return data
+}
+
+/** Refines an existing transcript at another level. Used when the level changes after a recording. */
+export async function refineText(transcript, refinementLevel) {
+  const data = await send(
+    '/api/refine',
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transcript, refinementLevel }) },
+    REFINE_TIMEOUT_MS,
+  )
+  if (typeof data?.polishedTranscript !== 'string') throw clientError('bad_response')
   return data
 }

@@ -1,5 +1,7 @@
 # Accuracy evaluation (Milestone 7)
 
+Raw-transcript fidelity (fillers, language modes, translation) and refinement language preservation are measured separately: see [transcription-fidelity.md](transcription-fidelity.md).
+
 ## Update: one mixed-language mode with `gpt-transcribe`
 
 The app no longer has a spoken-language setting. Every recording is sent to `gpt-transcribe` with `languages: ["zh", "en"]` and a prompt asking for a verbatim transcript that keeps each word in its spoken language and keeps fillers. Full report: [backend/eval/results/synthetic.md](../backend/eval/results/synthetic.md); the same 31 samples through `gpt-4o-transcribe` with the same prompt are in [synthetic-gpt-4o-transcribe.md](../backend/eval/results/synthetic-gpt-4o-transcribe.md).

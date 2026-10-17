@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MAX_UPLOAD_BYTES, getHealth, processAudio } from '../src/services/api.js'
+import { MAX_UPLOAD_BYTES, getHealth, processAudio, refineText } from '../src/services/api.js'
 
 const recording = (size = 100) => ({ blob: new Blob([new Uint8Array(size)], { type: 'audio/webm' }), mimeType: 'audio/webm;codecs=opus' })
 
@@ -40,7 +40,7 @@ describe('api service', () => {
     )
     const pending = processAudio(recording())
     const assertion = expect(pending).rejects.toMatchObject({ code: 'timeout' })
-    await vi.advanceTimersByTimeAsync(170_000)
+    await vi.advanceTimersByTimeAsync(230_000)
     await assertion
   })
 
@@ -88,6 +88,40 @@ describe('api service', () => {
   it('checks health', async () => {
     fetch.mockResolvedValue(response({ json: async () => ({ status: 'ok' }) }))
     await expect(getHealth()).resolves.toEqual({ status: 'ok' })
+  })
+})
+
+describe('refineText', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sends the transcript and level as JSON to /api/refine', async () => {
+    fetch.mockResolvedValue(response({ json: async () => ({ polishedTranscript: '我们应该用 PostgreSQL。', refinementLevel: 'medium' }) }))
+    const data = await refineText('嗯，我们应该用 PostgreSQL。', 'medium')
+
+    const [url, options] = fetch.mock.calls[0]
+    expect(url).toMatch(/\/api\/refine$/)
+    expect(options.method).toBe('POST')
+    expect(options.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(JSON.parse(options.body)).toEqual({ transcript: '嗯，我们应该用 PostgreSQL。', refinementLevel: 'medium' })
+    expect(data.polishedTranscript).toBe('我们应该用 PostgreSQL。')
+  })
+
+  it('passes on the server error message', async () => {
+    fetch.mockResolvedValue(
+      response({ ok: false, status: 502, json: async () => ({ error: 'Refinement rewrote part of your speech in another language, so it was not used.', code: 'refinement_changed_language' }) }),
+    )
+    await expect(refineText('x', 'light')).rejects.toMatchObject({ code: 'refinement_changed_language', status: 502 })
+  })
+
+  it('rejects a response without polished text', async () => {
+    fetch.mockResolvedValue(response({ json: async () => ({}) }))
+    await expect(refineText('x', 'light')).rejects.toMatchObject({ code: 'bad_response' })
   })
 })
 

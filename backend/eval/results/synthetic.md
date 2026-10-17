@@ -1,6 +1,6 @@
 # Accuracy evaluation: synthetic recordings
 
-Run 2026-10-17T04:26:52.284Z. Transcription model `gpt-transcribe`, refinement model `gpt-4.1`.
+Run 2026-10-17T16:53:35.953Z. Transcription model `gpt-transcribe`, refinement model `gpt-4.1`.
 
 31 of 31 samples transcribed.
 
@@ -12,20 +12,20 @@ Rates are corpus-level: total errors divided by total reference tokens. Hesitati
 
 | Group | Metric | Samples | Rate | S / D / I / N | With fillers counted |
 | --- | --- | --- | --- | --- | --- |
-| English | WER | 13 | 0.0% | 0 / 0 / 0 / 169 | 1.7% |
-| Chinese | CER | 12 | 3.6% | 8 / 1 / 0 / 248 | 3.6% |
+| English | WER | 13 | 0.0% | 0 / 0 / 0 / 169 | 0.6% |
+| Chinese | CER | 12 | 4.0% | 8 / 2 / 0 / 248 | 4.0% |
 | Mixed | CER | 6 | 0.0% | 0 / 0 / 0 / 233 | 0.0% |
 | Mixed | MER | 6 | 0.0% | 0 / 0 / 0 / 107 | 0.0% |
 
 | Category | Metric | Samples | Rate | S / D / I / N | With fillers counted |
 | --- | --- | --- | --- | --- | --- |
 | English normal speech | WER | 5 | 0.0% | 0 / 0 / 0 / 74 | 0.0% |
-| English corrections and fillers | WER | 5 | 0.0% | 0 / 0 / 0 / 56 | 5.0% |
+| English corrections and fillers | WER | 5 | 0.0% | 0 / 0 / 0 / 56 | 1.7% |
 | Mandarin normal speech | CER | 5 | 0.0% | 0 / 0 / 0 / 110 | 0.0% |
 | Mandarin corrections and fillers | CER | 5 | 0.0% | 0 / 0 / 0 / 90 | 0.0% |
 | Mixed Chinese-English speech | CER | 5 | 0.0% | 0 / 0 / 0 / 185 | 0.0% |
 | Numbers, dates, names, technical terms, and noise | WER | 3 | 0.0% | 0 / 0 / 0 / 39 | 0.0% |
-| Numbers, dates, names, technical terms, and noise | CER | 3 | 9.4% | 8 / 1 / 0 / 96 | 9.4% |
+| Numbers, dates, names, technical terms, and noise | CER | 3 | 10.4% | 8 / 2 / 0 / 96 | 10.4% |
 
 ## Refinement (automatic checks)
 
@@ -99,8 +99,8 @@ English normal speech.
 English corrections and fillers.
 
 - Script: Um, I think we should, uh, start the migration tomorrow morning.
-- Raw transcript: I think we should start the migration tomorrow morning.
-- WER: 0.0% (0 / 9; with fillers counted 18.2%). Errors: none
+- Raw transcript: Um, I think we should, uh, start the migration tomorrow morning.
+- WER: 0.0% (0 / 9; with fillers counted 0.0%). Errors: none
 - Refined: I think we should start the migration tomorrow morning.
 - Intended refinement: I think we should start the migration tomorrow morning.
 - Automatic checks: Fillers removed yes, Languages preserved yes, Numbers kept yes, Negations kept yes
@@ -110,7 +110,7 @@ English corrections and fillers.
 English corrections and fillers.
 
 - Script: Let's meet on Tuesday, actually no, Wednesday at three PM.
-- Raw transcript: Let's meet on Tuesday, actually no, Wednesday at 3 p.m.
+- Raw transcript: Let's meet on Tuesday. Actually, no, Wednesday at 3 p.m.
 - WER: 0.0% (0 / 10; with fillers counted 0.0%). Errors: none
 - Refined: Let's meet on Wednesday at 3 p.m.
 - Intended refinement: Let's meet on Wednesday at 3 PM.
@@ -121,7 +121,7 @@ English corrections and fillers.
 English corrections and fillers.
 
 - Script: The deadline is the end of May, sorry, I mean the end of June.
-- Raw transcript: The deadline is the end of May, sorry, I mean the end of June.
+- Raw transcript: The deadline is the end of May. Sorry, I mean the end of June.
 - WER: 0.0% (0 / 14; with fillers counted 0.0%). Errors: none
 - Refined: The deadline is the end of June.
 - Intended refinement: The deadline is the end of June.
@@ -143,7 +143,7 @@ English corrections and fillers.
 English corrections and fillers.
 
 - Script: We need three new servers, no wait, four new servers for the launch.
-- Raw transcript: We need three new servers. No wait, four new servers for the launch.
+- Raw transcript: We need three new servers, no wait, four new servers for the launch.
 - WER: 0.0% (0 / 13; with fillers counted 0.0%). Errors: none
 - Refined: We need four new servers for the launch.
 - Intended refinement: We need four new servers for the launch.
@@ -226,7 +226,7 @@ Mandarin corrections and fillers.
 Mandarin corrections and fillers.
 
 - Script: 截止日期是五月底，不好意思，我是说六月底。
-- Raw transcript: 截止日期是五月底，不好意思，我是说六月底。
+- Raw transcript: 截止日期是五月底。不好意思，我是说六月底。
 - CER: 0.0% (0 / 18; with fillers counted 0.0%). Errors: none
 - Refined: 截止日期是六月底。
 - Intended refinement: 截止日期是六月底。
@@ -259,7 +259,7 @@ Mandarin corrections and fillers.
 Mixed Chinese-English speech.
 
 - Script: 我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。
-- Raw transcript: 我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。
+- Raw transcript: 我觉得这个backend应该用Python，但是frontend还是用React比较好。
 - CER: 0.0% (0 / 42; with fillers counted 0.0%). Errors: none
 - Mixed-token error rate: 0.0% (0 / 20; with fillers counted 0.0%). Errors: none
 - Refined: 我觉得这个 backend 应该用 Python，但是 frontend 还是用 React 比较好。
@@ -295,19 +295,20 @@ Mixed Chinese-English speech.
 - Raw transcript: We should use MySQL. 不对，PostgreSQL would be better.
 - CER: 0.0% (0 / 41; with fillers counted 0.0%). Errors: none
 - Mixed-token error rate: 0.0% (0 / 10; with fillers counted 0.0%). Errors: none
-- Refined: We should use PostgreSQL.
+- Refined: We should use PostgreSQL. It would be better.
 - Intended refinement: We should use PostgreSQL instead of MySQL.
 - Automatic checks: Self-correction handled yes, Fillers removed yes, Languages preserved yes, Names and terms kept yes
+- For review: words not in the raw transcript: it
 
 ### mixed-5
 
 Mixed Chinese-English speech.
 
 - Script: 我觉得我们应该用 MongoDB，不对，还是 PostgreSQL 比较好，因为我们需要 relational data。
-- Raw transcript: 我觉得我们应该用 MongoDB，不对，还是 PostgreSQL 比较好，因为我们需要 relational data。
+- Raw transcript: 我觉得我们应该用MongoDB，不对，还是PostgreSQL比较好，因为我们需要relational data。
 - CER: 0.0% (0 / 52; with fillers counted 0.0%). Errors: none
 - Mixed-token error rate: 0.0% (0 / 25; with fillers counted 0.0%). Errors: none
-- Refined: 我觉得我们应该用 PostgreSQL，因为我们需要 relational data。
+- Refined: 我觉得我们应该用PostgreSQL，因为我们需要relational data。
 - Intended refinement: 我觉得我们还是应该用 PostgreSQL，因为我们需要 relational data。
 - Automatic checks: Self-correction handled yes, Fillers removed yes, Languages preserved yes, Names and terms kept yes
 
@@ -336,8 +337,8 @@ Numbers, dates, names, technical terms, and noise.
 Numbers, dates, names, technical terms, and noise.
 
 - Script: 会议定在2027年3月15日上午10点半，预算是两万五千元。
-- Raw transcript: 会议定在二零二七年三月十五日上午十点半，预算是两万五千元。
-- CER: 32.1% (9 / 28; with fillers counted 32.1%). Errors: S `2`→`二`, S `0`→`零`, S `2`→`二`, S `7`→`七`, S `3`→`三`, S `1`→`十`, S `5`→`五`, D `1`, S `0`→`十`
+- Raw transcript: 会议定在二零二七年三月十五日上十点半，预算是两万五千元。
+- CER: 35.7% (10 / 28; with fillers counted 35.7%). Errors: S `2`→`二`, S `0`→`零`, S `2`→`二`, S `7`→`七`, S `3`→`三`, S `1`→`十`, S `5`→`五`, D `午`, D `1`, S `0`→`十`
 - Terms missing from the raw transcript: 2027年, 3月15日
 - Refined: 会议定在二零二七年三月十五日上午十点半，预算是两万五千元。
 - Automatic checks: Fillers removed yes, Languages preserved yes, Names and terms kept yes, Numbers kept yes, Negations kept yes

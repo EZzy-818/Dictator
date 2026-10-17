@@ -12,6 +12,8 @@ import {
   scoreTranscript,
 } from '../eval/metrics.js'
 import { addNoise } from '../eval/noise.js'
+import { FIDELITY_CASES, FIDELITY_GROUPS } from '../eval/fidelity-dataset.js'
+import { compareFillers, compareLanguages, fillerCounts, scoreFidelity, verbatimErrorRate } from '../eval/fidelity.js'
 
 const byId = (id) => CASES.find((testCase) => testCase.id === id)
 
@@ -178,5 +180,54 @@ describe('addNoise', () => {
     const snr = 10 * Math.log10(signal / noise)
     expect(snr).toBeGreaterThan(9)
     expect(snr).toBeLessThan(11)
+  })
+})
+
+describe('fidelity metrics', () => {
+  it('counts English, Chinese and Hindi fillers per occurrence', () => {
+    expect(fillerCounts('Um, so, uh, I was thinking, you know, that we could, um, go.')).toEqual({ um: 2, uh: 1, 'you know': 1 })
+    expect(fillerCounts('嗯，我觉得我们，呃，应该先把这个测试，嗯，做完。')).toEqual({ 嗯: 2, 呃: 1 })
+    expect(fillerCounts('Umm, I think so.')).toEqual({ um: 1 })
+    // 那个 is also an ordinary word, so it is not counted.
+    expect(fillerCounts('那个 deadline 是 next Friday。')).toEqual({})
+  })
+
+  it('compares kept, missed and invented fillers against the reference', () => {
+    expect(compareFillers('Um, I think we should, uh, use PostgreSQL.', 'I think we should use PostgreSQL.')).toEqual({
+      expected: 2,
+      kept: 0,
+      missed: 2,
+      invented: 0,
+    })
+    expect(compareFillers('Please send the report.', 'Um, please send the report.')).toMatchObject({ expected: 0, invented: 1 })
+    expect(compareFillers('Um, I think we should, uh, use PostgreSQL.', 'Um, I think we should, uh, use PostgreSQL.')).toMatchObject({
+      kept: 2,
+      missed: 0,
+      invented: 0,
+    })
+  })
+
+  it('reports a language translated away or added', () => {
+    const said = '我觉得我们应该用 PostgreSQL，because it handles relational data better.'
+    expect(compareLanguages(said, said)).toEqual({ preserved: true, lost: [], added: [] })
+    expect(compareLanguages(said, '我觉得我们应该用 PostgreSQL，因为它处理关系数据更好。')).toMatchObject({ preserved: false, lost: ['English'] })
+    expect(compareLanguages('Please send the report before Friday.', '请在周五之前发送报告。')).toMatchObject({
+      preserved: false,
+      lost: ['English'],
+      added: ['Chinese'],
+    })
+  })
+
+  it('counts dropped fillers as verbatim errors', () => {
+    expect(verbatimErrorRate('Um, I think so.', 'Um, I think so.').errors).toBe(0)
+    expect(verbatimErrorRate('Um, I think so.', 'I think so.')).toMatchObject({ D: 1, N: 4 })
+  })
+
+  it('has unique ids and a script for every fidelity case', () => {
+    expect(new Set(FIDELITY_CASES.map((testCase) => testCase.id)).size).toBe(FIDELITY_CASES.length)
+    for (const testCase of FIDELITY_CASES) {
+      expect(FIDELITY_GROUPS[testCase.group]).toBeTruthy()
+      expect(scoreFidelity(testCase.script, testCase.script)).toMatchObject({ languages: { preserved: true }, fillers: { missed: 0, invented: 0 }, verbatim: { errors: 0 } })
+    }
   })
 })
