@@ -38,6 +38,9 @@ export function loadConfig(env = process.env) {
     // Second transcription of the same audio, used only to put names back in the language they
     // were spoken in (see src/lib/names.js). NAME_CHECK_MODEL= (empty) turns it off.
     nameCheckModel: env.NAME_CHECK_MODEL ?? 'gpt-4o-transcribe',
+    // Experimental, off by default: start refinement on the main transcript while the name check
+    // finishes, instead of after it. NAME_CHECK_OVERLAP=true turns it on.
+    nameCheckOverlap: env.NAME_CHECK_OVERLAP === 'true',
     limits: Object.fromEntries(
       Object.entries(LIMIT_SETTINGS).map(([key, [name, fallback]]) => [key, positiveInt(env[name], fallback)]),
     ),
