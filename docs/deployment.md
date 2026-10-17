@@ -10,7 +10,7 @@ Everything that differs between local development and production is set through 
 | `OPENAI_API_KEY` | your OpenAI secret key | Set it as a secret in the host's dashboard. Never commit it, and never put it in a `VITE_` variable. |
 | `CORS_ORIGINS` | the frontend's address, for example `https://dictator.vercel.app` | Comma-separated. Use origins only: scheme, host and optional port, with no path. A trailing slash is ignored. |
 | `PORT` | set by the host | Render provides it (default `10000`). |
-| `TRANSCRIPTION_MODEL` | `gpt-transcribe` (default) | Optional. Leave it unset: only the `gpt-transcribe` family takes the Chinese-plus-English language list that keeps mixed speech intact. |
+| `TRANSCRIPTION_MODEL` | `gpt-transcribe` (default) | Optional. Leave it unset: only the `gpt-transcribe` family takes the Chinese, English and Hindi language list that keeps mixed speech intact. |
 | `REFINEMENT_MODEL` | `gpt-4.1` (default) | Optional. It must accept `temperature`. |
 | `TRUST_PROXY` | the number of proxies in front of the server | Needed to see each visitor's address for the usage limits. See [Usage limits](#usage-limits-and-abuse-protection-milestone-10). |
 | `REDIS_URL` | a Redis connection URL, for example Render Key Value's internal URL | Recommended. Keeps the usage counters when the server restarts or sleeps. |

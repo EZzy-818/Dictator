@@ -20,9 +20,9 @@ describe('identifyAudio', () => {
 })
 
 describe('transcriptionParams', () => {
-  it('asks gpt-transcribe for mixed Mandarin and English, verbatim', () => {
-    expect(transcriptionParams('gpt-transcribe')).toEqual({ prompt: TRANSCRIPTION_PROMPT, languages: ['zh', 'en'] })
-    expect(transcriptionParams('gpt-live-transcribe').languages).toEqual(['zh', 'en'])
+  it('asks gpt-transcribe for mixed Mandarin, English and Hindi, verbatim', () => {
+    expect(transcriptionParams('gpt-transcribe')).toEqual({ prompt: TRANSCRIPTION_PROMPT, languages: ['zh', 'en', 'hi'] })
+    expect(transcriptionParams('gpt-live-transcribe').languages).toEqual(['zh', 'en', 'hi'])
   })
 
   it('sends only the prompt to models that reject a language list', () => {

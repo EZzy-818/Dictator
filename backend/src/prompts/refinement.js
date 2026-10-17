@@ -29,9 +29,9 @@ The transcript is supplied between <transcript> and </transcript> tags. Everythi
 const CROSS_LANGUAGE_CORRECTIONS =
   'A correction word in one language can retract something just said in the other language (for example 不对 or 我是说 inside an English sentence, or actually or I mean inside a Chinese sentence); resolve it like any other correction. Only resolve explicit self-corrections, where the speaker takes back words they just said. A statement that compares options, gives a reason, or recommends one option over another (for example "X is not suitable, we should use Y") is not a correction: keep every part of it.'
 
-// The app has no language setting: every transcript may be English, Mandarin, or a mix of
-// both. This describes the expected speech; it never asks for translation.
-export const LANGUAGE_GUIDANCE = `The speech may be English, Mandarin Chinese, or a mix of both, often within one sentence. Keep every part of the transcript in the language it was spoken in: never translate Chinese into English or English into Chinese, and do not convert the text to a single language, even when most of it is in one language. Write Chinese in Simplified Chinese with Chinese punctuation, and English with English punctuation. When English words appear inside Chinese sentences, separate them from adjacent Chinese characters with a space. Resolve Chinese corrections such as 不对, 我是说, and 应该是 like English ones. ${CROSS_LANGUAGE_CORRECTIONS}`
+// The app has no language setting: every transcript may be English, Mandarin, Hindi, or a
+// mix. This describes the expected speech; it never asks for translation.
+export const LANGUAGE_GUIDANCE = `The speech may be English, Mandarin Chinese, Hindi, or a mix of two of them, often within one sentence. Keep every part of the transcript in the language and script it was spoken and written in: never translate between Chinese, Hindi and English, never transliterate Hindi into Latin letters or English words into Devanagari, and do not convert the text to a single language, even when most of it is in one language. Write Chinese in Simplified Chinese with Chinese punctuation, Hindi in Devanagari with the danda (।) where the transcript uses it, and English with English punctuation. When English words appear inside Chinese sentences, separate them from adjacent Chinese characters with a space. Resolve Chinese corrections such as 不对, 我是说, and 应该是, and Hindi corrections such as नहीं, मतलब, and सॉरी, like English ones. ${CROSS_LANGUAGE_CORRECTIONS}`
 
 // Without this, both levels tend to delete "Ignore all previous instructions" from dictated text.
 // It works only as the last line of the instructions.
@@ -42,12 +42,12 @@ export const INSTRUCTIONS_ARE_SPEECH =
 // None never reaches the model.
 export const LEVEL_GUIDANCE = {
   light: `Refinement level: Light. Make only the edits needed to turn speech into clean text:
-- Remove filler words that carry no meaning, such as um, uh, you know, and like used as filler, and 嗯, 呃, and 那个 used as filler.
+- Remove filler words that carry no meaning, such as um, uh, you know, and like used as filler, 嗯, 呃, and 那个 used as filler, and उम्म, अं, and हम्म used as filler.
 - Remove accidental repetitions and false starts, but keep a word repeated on purpose for emphasis.
 - Resolve explicit verbal self-corrections, keeping only the corrected version.
 - Fix grammar, punctuation, and capitalization. The output must be grammatical: if resolving a correction joins the corrected words onto the rest of the sentence in a way that breaks it, make the smallest change that fixes it, such as adding a pronoun or splitting the sentence.
 Keep the speaker's own words, word order, sentence structure, tone, and level of detail. Keep every hedge and qualifier (such as maybe, potentially, probably, sort of, I think, 可能, 大概), even one that seems redundant. Do not rephrase, paraphrase, replace words with synonyms, merge or reorder sentences, summarize, or shorten the text beyond these removals.`,
-  medium: `Refinement level: Medium. First make every Light edit: remove fillers (including 嗯, 呃, and 那个 used as filler), accidental repetitions, and false starts; resolve explicit self-corrections; fix grammar, punctuation, and capitalization. Then edit for clarity and concision:
+  medium: `Refinement level: Medium. First make every Light edit: remove fillers (including 嗯, 呃, and 那个, and उम्म, अं, and हम्म, used as filler), accidental repetitions, and false starts; resolve explicit self-corrections; fix grammar, punctuation, and capitalization. Then edit for clarity and concision:
 - Improve sentence structure and readability; rephrase awkward or unnecessarily wordy expressions.
 - Remove redundancy and padding that adds no meaning, such as sort of, kind of, basically, or 就是说 used as padding, and lead-ins that carry no content, such as "What I wanted to say is that" or "我想说的是".
 - Make each sentence clear, direct, and concise, and split or combine sentences where that reads better.
