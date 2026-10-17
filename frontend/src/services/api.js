@@ -17,10 +17,12 @@ const MESSAGES = {
 const EXTENSIONS = { 'audio/webm': 'webm', 'audio/mp4': 'mp4', 'audio/ogg': 'ogg' }
 
 export class ApiRequestError extends Error {
-  constructor(message, { status, code } = {}) {
+  constructor(message, { status, code, timings } = {}) {
     super(message)
     this.status = status
     this.code = code
+    // The server's stage timings for a failed request, when it sends them (development).
+    this.timings = timings
   }
 }
 
@@ -32,7 +34,7 @@ async function readError(res) {
   try {
     const body = await res.json()
     if (typeof body.error === 'string') {
-      return new ApiRequestError(body.error, { status: res.status, code: body.code })
+      return new ApiRequestError(body.error, { status: res.status, code: body.code, timings: body.timings })
     }
   } catch {
     // Not our JSON error format, e.g. an HTML page from a proxy.
@@ -42,9 +44,12 @@ async function readError(res) {
   })
 }
 
-async function send(path, options, timeoutMs) {
+// trace, when given, gets requestStartedAt and responseAt: performance.now() just before the
+// request is sent and once its body has been read, whether it succeeded or not.
+async function send(path, options, timeoutMs, trace) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
+  if (trace) trace.requestStartedAt = performance.now()
   try {
     let res
     try {
@@ -59,6 +64,7 @@ async function send(path, options, timeoutMs) {
       throw clientError(controller.signal.aborted ? 'timeout' : 'bad_response')
     }
   } finally {
+    if (trace) trace.responseAt = performance.now()
     clearTimeout(timer)
   }
 }
@@ -67,14 +73,21 @@ export function getHealth() {
   return send('/api/health', {}, HEALTH_TIMEOUT_MS)
 }
 
-export async function processAudio({ blob, mimeType }, refinementLevel = 'light') {
+/**
+ * trace: optional { requestId } for latency profiling. The ID goes to the server in the form
+ * (not a header, which would add a CORS preflight round trip), and the request's timing marks
+ * are written back onto trace.
+ */
+export async function processAudio({ blob, mimeType }, refinementLevel = 'light', trace) {
   if (blob.size > MAX_UPLOAD_BYTES) throw clientError('file_too_large')
 
   const baseType = mimeType.split(';')[0]
   const form = new FormData()
+  // Before the audio, so the server knows the ID even if the audio is rejected.
+  if (trace?.requestId) form.append('requestId', trace.requestId)
   form.append('refinementLevel', refinementLevel)
   form.append('audio', blob, `recording.${EXTENSIONS[baseType] ?? 'webm'}`)
-  const data = await send('/api/process', { method: 'POST', body: form }, PROCESS_TIMEOUT_MS)
+  const data = await send('/api/process', { method: 'POST', body: form }, PROCESS_TIMEOUT_MS, trace)
   if (typeof data?.rawTranscript !== 'string') throw clientError('bad_response')
   return data
 }

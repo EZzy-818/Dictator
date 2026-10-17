@@ -4,6 +4,7 @@ import OpenAI from 'openai'
 import { ApiError } from './lib/errors.js'
 import { isRefinementLevel } from './lib/refinementLevels.js'
 import { clientTag, concurrencyLimit, createUsageLimiters } from './lib/limits.js'
+import { createTiming } from './lib/timing.js'
 import { createProcessRouter } from './routes/process.js'
 import { createRefineRouter } from './routes/refine.js'
 
@@ -30,6 +31,8 @@ function requestLog(log) {
         refinementLevel: isRefinementLevel(refinementLevel) ? refinementLevel : undefined,
         client: clientTag(req),
         aborted: res.writableEnded ? undefined : true,
+        // Stage durations and the request ID only (see lib/timing.js).
+        timings: res.locals.timing?.summary(),
       })
     })
     next()
@@ -76,6 +79,11 @@ export function createApp(config, { openai, createStore, log = logEvent } = {}) 
   app.set('trust proxy', config.trustProxy)
   app.use(cors({ origin: config.corsOrigins }))
   const apiRoutes = ['/api/process', '/api/refine']
+  // First, so the clock starts as soon as the request's headers arrive.
+  app.use('/api/process', (req, res, next) => {
+    res.locals.timing = createTiming()
+    next()
+  })
   app.use(apiRoutes, requestLog(log))
   app.use(apiRoutes, concurrencyLimit({ maxTotal: limits.maxConcurrent, maxPerClient: limits.maxConcurrentPerClient, log }))
   app.use(express.json({ limit: '100kb' }))
@@ -96,22 +104,24 @@ export function createApp(config, { openai, createStore, log = logEvent } = {}) 
 
   // Express recognizes error handlers by their four parameters.
   app.use((err, req, res, next) => {
+    // Failed requests are timed too, so the latency panel can show where they stopped.
+    const timings = config.exposeTimings && res.locals.timing ? { timings: res.locals.timing.summary() } : {}
     if (err instanceof ApiError) {
       res.locals.errorCode = err.code
-      return res.status(err.status).json({ error: err.message, code: err.code })
+      return res.status(err.status).json({ error: err.message, code: err.code, ...timings })
     }
     if (err?.type === 'entity.too.large') {
       res.locals.errorCode = 'body_too_large'
-      return res.status(413).json({ error: 'The request is too large.', code: 'body_too_large' })
+      return res.status(413).json({ error: 'The request is too large.', code: 'body_too_large', ...timings })
     }
     if (err?.type === 'entity.parse.failed') {
       res.locals.errorCode = 'invalid_json'
-      return res.status(400).json({ error: 'The request body is not valid JSON.', code: 'invalid_json' })
+      return res.status(400).json({ error: 'The request body is not valid JSON.', code: 'invalid_json', ...timings })
     }
     // The client is gone (for example an upload cut off by the timeout); there is no one to answer.
     if (req.destroyed) return
     console.error('Unexpected error:', err?.name ?? 'Error')
-    res.status(500).json({ error: 'Something went wrong. Please try again.', code: 'internal_error' })
+    res.status(500).json({ error: 'Something went wrong. Please try again.', code: 'internal_error', ...timings })
   })
 
   return app

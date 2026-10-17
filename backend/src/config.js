@@ -39,6 +39,9 @@ export function loadConfig(env = process.env) {
       Object.entries(LIMIT_SETTINGS).map(([key, [name, fallback]]) => [key, positiveInt(env[name], fallback)]),
     ),
     trustProxy: trustProxy(env.TRUST_PROXY),
+    // Stage timings in /api/process responses, for the developer latency panel. On by default
+    // only outside production; EXPOSE_TIMINGS=true or false overrides. They hold durations only.
+    exposeTimings: env.EXPOSE_TIMINGS === undefined || env.EXPOSE_TIMINGS === '' ? !production : env.EXPOSE_TIMINGS === 'true',
     // Optional shared store for the usage counters. Without it they live in memory.
     redisUrl: env.REDIS_URL || '',
     // Comma-separated list of browser origins allowed to call the API. The local

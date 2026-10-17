@@ -353,4 +353,80 @@ describe('App', () => {
     expect(screen.getByText('How your audio is handled')).toBeTruthy()
     expect(screen.getByText(/never saved to disk/)).toBeTruthy()
   })
+
+  describe('latency panel', () => {
+    afterEach(() => localStorage.clear())
+
+    const panel = () => screen.queryByRole('complementary', { name: 'Dictator Performance' })
+
+    async function recordAndPaint() {
+      await record()
+      // The display mark is taken after the next animation frame.
+      await act(async () => vi.advanceTimersByTime(100))
+    }
+
+    it('is hidden from regular visitors and still sends a request ID', async () => {
+      render(<App />)
+      await record()
+      expect(panel()).toBeNull()
+      expect(calls('/api/process')[0][1].body.get('requestId')).toMatch(/^[A-Za-z0-9_-]{8,64}$/)
+    })
+
+    it('shows every stage, the total and the slowest stage after a recording', async () => {
+      localStorage.setItem('dictator.latencyPanel', 'on')
+      const timings = {
+        requestId: 'x',
+        totalMs: 2000,
+        receiveMs: 20,
+        receiveStatus: 'success',
+        transcriptionMs: 1500,
+        transcriptionStatus: 'success',
+        refinementMs: 450,
+        refinementStatus: 'success',
+        overheadMs: 30,
+      }
+      processResponse = () => jsonResponse(processResult({ timings }))
+      render(<App />)
+      await recordAndPaint()
+
+      const text = panel().textContent
+      for (const label of ['Audio finalization', 'Upload (server receive)', 'Network & proxy', 'Transcription API', 'AI refinement API', 'Backend overhead', 'Frontend display', 'Total latency']) {
+        expect(text).toContain(label)
+      }
+      expect(text).toContain('1,500 ms')
+      expect(text).toContain('450 ms')
+      expect(screen.getByText('Transcription API').closest('tr').textContent).toContain('slowest')
+      expect(text).not.toContain(MIXED_RAW)
+      expect(text).not.toContain(MIXED_POLISHED)
+    })
+
+    it('shows refinement as skipped at None', async () => {
+      localStorage.setItem('dictator.latencyPanel', 'on')
+      processResponse = () => jsonResponse(processResult({ refinementStatus: 'skipped', refinementLevel: 'none' }))
+      render(<App />)
+      fireEvent.click(screen.getByLabelText('None'))
+      await recordAndPaint()
+      expect(screen.getByText('AI refinement API').closest('tr').textContent).toContain('0 ms · skipped')
+    })
+
+    it('records failed requests with the server stage that failed', async () => {
+      localStorage.setItem('dictator.latencyPanel', 'on')
+      processResponse = () =>
+        jsonResponse(
+          {
+            error: 'Transcription failed. Please try again.',
+            code: 'transcription_failed',
+            timings: { totalMs: 700, receiveMs: 10, receiveStatus: 'success', transcriptionMs: 650, transcriptionStatus: 'failed', refinementMs: null, refinementStatus: 'not_run', overheadMs: 40 },
+          },
+          502,
+        )
+      render(<App />)
+      await recordAndPaint()
+
+      expect(panel().textContent).toContain('failed')
+      expect(screen.getByText('Transcription API').closest('tr').textContent).toContain('650 ms · failed')
+      expect(screen.getByText('AI refinement API').closest('tr').textContent).toContain('not run')
+      expect(panel().textContent).toContain('transcription_failed')
+    })
+  })
 })
