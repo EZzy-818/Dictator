@@ -7,9 +7,11 @@ const LEVELS = REFINEMENT_LEVEL_OPTIONS.map((option) => option.value)
 /**
  * The few choices the app remembers, in a JSON file in the app's data folder. A missing or
  * damaged file, or an unknown value, falls back to the default for that setting.
- * defaults: { refinementLevel, hotkey }; isValidHotkey checks a stored hotkey.
+ * Only preferences are stored here, nothing sensitive.
+ * defaults: { refinementLevel, hotkey }; normalizeHotkey returns a stored hotkey in canonical form,
+ * or null when it is not a valid shortcut.
  */
-export function createSettings(file, { defaults, isValidHotkey = () => true, fileSystem = fs } = {}) {
+export function createSettings(file, { defaults, normalizeHotkey = (value) => value, fileSystem = fs } = {}) {
   const fallback = { refinementLevel: DEFAULT_REFINEMENT_LEVEL, ...defaults }
 
   function read() {
@@ -21,7 +23,7 @@ export function createSettings(file, { defaults, isValidHotkey = () => true, fil
     }
     return {
       refinementLevel: LEVELS.includes(stored?.refinementLevel) ? stored.refinementLevel : fallback.refinementLevel,
-      hotkey: typeof stored?.hotkey === 'string' && isValidHotkey(stored.hotkey) ? stored.hotkey : fallback.hotkey,
+      hotkey: (typeof stored?.hotkey === 'string' && normalizeHotkey(stored.hotkey)) || fallback.hotkey,
     }
   }
 
@@ -31,7 +33,7 @@ export function createSettings(file, { defaults, isValidHotkey = () => true, fil
     get: () => current,
     set(patch) {
       const next = { ...current, ...patch }
-      if (!LEVELS.includes(next.refinementLevel) || !isValidHotkey(next.hotkey)) throw new Error('Invalid setting')
+      if (!LEVELS.includes(next.refinementLevel) || normalizeHotkey(next.hotkey) !== next.hotkey) throw new Error('Invalid setting')
       current = next
       try {
         fileSystem.mkdirSync(path.dirname(file), { recursive: true })

@@ -1,12 +1,11 @@
 // The whole dictation flow in the real app: "hotkey" presses (over the DICTATOR_E2E stdin hook),
 // Chromium's fake microphone recording in the hidden window, the floating indicator, the real
 // backend app with a fake OpenAI client, and the system clipboard. Needs backend dependencies.
-import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { build, desktopRoot, electronBinary, onLinux } from './helpers.js'
+import { build, desktopRoot, startApp } from './helpers.js'
 
 const backendReady = fs.existsSync(path.resolve(desktopRoot, '../backend/node_modules/express'))
 let server
@@ -39,50 +38,7 @@ afterAll(() => {
   if (userData) fs.rmSync(userData, { recursive: true, force: true })
 })
 
-// Starts the app and returns helpers to send commands and wait for printed lines.
-function start() {
-  const args = ['.', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
-  const [command, argv] = onLinux ? ['xvfb-run', ['-a', electronBinary, ...args, '--no-sandbox']] : [electronBinary, args]
-  const child = spawn(command, argv, {
-    cwd: desktopRoot,
-    env: { ...process.env, ELECTRON_RENDERER_URL: '', DICTATOR_E2E: '1', DICTATOR_USER_DATA: userData },
-  })
-  const lines = []
-  const waiters = []
-  let buffer = ''
-  child.stdout.on('data', (chunk) => {
-    buffer += chunk
-    let i
-    while ((i = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, i)
-      buffer = buffer.slice(i + 1)
-      const space = line.indexOf(' ')
-      if (!line.startsWith('DICTATOR_')) continue
-      const entry = { name: line.slice(0, space), value: JSON.parse(line.slice(space + 1)) }
-      lines.push(entry)
-      waiters.filter((w) => w.match(entry)).forEach((w) => w.resolve(entry.value))
-    }
-  })
-  const waitFor = (name, predicate = () => true, timeoutMs = 30_000) => {
-    const found = lines.find((entry) => entry.name === name && predicate(entry.value))
-    if (found) return Promise.resolve(found.value)
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`Timed out waiting for ${name}. Seen: ${JSON.stringify(lines)}`)), timeoutMs)
-      waiters.push({ match: (entry) => entry.name === name && predicate(entry.value), resolve: (value) => (clearTimeout(timer), resolve(value)) })
-    })
-  }
-  const send = (text) => child.stdin.write(`${text}\n`)
-  const states = () => lines.filter((entry) => entry.name === 'DICTATOR_STATE').map((entry) => entry.value)
-  // Resolves once the app has exited, so its profile folder can be removed.
-  const quit = () => {
-    if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
-    const exited = new Promise((resolve) => child.once('exit', resolve))
-    send('quit')
-    const timer = setTimeout(() => child.kill('SIGKILL'), 3000)
-    return exited.then(() => clearTimeout(timer))
-  }
-  return { send, waitFor, states, quit, child }
-}
+const start = () => startApp({ userData })
 
 describe.skipIf(!backendReady)('dictation end to end', () => {
   it('press, speak, press: copies the refined text and shows each state', async () => {

@@ -36,6 +36,7 @@ function expectHealthyReport(report, { packaged }) {
     packaged,
     visible: false,
     renderer: { indicator: true, bridge: true, node: false },
+    settings: { title: 'Dictator Settings', bridge: true, ipcRenderer: false, node: false },
     server: 'ready',
     transcriptionModel: 'stub-model',
   })

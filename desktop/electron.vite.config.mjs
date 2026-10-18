@@ -27,12 +27,21 @@ export default defineConfig(({ command, mode }) => {
     preload: {
       build: {
         // Sandboxed preload scripts must be CommonJS.
-        rollupOptions: { output: { format: 'cjs', entryFileNames: '[name].cjs' } },
+        // index: the indicator window's bridge; settings: the Settings window's.
+        rollupOptions: {
+          input: { index: path.join(desktopRoot, 'src/preload/index.js'), settings: path.join(desktopRoot, 'src/preload/settings.js') },
+          output: { format: 'cjs', entryFileNames: '[name].cjs' },
+        },
       },
     },
     renderer: {
       resolve: sharedResolve,
       plugins: [react()],
+      build: {
+        rollupOptions: {
+          input: { index: path.join(desktopRoot, 'src/renderer/index.html'), settings: path.join(desktopRoot, 'src/renderer/settings.html') },
+        },
+      },
       // The dev server may read the shared frontend files, nothing else outside desktop/.
       server: { fs: { allow: [desktopRoot, path.resolve(repoRoot, 'frontend/src')] } },
     },
