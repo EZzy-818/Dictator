@@ -69,29 +69,45 @@ describe('recording a new shortcut', () => {
     expect(app.last()).toMatchObject({ shortcut: 'Control+Alt+K', capture: null })
   })
 
-  it('rejects an invalid combination inline and keeps listening', () => {
+  it('accepts a single key, warning that it stops typing', () => {
     const app = launch()
     app.preferences.startCapture()
     app.key('KeyD')
-    expect(app.last().capture).toMatchObject({ state: 'listening', error: expect.stringMatching(/would block typing/) })
-    app.key('KeyC', { meta: true })
-    expect(app.last().capture.error).toMatch(/standard app shortcut/)
-    app.key('Space', { meta: true })
-    expect(app.last().capture.error).toMatch(/Spotlight/)
-    app.key('Tab', { control: true })
-    expect(app.last().capture.error).toMatch(/isn’t supported/)
-    // Releasing modifier keys alone never becomes a shortcut.
+    expect(app.last().capture).toEqual({ state: 'captured', accelerator: 'D', label: 'D', warning: 'While Dictator runs, D starts dictation everywhere and no longer types.' })
+    expect(app.preferences.saveCapture()).toEqual({ ok: true })
+    expect(app.last()).toMatchObject({ shortcut: 'D', shortcutOk: true, message: { type: 'saved', text: expect.stringMatching(/^Shortcut changed to D\. While Dictator runs/) } })
+    expect([...app.shortcuts.registered.keys()]).toEqual(['D'])
+  })
+
+  it('accepts ⌘ shortcuts and keys like F13 or ↑ alone', () => {
+    const app = launch()
+    for (const [code, mods, accelerator] of [['KeyC', { meta: true }, 'Command+C'], ['F13', {}, 'F13'], ['ArrowUp', {}, 'Up']]) {
+      app.preferences.startCapture()
+      app.key(code, mods)
+      expect(app.preferences.saveCapture()).toEqual({ ok: true })
+      expect(app.last().shortcut).toBe(accelerator)
+    }
+  })
+
+  it('explains why modifier keys alone, or a key macOS cannot use, are not a shortcut', () => {
+    const app = launch()
+    app.preferences.startCapture()
+    app.key('AudioVolumeUp')
+    expect(app.last().capture).toMatchObject({ state: 'listening', error: expect.stringMatching(/can’t use that key/) })
     app.key('MetaLeft', { meta: true })
+    app.key('ShiftLeft', { meta: true, shift: true })
+    app.key('ShiftLeft', { meta: true }, 'keyUp')
+    expect(app.last().capture).toMatchObject({ state: 'listening', modifiers: '⌘' })
     app.key('MetaLeft', {}, 'keyUp')
-    expect(app.last().capture.state).toBe('listening')
+    expect(app.last().capture).toEqual({ state: 'listening', modifiers: '', error: expect.stringMatching(/Modifier keys on their own/) })
     expect(app.preferences.saveCapture().ok).toBe(false)
     expect(app.settings.get().hotkey).toBe('Control+Alt+Space')
   })
 
   it('refuses an invalid shortcut sent directly, keeping the old one', () => {
     const app = launch()
-    expect(app.preferences.setShortcut('Command+V').ok).toBe(false)
-    expect(app.preferences.setShortcut('Shift').ok).toBe(false)
+    expect(app.preferences.setShortcut('Command+Shift').ok).toBe(false)
+    expect(app.preferences.setShortcut('Control+Alt+Mystery').ok).toBe(false)
     expect(app.preferences.setShortcut({ toString: () => 'Control+Alt+D' }).ok).toBe(false)
     expect([...app.shortcuts.registered.keys()]).toEqual(['Control+Alt+Space'])
     expect(app.last().message.type).toBe('error')
@@ -206,7 +222,7 @@ describe('persistence', () => {
   })
 
   it('starts with the default after a damaged or unsupported saved shortcut', () => {
-    fs.writeFileSync(file, JSON.stringify({ hotkey: 'Command+Q', refinementLevel: 'medium' }))
+    fs.writeFileSync(file, JSON.stringify({ hotkey: 'Command+Shift', refinementLevel: 'medium' }))
     expect(launch().last()).toMatchObject({ shortcut: 'Control+Alt+Space', shortcutOk: true, level: 'medium' })
     fs.writeFileSync(file, '{"hotkey": ')
     expect(launch().last()).toMatchObject({ shortcut: 'Control+Alt+Space', level: 'light' })

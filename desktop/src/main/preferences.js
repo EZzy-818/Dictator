@@ -1,4 +1,4 @@
-import { DEFAULT_SHORTCUT, modifierLabel, shortcutFromKey, shortcutLabel, validateShortcut } from '../shared/shortcut.js'
+import { DEFAULT_SHORTCUT, MODIFIERS_ONLY, modifierLabel, shortcutFromKey, shortcutLabel, validateShortcut } from '../shared/shortcut.js'
 
 // A capture nobody finishes (the window left open in the background, a combination macOS keeps
 // for itself) ends on its own after this long without a key press, so the hotkey is never left off.
@@ -102,7 +102,8 @@ export function createPreferences({
       return { ok: false, error }
     }
     settings.set({ hotkey: checked.accelerator })
-    message = checked.accelerator === before ? null : { type: 'saved', text: `Shortcut changed to ${shortcutLabel(checked.accelerator)}.` }
+    const saved = `Shortcut changed to ${shortcutLabel(checked.accelerator)}.`
+    message = checked.accelerator === before ? null : { type: 'saved', text: checked.warning ? `${saved} ${checked.warning}` : saved }
     changed()
     return { ok: true }
   }
@@ -142,9 +143,12 @@ export function createPreferences({
       restartIdleTimer()
       const result = shortcutFromKey(input)
       if (input.type === 'keyUp' || input.isAutoRepeat) {
-        // Releasing a modifier updates the keys shown while still listening.
+        // Releasing a modifier updates the keys shown while still listening. Letting go of
+        // modifier keys pressed on their own says why that can't be a shortcut.
         if (result.modifiersOnly && capture.state === 'listening') {
-          capture = { ...capture, modifiers: modifierLabel(input) }
+          const modifiers = modifierLabel(input)
+          const released = input.type === 'keyUp' && !modifiers && capture.modifiers
+          capture = released ? { state: 'listening', modifiers: '', error: MODIFIERS_ONLY } : { ...capture, modifiers }
           changed()
         }
         return
@@ -156,6 +160,7 @@ export function createPreferences({
         return this.saveCapture()
       } else if (result.ok) {
         capture = { state: 'captured', accelerator: result.accelerator, label: shortcutLabel(result.accelerator) }
+        if (result.warning) capture.warning = result.warning
       } else {
         capture = { state: 'listening', modifiers: '', error: result.error }
       }

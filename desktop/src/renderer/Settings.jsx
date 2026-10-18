@@ -16,7 +16,9 @@ function ShortcutRow({ view, bridge }) {
   const note = capture?.error
     ? { type: 'error', text: capture.error }
     : capture
-      ? { type: 'hint', text: captured ? 'Press Return or click Save to use it. Esc cancels.' : 'Press Esc to cancel. If nothing appears, macOS or another app is using that shortcut.' }
+      ? captured && capture.warning
+        ? { type: 'warning', text: `${capture.warning} Press Return or click Save to use it anyway. Esc cancels.` }
+        : { type: 'hint', text: captured ? 'Press Return or click Save to use it. Esc cancels.' : 'Press Esc to cancel. If nothing appears, macOS or another app is using that shortcut.' }
       : view.message
   const isDefault = view.shortcut === view.defaultShortcut && view.shortcutOk
 
@@ -65,7 +67,7 @@ function ShortcutRow({ view, bridge }) {
         </p>
       )}
       {!listening && !captured && (
-        <p className="note note-hint">Use ⌘, ⌃ or ⌥ with a letter, number or Space, or a function key on its own.</p>
+        <p className="note note-hint">Any key works, on its own or with ⌘ ⌃ ⌥ ⇧. A single key stops typing that key while Dictator runs.</p>
       )}
     </div>
   )
