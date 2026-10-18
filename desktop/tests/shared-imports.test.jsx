@@ -6,6 +6,7 @@ import * as api from '@frontend/services/api.js'
 import { MAX_RECORDING_MS, RECORDER_ERRORS, useAudioRecorder } from '@frontend/hooks/useAudioRecorder.js'
 import Waveform from '@frontend/components/Waveform.jsx'
 import { DEFAULT_REFINEMENT_LEVEL, REFINEMENT_LEVEL_OPTIONS } from '@frontend/refinementLevels.js'
+import { RECORDER_MESSAGES } from '../src/main/messages.js'
 
 describe('shared web modules', () => {
   it('exposes the API client the main process uses', () => {
@@ -20,6 +21,10 @@ describe('shared web modules', () => {
     expect(result.current.status).toBe('idle')
     expect(result.current.maxDurationMs).toBe(MAX_RECORDING_MS)
     expect(Object.keys(RECORDER_ERRORS)).toContain('permission-denied')
+  })
+
+  it('has desktop wording for every recorder error code', () => {
+    expect(Object.keys(RECORDER_MESSAGES).sort()).toEqual(Object.keys(RECORDER_ERRORS).sort())
   })
 
   it('renders the waveform', () => {

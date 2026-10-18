@@ -28,14 +28,14 @@ export function isPermissionAllowed({ permission, requestingUrl, mediaTypes, app
   return mediaTypes.length > 0 && mediaTypes.every((type) => type === 'audio')
 }
 
-/** True when url is the app's own page: same file, or same dev server origin. */
+/** True when url is the app's own page: same scheme and host (app://dictator or the dev server). */
 export function isAppUrl(url, appUrl) {
   if (!url || !appUrl) return false
   try {
     const a = new URL(url)
     const b = new URL(appUrl)
-    if (a.protocol === 'file:') return b.protocol === 'file:' && a.pathname === b.pathname
-    return a.origin === b.origin
+    // Custom schemes have an opaque origin ("null") in URL, so compare scheme and host instead.
+    return a.protocol === b.protocol && a.host === b.host && a.host !== ''
   } catch {
     return false
   }

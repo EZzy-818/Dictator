@@ -1,12 +1,19 @@
-/* The window is transparent; only the pill is drawn. */
+/* The window is transparent; only the pill is drawn, centered at the top. */
 html,
 body {
   margin: 0;
   background: transparent;
   overflow: hidden;
-  font: 13px/1 -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  font: 13px/1.3 -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   user-select: none;
   -webkit-user-select: none;
+  cursor: default;
+}
+
+#root {
+  display: flex;
+  justify-content: center;
+  padding: 4px;
 }
 
 .indicator {
@@ -14,15 +21,17 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 40px;
-  margin: 4px;
-  padding: 0 14px;
-  border-radius: 20px;
-  background: rgba(24, 24, 27, 0.88);
+  max-width: 352px;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 18px;
+  background: rgba(24, 24, 27, 0.9);
   color: #fafafa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .dot {
+  flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -30,11 +39,50 @@ body {
 }
 
 .label {
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tone-recording .dot {
+  background: #ef4444;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.tone-busy .dot {
+  background: #a1a1aa;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.tone-success .dot {
+  background: #22c55e;
+}
+.tone-warning {
+  background: rgba(120, 53, 15, 0.92);
+}
+.tone-warning .dot {
+  background: #f59e0b;
+}
+.tone-error {
+  background: rgba(127, 29, 29, 0.92);
+}
+.tone-error .dot {
+  background: #f87171;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none !important;
+  }
 }
 
 .wave {
-  flex: 1;
+  flex: none;
+  width: 90px;
   overflow: hidden;
 }
 
@@ -44,8 +92,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 2px;
-  height: 20px;
+  gap: 1px;
+  height: 18px;
 }
 
 .wave [data-testid='waveform'] span {
@@ -53,6 +101,6 @@ body {
   height: 100%;
   border-radius: 1px;
   background: #fafafa;
-  opacity: 0.7;
+  opacity: 0.8;
   transition: transform 75ms;
 }

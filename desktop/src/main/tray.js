@@ -1,40 +1,20 @@
 import path from 'node:path'
-import { Menu, Tray, app, nativeImage } from 'electron'
+import { Menu, Tray, nativeImage } from 'electron'
+import { buildMenuTemplate, trayTitle } from './menu.js'
 
-const SERVER_LABELS = {
-  checking: 'Server: checking…',
-  ready: 'Server: ready',
-  unconfigured: 'Server: speech service not configured',
-  unreachable: 'Server: unreachable',
-}
-
-// The menu bar icon. D0 only shows the app and server state and offers Quit.
-export function createTray({ iconDir }) {
+// The menu bar icon and its menu, rebuilt whenever the view changes.
+export function createTray({ iconDir, actions }) {
   // A "Template" image lets macOS tint it for light and dark menu bars.
   const icon = nativeImage.createFromPath(path.join(iconDir, 'trayTemplate.png'))
   icon.setTemplateImage(true)
   const tray = new Tray(icon)
   tray.setToolTip('Dictator')
 
-  let serverState = 'checking'
-  const render = () => {
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: `Dictator ${app.getVersion()}`, enabled: false },
-        { label: SERVER_LABELS[serverState], enabled: false },
-        { type: 'separator' },
-        { label: 'Quit Dictator', accelerator: 'Command+Q', click: () => app.quit() },
-      ]),
-    )
-  }
-  render()
-
   return {
     tray,
-    setServerState(state) {
-      serverState = state
-      render()
+    render(view) {
+      tray.setContextMenu(Menu.buildFromTemplate(buildMenuTemplate(view, actions)))
+      tray.setTitle(trayTitle(view.phase))
     },
-    getServerState: () => serverState,
   }
 }

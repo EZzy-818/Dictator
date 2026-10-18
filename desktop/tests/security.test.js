@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { resolveInside } from '../src/main/protocol.js'
 import { isAppUrl, isPermissionAllowed, secureWebPreferences } from '../src/main/security.js'
 
-const appUrl = 'file:///Applications/Dictator.app/Contents/Resources/app.asar/out/renderer/index.html'
+const appUrl = 'app://dictator/index.html'
 
 describe('secureWebPreferences', () => {
   it('isolates the renderer from Node and Electron', () => {
@@ -20,9 +21,12 @@ describe('secureWebPreferences', () => {
 })
 
 describe('isAppUrl', () => {
-  it('matches the same file or the same dev server origin only', () => {
+  it('matches the app scheme and host, or the same dev server, only', () => {
     expect(isAppUrl(appUrl, appUrl)).toBe(true)
+    expect(isAppUrl('app://dictator/assets/index.js', appUrl)).toBe(true)
+    expect(isAppUrl('app://other/index.html', appUrl)).toBe(false)
     expect(isAppUrl('file:///tmp/evil.html', appUrl)).toBe(false)
+    expect(isAppUrl('file:///tmp/evil.html', 'file:///tmp/evil.html')).toBe(false)
     expect(isAppUrl('http://localhost:5173/index.html', 'http://localhost:5173/')).toBe(true)
     expect(isAppUrl('http://localhost:5174/', 'http://localhost:5173/')).toBe(false)
     expect(isAppUrl('https://example.com/', appUrl)).toBe(false)
@@ -53,5 +57,15 @@ describe('isPermissionAllowed', () => {
     expect(
       isPermissionAllowed({ permission: 'media', requestingUrl: 'https://example.com/', mediaTypes: ['audio'], appUrl }),
     ).toBe(false)
+  })
+})
+
+describe('resolveInside', () => {
+  it('serves files under the renderer folder only', () => {
+    expect(resolveInside('/app/renderer', '/')).toBe('/app/renderer/index.html')
+    expect(resolveInside('/app/renderer', '/assets/index-1.js')).toBe('/app/renderer/assets/index-1.js')
+    expect(resolveInside('/app/renderer', '/../main/index.js')).toBe(null)
+    expect(resolveInside('/app/renderer', '/%2e%2e/main/index.js')).toBe(null)
+    expect(resolveInside('/app/renderer', '/%E0%A4%A')).toBe(null)
   })
 })
