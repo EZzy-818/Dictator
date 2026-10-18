@@ -19,7 +19,7 @@ import { isAppUrl } from './security.js'
 import { runRecordTest, runSelfCheck, runTranscribeTest } from './selftest.js'
 import { createSettings } from './settings.js'
 import { handleSettingsRequests } from './settingsIpc.js'
-import { createSettingsWindow, createSettingsWindows } from './settingsWindow.js'
+import { bringToFront, createSettingsWindow, createSettingsWindows } from './settingsWindow.js'
 import { createTray } from './tray.js'
 
 const selfCheck = process.argv.includes('--self-check')
@@ -196,6 +196,7 @@ app.whenReady().then(async () => {
       },
       onLeave: () => preferences.cancelCapture(),
     }),
+    { activate: bringToFront },
   )
 
   preferences = createPreferences({
@@ -210,7 +211,14 @@ app.whenReady().then(async () => {
       if (win && !win.webContents.isDestroyed()) win.webContents.send('settings:view', prefs)
     },
   })
-  handleSettingsRequests({ ipcMain, getWindow: settingsWindows.get, appUrl: settingsUrl, preferences })
+  handleSettingsRequests({
+    ipcMain,
+    getWindow: settingsWindows.get,
+    appUrl: settingsUrl,
+    preferences,
+    // Key presses only reach a focused window, and leaving it ends the capture.
+    focusWindow: () => settingsWindows.get() && bringToFront(settingsWindows.get()),
+  })
 
   tray = createTray({
     iconDir,

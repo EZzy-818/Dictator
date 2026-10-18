@@ -4,7 +4,7 @@ import path from 'node:path'
 import { REFINEMENT_LEVEL_OPTIONS } from '@frontend/refinementLevels.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHotkey } from '../src/main/hotkey.js'
-import { createPreferences } from '../src/main/preferences.js'
+import { CAPTURE_IDLE_MS, createPreferences } from '../src/main/preferences.js'
 import { createSettings } from '../src/main/settings.js'
 import { buildMenuTemplate } from '../src/main/menu.js'
 import { validateShortcut } from '../src/shared/shortcut.js'
@@ -133,6 +133,25 @@ describe('cancelling', () => {
     expect(app.last()).toMatchObject({ capture: null, shortcut: 'Control+Alt+Space', shortcutOk: true })
     expect([...app.shortcuts.registered.keys()]).toEqual(['Control+Alt+Space'])
     expect(app.settings.get().hotkey).toBe('Control+Alt+Space')
+  })
+
+  it('gives up after a while without a key press, so the hotkey is never left off', () => {
+    vi.useFakeTimers()
+    try {
+      const app = launch()
+      app.preferences.startCapture()
+      vi.advanceTimersByTime(CAPTURE_IDLE_MS - 1000)
+      // A key press (here ⌘ on its own, as when ⌘Space is taken by Spotlight) restarts the wait.
+      app.key('MetaLeft', { meta: true })
+      vi.advanceTimersByTime(CAPTURE_IDLE_MS - 1000)
+      expect(app.preferences.isCapturing()).toBe(true)
+      vi.advanceTimersByTime(1000)
+      expect(app.preferences.isCapturing()).toBe(false)
+      expect(app.last()).toMatchObject({ capture: null, shortcutOk: true })
+      expect([...app.shortcuts.registered.keys()]).toEqual(['Control+Alt+Space'])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('cancels when the window loses focus or closes', () => {

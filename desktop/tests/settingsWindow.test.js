@@ -32,6 +32,15 @@ describe('Settings window', () => {
     expect(first.focus).toHaveBeenCalled()
   })
 
+  it('brings an existing window forward with the given activate function', () => {
+    const activate = vi.fn()
+    const windows = createSettingsWindows(fakeWindow, { activate })
+    const win = windows.open()
+    expect(activate).not.toHaveBeenCalled()
+    windows.open()
+    expect(activate).toHaveBeenCalledWith(win)
+  })
+
   it('forgets a closed window and opens a fresh one next time', () => {
     const create = vi.fn(fakeWindow)
     const windows = createSettingsWindows(create)

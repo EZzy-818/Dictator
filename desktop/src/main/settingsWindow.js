@@ -6,19 +6,28 @@ export const SETTINGS_WIDTH = 520
 export const SETTINGS_HEIGHT = 480
 
 /**
- * Keeps at most one Settings window. open() focuses the existing one or creates it with
- * create(); a closed window is forgotten, and closing it never quits the app (the
+ * Makes a window the frontmost one. A menu bar app is not the active app when its menu is used
+ * (or when another app has focus), so it has to activate itself first.
+ */
+export function bringToFront(win) {
+  app.focus({ steal: true })
+  win.show()
+  win.focus()
+}
+
+/**
+ * Keeps at most one Settings window. open() brings the existing one forward (activate) or creates
+ * it with create(); a closed window is forgotten, and closing it never quits the app (the
  * window-all-closed handler in index.js keeps the menu bar app running).
  */
-export function createSettingsWindows(create) {
+export function createSettingsWindows(create, { activate = (win) => (win.show(), win.focus()) } = {}) {
   let win = null
   const live = () => (win && !win.isDestroyed() ? win : null)
   return {
     open() {
       const existing = live()
       if (existing) {
-        existing.show()
-        existing.focus()
+        activate(existing)
         return existing
       }
       win = create()
@@ -54,11 +63,7 @@ export function createSettingsWindow({ url, onKey, onLeave }) {
   win.webContents.on('before-input-event', onKey)
   win.on('blur', onLeave)
   win.on('closed', onLeave)
-  win.once('ready-to-show', () => {
-    // A menu bar app is not the active app when its menu is used; bring the window forward.
-    app.focus({ steal: true })
-    win.show()
-  })
+  win.once('ready-to-show', () => bringToFront(win))
   win.loadURL(url)
   return win
 }

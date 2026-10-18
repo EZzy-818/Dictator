@@ -17,10 +17,11 @@ function setup() {
     resetShortcut: vi.fn(() => ({ ok: true })),
     setLevel: vi.fn(() => true),
   }
-  handleSettingsRequests({ ipcMain, getWindow: () => open, appUrl, preferences })
+  const focusWindow = vi.fn()
+  handleSettingsRequests({ ipcMain, getWindow: () => open, appUrl, preferences, focusWindow })
   const fromSettings = { sender: webContents, senderFrame: { url: appUrl } }
   const call = (channel, event = fromSettings, arg) => handlers.get(channel)(event, arg)
-  return { handlers, preferences, call, fromSettings, close: () => (open = null) }
+  return { handlers, preferences, focusWindow, call, fromSettings, close: () => (open = null) }
 }
 
 describe('Settings window requests', () => {
@@ -31,9 +32,11 @@ describe('Settings window requests', () => {
   })
 
   it('answers the Settings window', () => {
-    const { call, preferences } = setup()
+    const { call, preferences, focusWindow } = setup()
     expect(call('settings:get')).toEqual({ shortcut: 'Control+Alt+Space' })
     expect(call('settings:capture-start')).toBe(null)
+    // Key presses only reach a focused window.
+    expect(focusWindow).toHaveBeenCalled()
     expect(call('settings:capture-save')).toEqual({ ok: true })
     call('settings:set-level', undefined, 'medium')
     expect(preferences.setLevel).toHaveBeenCalledWith('medium')

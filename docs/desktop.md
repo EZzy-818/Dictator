@@ -20,7 +20,7 @@ It lives in `desktop/` as its own npm package. The web frontend (`frontend/`, on
 
 **Settings…** in the menu bar opens a small preferences window. Opening it does not interrupt a dictation, choosing it again brings the same window forward, and closing it leaves Dictator running in the menu bar.
 
-- **General › Recording shortcut:** click **Record Shortcut**, press the new combination (for example ⌘⇧D), then **Save Shortcut** or Return. Esc, **Cancel**, or leaving the window keeps the old shortcut. **Reset to Default** goes back to ⌃⌥Space.
+- **General › Recording shortcut:** click **Record Shortcut**, press the new combination (for example ⌘⇧D), then **Save Shortcut** or Return. Esc, **Cancel**, leaving the window, or 30 seconds without a key press keeps the old shortcut. **Reset to Default** goes back to ⌃⌥Space.
 - **Transcription › Refinement:** None, Light or Medium, saved as soon as it is chosen. It is the same setting as the menu bar's Refinement submenu; changing either updates the other.
 
 Both are saved in `settings.json` in Dictator's data folder (`~/Library/Application Support/Dictator`) and kept across restarts. Nothing else is stored there.
@@ -29,7 +29,7 @@ Both are saved in `settings.json` in Dictator's data folder (`~/Library/Applicat
 
 - Letters, numbers and Space need ⌘, ⌃ or ⌥ (⇧ alone would stop you typing that character). Function keys (F1–F20) work with or without modifiers.
 - Not accepted: modifier keys on their own; other keys (punctuation, arrows, Tab, Return, Esc); ⌘ with just a letter or number (standard app shortcuts like ⌘C); and combinations macOS keeps for itself in its default setup, such as ⌘Space (Spotlight), ⌃Space (input sources), ⇧⌘3/4/5 (screenshots), ⌃⌘Q (lock screen) and ⌃F1–⌃F8 (keyboard navigation).
-- If another app already owns the combination, macOS refuses it: Settings says so and your current shortcut keeps working. If a combination is taken by macOS or another app before it reaches Dictator, nothing appears while recording it; try another.
+- If macOS refuses to register the combination, Settings says it is unavailable and your current shortcut keeps working. macOS does not always refuse: on macOS 26 two apps can both register the same shortcut (tested with two copies of Dictator on ⌃⌥Space), and then both react to it. So check that a new shortcut isn't already used by another app. If a combination is taken by macOS or another app before it reaches Dictator, nothing appears while recording it; try another.
 - macOS lets some combinations register and then never deliver them, for example ones assigned in System Settings › Keyboard › Keyboard Shortcuts or by another app that does not use the system hotkey API. Dictator cannot detect those; if a new shortcut does nothing, choose another.
 - ⌥ shortcuts stop that key's special character (⌥D types ∂) from being typed while Dictator runs.
 - If the saved shortcut was taken by another app while Dictator was closed, the menu bar says the hotkey is unavailable and Settings shows it crossed out. The saved choice is kept for next time; record another or reset to the default.

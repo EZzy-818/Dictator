@@ -1,5 +1,9 @@
 import { DEFAULT_SHORTCUT, modifierLabel, shortcutFromKey, shortcutLabel, validateShortcut } from '../shared/shortcut.js'
 
+// A capture nobody finishes (the window left open in the background, a combination macOS keeps
+// for itself) ends on its own after this long without a key press, so the hotkey is never left off.
+export const CAPTURE_IDLE_MS = 30_000
+
 /**
  * The recording shortcut and refinement level, shared by the menu bar, the Settings window and
  * the hotkey. It owns no Electron objects, so it can be tested on its own. Every change from the
@@ -10,17 +14,27 @@ import { DEFAULT_SHORTCUT, modifierLabel, shortcutFromKey, shortcutLabel, valida
  *   hotkey: createHotkey(...) (src/main/hotkey.js)
  *   levels: [{ value, label, description }]
  *   onChange(view)  called after every change, with view() below
+ *   setTimeout, clearTimeout  injectable for tests
  *
  * Recording a new shortcut ("capture"): startCapture() stops the hotkey listening, so pressing
  * the current shortcut does not start a dictation. Key presses in the Settings window go to
  * captureKey() instead of the page. saveCapture() switches to the captured shortcut only if it
- * can be registered; cancelCapture() (Escape, closing or leaving the window) puts the old one back.
+ * can be registered; cancelCapture() (Escape, closing or leaving the window, or CAPTURE_IDLE_MS
+ * without a key press) puts the old one back.
  */
-export function createPreferences({ settings, hotkey, levels, onChange = () => {} }) {
+export function createPreferences({
+  settings,
+  hotkey,
+  levels,
+  onChange = () => {},
+  setTimeout: setTimer = globalThis.setTimeout,
+  clearTimeout: clearTimer = globalThis.clearTimeout,
+}) {
   // capture: null | { state: 'listening', modifiers, error? } | { state: 'captured', accelerator, label }
   let capture = null
   // The result of the last change, shown under the shortcut: { type: 'error' | 'saved', text }.
   let message = null
+  let idleTimer = null
 
   const shortcut = () => settings.get().hotkey
 
@@ -42,9 +56,20 @@ export function createPreferences({ settings, hotkey, levels, onChange = () => {
   const changed = () => onChange(view())
 
   function endCapture() {
+    clearTimer(idleTimer)
+    idleTimer = null
     if (!capture) return
     capture = null
     hotkey.resume()
+  }
+
+  function restartIdleTimer() {
+    clearTimer(idleTimer)
+    idleTimer = setTimer(() => {
+      if (!capture) return
+      endCapture()
+      changed()
+    }, CAPTURE_IDLE_MS)
   }
 
   /** Validates, registers and saves a shortcut. Returns { ok, error? }; on failure nothing changes. */
@@ -88,6 +113,7 @@ export function createPreferences({ settings, hotkey, levels, onChange = () => {
       hotkey.suspend()
       capture = { state: 'listening', modifiers: '' }
       message = null
+      restartIdleTimer()
       changed()
     },
 
@@ -101,6 +127,7 @@ export function createPreferences({ settings, hotkey, levels, onChange = () => {
     captureKey(input) {
       if (!capture || !input || typeof input !== 'object') return
       if (input.type !== 'keyDown' && input.type !== 'keyUp') return
+      restartIdleTimer()
       const result = shortcutFromKey(input)
       if (input.type === 'keyUp' || input.isAutoRepeat) {
         // Releasing a modifier updates the keys shown while still listening.

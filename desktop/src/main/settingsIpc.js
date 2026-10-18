@@ -14,12 +14,16 @@ export const SETTINGS_CHANNELS = [
 /**
  * Answers the Settings window's requests. Requests from any other window or page are refused,
  * and the level is checked by preferences.setLevel.
- * ipcMain: Electron's ipcMain; getWindow() → the Settings window or null.
+ * ipcMain: Electron's ipcMain; getWindow() → the Settings window or null; focusWindow() brings
+ * it forward when a capture starts.
  */
-export function handleSettingsRequests({ ipcMain, getWindow, appUrl, preferences }) {
+export function handleSettingsRequests({ ipcMain, getWindow, appUrl, preferences, focusWindow = () => {} }) {
   const actions = {
     'settings:get': () => preferences.view(),
-    'settings:capture-start': () => preferences.startCapture(),
+    'settings:capture-start': () => {
+      focusWindow()
+      preferences.startCapture()
+    },
     'settings:capture-cancel': () => preferences.cancelCapture(),
     'settings:capture-save': () => preferences.saveCapture(),
     'settings:reset-shortcut': () => preferences.resetShortcut(),
