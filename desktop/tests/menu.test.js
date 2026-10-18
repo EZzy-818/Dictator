@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { buildMenuTemplate, trayTitle } from '../src/main/menu.js'
 
-const actions = { toggle: vi.fn(), setLevel: vi.fn(), setHotkey: vi.fn(), copyLast: vi.fn(), openMicrophoneSettings: vi.fn(), quit: vi.fn() }
+const actions = { toggle: vi.fn(), setLevel: vi.fn(), copyLast: vi.fn(), openMicrophoneSettings: vi.fn(), openSettings: vi.fn(), quit: vi.fn() }
 const levels = [
   { value: 'none', label: 'None', description: 'No changes' },
   { value: 'light', label: 'Light', description: 'Clean up filler words and grammar' },
@@ -12,7 +12,7 @@ const labels = (template) => template.map((item) => item.label).filter(Boolean)
 describe('buildMenuTemplate', () => {
   it('offers Start Recording when idle', () => {
     const template = buildMenuTemplate({ version: '0.1.0', phase: 'idle', serverState: 'ready' }, actions)
-    expect(labels(template)).toEqual(['Dictator 0.1.0', 'Ready', 'Start Recording', 'Copy Last Transcript', 'Server: ready', 'Quit Dictator'])
+    expect(labels(template)).toEqual(['Dictator 0.1.0', 'Ready', 'Start Recording', 'Copy Last Transcript', 'Server: ready', 'Settings…', 'Quit Dictator'])
   })
 
   it('offers Stop Recording while recording and nothing while busy', () => {
@@ -44,25 +44,27 @@ describe('levels and copy', () => {
   })
 })
 
-describe('hotkey', () => {
-  const hotkeys = [
-    { accelerator: 'Control+Alt+Space', label: '⌃⌥Space' },
-    { accelerator: 'Control+Alt+D', label: '⌃⌥D' },
-  ]
-
-  it('shows the hotkey next to Start Recording and lets the user pick another', () => {
-    const template = buildMenuTemplate({ phase: 'idle', hotkey: 'Control+Alt+Space', hotkeyOk: true, hotkeys }, actions)
-    expect(template.find((item) => item.label === 'Start Recording')).toMatchObject({ accelerator: 'Control+Alt+Space', registerAccelerator: false })
-    const submenu = template.find((item) => item.label === 'Hotkey').submenu
-    expect(submenu.map((item) => item.checked)).toEqual([true, false])
-    submenu[1].click()
-    expect(actions.setHotkey).toHaveBeenCalledWith('Control+Alt+D')
+describe('hotkey and settings', () => {
+  it('shows the hotkey next to Start Recording, including a custom one', () => {
+    const template = buildMenuTemplate({ phase: 'idle', hotkey: 'Shift+Command+D', hotkeyOk: true }, actions)
+    expect(template.find((item) => item.label === 'Start Recording')).toMatchObject({ accelerator: 'Shift+Command+D', registerAccelerator: false })
+    // The hotkey is chosen in Settings now, not from a fixed list in the menu.
+    expect(labels(template)).not.toContain('Hotkey')
   })
 
-  it('says when another app owns the hotkey', () => {
-    const template = buildMenuTemplate({ phase: 'idle', hotkey: 'Control+Alt+Space', hotkeyOk: false, hotkeys }, actions)
-    expect(labels(template).some((label) => label.startsWith('Hotkey unavailable'))).toBe(true)
+  it('says when another app owns the hotkey and points to Settings', () => {
+    const template = buildMenuTemplate({ phase: 'idle', hotkey: 'Control+Alt+Space', hotkeyOk: false }, actions)
+    expect(labels(template)).toContain('Hotkey unavailable: another app uses it. Choose another in Settings.')
     expect(template.find((item) => item.label === 'Start Recording').accelerator).toBeUndefined()
+  })
+
+  it('opens Settings from the menu, in every phase', () => {
+    for (const phase of ['idle', 'recording', 'processing']) {
+      const item = buildMenuTemplate({ phase }, actions).find((entry) => entry.label === 'Settings…')
+      expect(item.enabled).not.toBe(false)
+      item.click()
+    }
+    expect(actions.openSettings).toHaveBeenCalledTimes(3)
   })
 })
 

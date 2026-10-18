@@ -40,3 +40,56 @@ export function launch(command, args = [], { mode = '--self-check', report = 'DI
     })
   })
 }
+
+// Starts the app with the DICTATOR_E2E stdin hook (src/main/e2e.js) and a fake microphone, and
+// returns helpers to send commands and wait for printed lines. userData keeps its settings apart.
+export function startApp({ userData }) {
+  const args = ['.', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
+  const [command, argv] = onLinux ? ['xvfb-run', ['-a', electronBinary, ...args, '--no-sandbox']] : [electronBinary, args]
+  const child = spawn(command, argv, {
+    cwd: desktopRoot,
+    env: { ...process.env, ELECTRON_RENDERER_URL: '', DICTATOR_E2E: '1', DICTATOR_USER_DATA: userData },
+  })
+  const lines = []
+  const waiters = []
+  let buffer = ''
+  child.stdout.on('data', (chunk) => {
+    buffer += chunk
+    let i
+    while ((i = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, i)
+      buffer = buffer.slice(i + 1)
+      const space = line.indexOf(' ')
+      if (!line.startsWith('DICTATOR_')) continue
+      const entry = { name: line.slice(0, space), value: JSON.parse(line.slice(space + 1)) }
+      lines.push(entry)
+      waiters.filter((w) => w.match(entry)).forEach((w) => w.resolve(entry.value))
+    }
+  })
+  // Resolves with the first line called name that matches, among lines from index `from` on.
+  const waitFor = (name, predicate = () => true, timeoutMs = 30_000, from = 0) => {
+    const found = lines.slice(from).find((entry) => entry.name === name && predicate(entry.value))
+    if (found) return Promise.resolve(found.value)
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`Timed out waiting for ${name}. Seen: ${JSON.stringify(lines.slice(-20))}`)), timeoutMs)
+      waiters.push({ match: (entry) => entry.name === name && predicate(entry.value), resolve: (value) => (clearTimeout(timer), resolve(value)) })
+    })
+  }
+  const send = (text) => child.stdin.write(`${text}\n`)
+  // Sends a command and waits for a line printed after it.
+  const ask = (command, name, predicate, timeoutMs) => {
+    const from = lines.length
+    send(command)
+    return waitFor(name, predicate, timeoutMs, from)
+  }
+  const states = () => lines.filter((entry) => entry.name === 'DICTATOR_STATE').map((entry) => entry.value)
+  // Resolves once the app has exited, so its profile folder can be removed.
+  const quit = () => {
+    if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
+    const exited = new Promise((resolve) => child.once('exit', resolve))
+    send('quit')
+    const timer = setTimeout(() => child.kill('SIGKILL'), 3000)
+    return exited.then(() => clearTimeout(timer))
+  }
+  return { send, ask, waitFor, states, quit, child }
+}

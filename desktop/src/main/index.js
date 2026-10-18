@@ -6,16 +6,20 @@ import { API_BASE_URL, getHealth, processAudio } from './api.js'
 import { createCopy } from './clipboard.js'
 import { createController } from './controller.js'
 import { attachE2E } from './e2e.js'
-import { DEFAULT_HOTKEY, HOTKEY_OPTIONS, createHotkey, isKnownHotkey } from './hotkey.js'
+import { validateShortcut } from '../shared/shortcut.js'
+import { DEFAULT_HOTKEY, createHotkey } from './hotkey.js'
 import { createIndicatorWindow, hideIndicator, showIndicator } from './indicator.js'
 import { isTrustedSender, parseRecorderError, parseRecording } from './ipc.js'
 import { RECORDER_MESSAGES } from './messages.js'
 import { ensureMicrophoneAccess, openMicrophoneSettings } from './microphone.js'
 import { installPermissionHandlers } from './permissions.js'
+import { createPreferences } from './preferences.js'
 import { APP_URL, registerAppScheme, serveRenderer } from './protocol.js'
 import { isAppUrl } from './security.js'
 import { runRecordTest, runSelfCheck, runTranscribeTest } from './selftest.js'
 import { createSettings } from './settings.js'
+import { handleSettingsRequests } from './settingsIpc.js'
+import { bringToFront, createSettingsWindow, createSettingsWindows } from './settingsWindow.js'
 import { createTray } from './tray.js'
 
 const selfCheck = process.argv.includes('--self-check')
@@ -26,6 +30,7 @@ const transcribeTestFile = argValue('transcribe-test')
 const fakeDevice = app.commandLine.hasSwitch('use-fake-device-for-media-stream')
 
 const rendererUrl = process.env.ELECTRON_RENDERER_URL || APP_URL
+const settingsUrl = new URL('settings.html', rendererUrl).href
 const iconDir = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '../../build')
 
 // Tests keep their settings out of the real profile.
@@ -95,11 +100,15 @@ app.whenReady().then(async () => {
   const sendCommand = (command) => !indicator.isDestroyed() && indicator.webContents.send('recorder:command', command)
   const ensureAccess = () => ensureMicrophoneAccess({ fakeDevice })
 
-  if (selfCheck) return runSelfCheck({ indicator, apiBaseUrl: API_BASE_URL, checkServer })
+  if (selfCheck) return runSelfCheck({ indicator, apiBaseUrl: API_BASE_URL, checkServer, settingsUrl })
 
   const settings = createSettings(path.join(app.getPath('userData'), 'settings.json'), {
     defaults: { hotkey: DEFAULT_HOTKEY },
-    isValidHotkey: isKnownHotkey,
+    // A damaged or unsupported saved shortcut falls back to the default.
+    normalizeHotkey: (value) => {
+      const checked = validateShortcut(value)
+      return checked.ok ? checked.accelerator : null
+    },
   })
   // The same request the web app makes: batch transcription, then refinement at the chosen level.
   const transcribe = (recording, level) => processAudio(recording, level)
@@ -117,13 +126,13 @@ app.whenReady().then(async () => {
     levels: REFINEMENT_LEVEL_OPTIONS,
     level: settings.get().refinementLevel,
     hasLastTranscript: false,
-    hotkeys: HOTKEY_OPTIONS,
     hotkey: settings.get().hotkey,
     hotkeyOk: false,
   }
   let tray
   let controller
   let onStateForTests
+  let onPrefsForTests
   let refreshServer = async () => {}
   const events = listenToRenderer(indicator, {
     started: () => controller.recorderStarted(),
@@ -167,37 +176,77 @@ app.whenReady().then(async () => {
 
   if (recordTestMs) return runRecordTest({ indicator, durationMs: recordTestMs, ensureAccess, events, sendCommand })
 
-  const hotkey = createHotkey(globalShortcut, () => controller.toggle())
-  const applyHotkey = (accelerator) => {
-    const ok = hotkey.use(accelerator)
-    if (ok) settings.set({ hotkey: accelerator })
-    renderView({ hotkey: accelerator, hotkeyOk: ok })
+  let preferences
+  // The hotkey is suspended while a new shortcut is being recorded; the check is a second guard.
+  const onHotkey = () => {
+    if (!preferences.isCapturing()) controller.toggle()
   }
+  const hotkey = createHotkey(globalShortcut, onHotkey)
   app.on('will-quit', () => hotkey.release())
+
+  // One Settings window at most. Key presses go to the shortcut recorder, not the page, while it
+  // listens, so menu shortcuts like ⌘Q or ⌘W are captured instead of acting.
+  const settingsWindows = createSettingsWindows(() =>
+    createSettingsWindow({
+      url: settingsUrl,
+      onKey: (event, input) => {
+        if (!preferences.isCapturing()) return
+        event.preventDefault()
+        preferences.captureKey(input)
+      },
+      onLeave: () => preferences.cancelCapture(),
+    }),
+    { activate: bringToFront },
+  )
+
+  preferences = createPreferences({
+    settings,
+    hotkey,
+    levels: REFINEMENT_LEVEL_OPTIONS,
+    // Keeps the menu bar and the Settings window showing the same shortcut and level.
+    onChange: (prefs) => {
+      renderView({ hotkey: prefs.shortcut, hotkeyOk: prefs.shortcutOk, level: prefs.level })
+      onPrefsForTests?.(prefs)
+      const win = settingsWindows.get()
+      if (win && !win.webContents.isDestroyed()) win.webContents.send('settings:view', prefs)
+    },
+  })
+  handleSettingsRequests({
+    ipcMain,
+    getWindow: settingsWindows.get,
+    appUrl: settingsUrl,
+    preferences,
+    // Key presses only reach a focused window, and leaving it ends the capture.
+    focusWindow: () => settingsWindows.get() && bringToFront(settingsWindows.get()),
+  })
 
   tray = createTray({
     iconDir,
     actions: {
       toggle: () => controller.toggle(),
-      setHotkey: (accelerator) => applyHotkey(accelerator),
-      setLevel: (level) => renderView({ level: settings.set({ refinementLevel: level }).refinementLevel }),
+      setLevel: (level) => preferences.setLevel(level),
       copyLast: () => controller.copyLast(),
       openMicrophoneSettings: () => openMicrophoneSettings(),
+      // Opening Settings leaves any dictation in progress alone.
+      openSettings: () => settingsWindows.open(),
       quit: () => app.quit(),
     },
   })
-  applyHotkey(settings.get().hotkey)
+  preferences.start()
 
   // Tests drive the app over stdin when DICTATOR_E2E=1 (see src/main/e2e.js). Never in the
   // packaged app.
   if (process.env.DICTATOR_E2E === '1' && !app.isPackaged) {
-    onStateForTests = attachE2E({
+    ;({ onState: onStateForTests, onPrefs: onPrefsForTests } = attachE2E({
       controller,
       indicator,
       clipboard,
       getView: () => view,
-      setLevel: (level) => renderView({ level: settings.set({ refinementLevel: level }).refinementLevel }),
-    })
+      setLevel: (level) => preferences.setLevel(level),
+      preferences,
+      settingsWindows,
+      hotkey: { press: onHotkey, isRegistered: (accelerator) => globalShortcut.isRegistered(accelerator) },
+    }))
   }
 
   // Keep what was said when the Mac sleeps or locks mid-recording.

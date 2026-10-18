@@ -1,4 +1,6 @@
-import { app } from 'electron'
+import path from 'node:path'
+import { BrowserWindow, app } from 'electron'
+import { secureWebPreferences } from './security.js'
 
 function waitForLoad(win) {
   return new Promise((resolve) => {
@@ -16,11 +18,20 @@ function report(name, result) {
  * --self-check: loads everything, calls the backend once, prints the result and quits.
  * Used by tests/integration to check development and packaged builds the same way.
  */
-export async function runSelfCheck({ indicator, apiBaseUrl, checkServer }) {
+export async function runSelfCheck({ indicator, apiBaseUrl, checkServer, settingsUrl }) {
   await waitForLoad(indicator)
   const renderer = await indicator.webContents.executeJavaScript(`({
     indicator: Boolean(document.querySelector('[data-indicator]')),
     bridge: typeof window.dictator === 'object',
+    node: typeof require !== 'undefined' || typeof process !== 'undefined',
+  })`)
+  // The Settings page and its preload load (hidden; nothing answers its requests here).
+  const settingsWindow = new BrowserWindow({ show: false, webPreferences: secureWebPreferences(path.join(import.meta.dirname, '../preload/settings.cjs')) })
+  await settingsWindow.loadURL(settingsUrl)
+  const settings = await settingsWindow.webContents.executeJavaScript(`({
+    title: document.title,
+    bridge: typeof window.dictatorSettings === 'object' && typeof window.dictatorSettings.startCapture === 'function',
+    ipcRenderer: typeof window.ipcRenderer !== 'undefined' || typeof window.dictatorSettings?.send !== 'undefined',
     node: typeof require !== 'undefined' || typeof process !== 'undefined',
   })`)
   const server = await checkServer()
@@ -29,6 +40,7 @@ export async function runSelfCheck({ indicator, apiBaseUrl, checkServer }) {
     packaged: app.isPackaged,
     visible: indicator.isVisible(),
     renderer,
+    settings,
     server: server.state,
     transcriptionModel: server.health?.transcriptionModel ?? null,
     error: server.error ?? null,

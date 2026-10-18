@@ -16,10 +16,11 @@ const STATUS_LABELS = {
 
 /**
  * view: { version, phase, outcome, message, code, serverState, level, levels, hasLastTranscript,
- *         hotkey, hotkeyOk, hotkeys }
+ *         hotkey, hotkeyOk }
  *   levels: [{ value, label, description }] from the web app's refinementLevels.js
- *   hotkeys: [{ accelerator, label }]; hotkeyOk is false when another app owns the hotkey
- * actions: { toggle, setLevel(value), setHotkey(accelerator), copyLast, openMicrophoneSettings, quit }
+ *   hotkeyOk is false when another app owns the hotkey
+ * actions: { toggle, setLevel(value), copyLast, openMicrophoneSettings, openSettings, quit }
+ * The hotkey is chosen in the Settings window.
  */
 export function buildMenuTemplate(view, actions) {
   const { phase } = view
@@ -37,7 +38,7 @@ export function buildMenuTemplate(view, actions) {
     },
   ]
   if (view.hotkey && view.hotkeyOk === false) {
-    template.push({ label: 'Hotkey unavailable: another app uses it. Choose another below.', enabled: false })
+    template.push({ label: 'Hotkey unavailable: another app uses it. Choose another in Settings.', enabled: false })
   }
   template.push({ label: 'Copy Last Transcript', enabled: Boolean(view.hasLastTranscript), click: actions.copyLast })
   if (view.levels) {
@@ -51,17 +52,6 @@ export function buildMenuTemplate(view, actions) {
       })),
     })
   }
-  if (view.hotkeys) {
-    template.push({
-      label: 'Hotkey',
-      submenu: view.hotkeys.map((option) => ({
-        label: option.label,
-        type: 'radio',
-        checked: option.accelerator === view.hotkey,
-        click: () => actions.setHotkey(option.accelerator),
-      })),
-    })
-  }
   if (view.code === 'permission-denied') {
     template.push({ label: 'Open Microphone Settings…', click: actions.openMicrophoneSettings })
   }
@@ -69,6 +59,7 @@ export function buildMenuTemplate(view, actions) {
     { type: 'separator' },
     { label: SERVER_LABELS[view.serverState] ?? SERVER_LABELS.checking, enabled: false },
     { type: 'separator' },
+    { label: 'Settings…', accelerator: 'Command+,', registerAccelerator: false, click: actions.openSettings },
     { label: 'Quit Dictator', accelerator: 'Command+Q', click: actions.quit },
   )
   return template

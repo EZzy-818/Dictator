@@ -3,10 +3,17 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createSettings } from '../src/main/settings.js'
+import { validateShortcut } from '../src/shared/shortcut.js'
 
 let dir
 let file
-const options = { defaults: { hotkey: 'Control+Alt+Space' }, isValidHotkey: (value) => ['Control+Alt+Space', 'Control+Alt+D'].includes(value) }
+const options = {
+  defaults: { hotkey: 'Control+Alt+Space' },
+  normalizeHotkey: (value) => {
+    const checked = validateShortcut(value)
+    return checked.ok ? checked.accelerator : null
+  },
+}
 
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dictator-settings-'))
@@ -31,7 +38,21 @@ describe('createSettings', () => {
     expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space' })
   })
 
+  it('keeps a custom shortcut, stored in canonical form', () => {
+    fs.writeFileSync(file, JSON.stringify({ refinementLevel: 'none', hotkey: 'Command+Shift+d' }))
+    expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'none', hotkey: 'Shift+Command+D' })
+  })
+
+  it('recovers from settings of the wrong shape', () => {
+    for (const content of ['null', '[]', '"text"', JSON.stringify({ hotkey: 42, refinementLevel: ['x'] }), JSON.stringify({ hotkey: 'Shift+D' })]) {
+      fs.writeFileSync(file, content)
+      expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space' })
+    }
+  })
+
   it('refuses invalid choices', () => {
+    expect(() => createSettings(file, options).set({ hotkey: 'Command+C' })).toThrow()
+    expect(() => createSettings(file, options).set({ hotkey: 'Command+Shift+D' })).toThrow()
     const settings = createSettings(file, options)
     expect(() => settings.set({ refinementLevel: 'heavy' })).toThrow()
     expect(settings.get().refinementLevel).toBe('light')
