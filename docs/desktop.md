@@ -16,6 +16,10 @@ It lives in `desktop/` as its own npm package. The web frontend (`frontend/`, on
 - If the Mac sleeps or locks while recording, what was said so far is transcribed and copied.
 - English, Mandarin, Hindi and mixed speech work as on the web: the backend detects the language.
 
+### Menu bar icon not showing
+
+macOS 26 can keep a new app's icon out of the menu bar, and on MacBooks with a notch a full menu bar hides icons behind it. Turn on Dictator (or "Electron" when running `npm run dev:desktop`) in System Settings › Menu Bar › Allow in the Menu Bar, or quit a few other menu bar apps. The hotkey works either way.
+
 ### Microphone permission
 
 The first recording asks for microphone access. If it was denied, the pill says so and the menu offers **Open Microphone Settings…** (System Settings › Privacy & Security › Microphone). Turn on Dictator there and try again.
