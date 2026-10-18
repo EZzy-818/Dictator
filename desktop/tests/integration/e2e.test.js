@@ -73,9 +73,13 @@ function start() {
   }
   const send = (text) => child.stdin.write(`${text}\n`)
   const states = () => lines.filter((entry) => entry.name === 'DICTATOR_STATE').map((entry) => entry.value)
+  // Resolves once the app has exited, so its profile folder can be removed.
   const quit = () => {
+    if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
+    const exited = new Promise((resolve) => child.once('exit', resolve))
     send('quit')
-    setTimeout(() => child.kill('SIGKILL'), 3000)
+    const timer = setTimeout(() => child.kill('SIGKILL'), 3000)
+    return exited.then(() => clearTimeout(timer))
   }
   return { send, waitFor, states, quit, child }
 }

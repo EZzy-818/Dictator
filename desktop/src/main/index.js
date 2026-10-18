@@ -49,6 +49,9 @@ app.on('web-contents-created', (event, contents) => {
 // A menu bar app keeps running with no windows open; it quits from the tray menu.
 app.on('window-all-closed', () => {})
 
+const SERVER_RETRIES = 3
+const SERVER_RETRY_MS = 15_000
+
 async function checkServer() {
   try {
     const health = await getHealth()
@@ -201,7 +204,19 @@ app.whenReady().then(async () => {
   powerMonitor.on('suspend', () => controller.interrupt())
   powerMonitor.on('lock-screen', () => controller.interrupt())
   // Checking early also wakes the backend, which sleeps when idle on Render's free plan.
-  refreshServer = async () => renderView({ serverState: (await checkServer()).state })
+  // A cold start can outlast one health check, so an unreachable server is retried a few times
+  // (showing "checking") before the menu says so.
+  let retry
+  refreshServer = async (attemptsLeft = SERVER_RETRIES) => {
+    clearTimeout(retry)
+    const { state } = await checkServer()
+    if (state === 'unreachable' && attemptsLeft > 0) {
+      renderView({ serverState: 'checking' })
+      retry = setTimeout(() => refreshServer(attemptsLeft - 1), SERVER_RETRY_MS)
+      return
+    }
+    renderView({ serverState: state })
+  }
 
   // A crashed recorder page is reloaded; a dictation it was part of ends with an error.
   indicator.webContents.on('render-process-gone', () => {
@@ -211,6 +226,6 @@ app.whenReady().then(async () => {
   })
   // Release the microphone if the app quits mid-recording.
   app.on('before-quit', () => sendCommand({ type: 'cancel' }))
-  powerMonitor.on('resume', refreshServer)
+  powerMonitor.on('resume', () => refreshServer())
   refreshServer()
 })
