@@ -74,3 +74,48 @@ export async function runRecordTest({ indicator, durationMs, ensureAccess, event
     ...result,
   })
 }
+
+const AUDIO_TYPES = { '.webm': 'audio/webm', '.mp4': 'audio/mp4', '.m4a': 'audio/mp4', '.ogg': 'audio/ogg' }
+
+/**
+ * --transcribe-test=FILE [--level=none|light|medium]: sends an audio file through the same
+ * controller, API client and clipboard as a real dictation, without the microphone, and prints
+ * the outcome and what the clipboard holds. The clipboard is set to a marker first, so a failure
+ * that leaves it untouched is visible.
+ */
+export async function runTranscribeTest({ file, level, transcribe, copy, clipboard, createController, fileSystem }) {
+  const marker = `dictator-marker-${Date.now()}`
+  await clipboard.writeText(marker)
+  const bytes = fileSystem.readFileSync(file)
+  const mimeType = AUDIO_TYPES[file.slice(file.lastIndexOf('.')).toLowerCase()] ?? 'audio/webm'
+  const recording = { blob: new Blob([bytes], { type: mimeType }), mimeType, durationMs: 0 }
+  let controller
+  const done = new Promise((resolve) => {
+    controller = createController({
+      recorder: { start: () => queueMicrotask(() => controller.recorderStarted()), stop: () => {}, cancel: () => {} },
+      microphone: { ensureAccess: async () => 'granted' },
+      transcribe,
+      copy,
+      getLevel: () => level,
+      onChange: (state) => state.phase === 'done' && resolve(state),
+      now: (() => {
+        let clock = 0
+        return () => (clock += 1000)
+      })(),
+    })
+  })
+  await controller.toggle()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  controller.toggle()
+  controller.recordingReady(recording)
+  const state = await done
+  const held = await clipboard.readText()
+  report('DICTATOR_TRANSCRIBE_TEST', {
+    level,
+    outcome: state.outcome,
+    message: state.message,
+    code: state.code ?? null,
+    clipboard: held === marker ? null : held,
+    clipboardUntouched: held === marker,
+  })
+}

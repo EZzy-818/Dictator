@@ -20,7 +20,7 @@ export const SLOW_MS = 10_000
  *   recorder: { start({ measure }), stop(), cancel() }  commands to the renderer
  *   microphone: { ensureAccess() }  → 'granted' | 'denied' | 'restricted'
  *   transcribe(recording, level) → { rawTranscript, polishedTranscript, refinementStatus }
- *   copy(text) → true when the clipboard now holds text
+ *   copy(text) → Promise<true> when the clipboard now holds text
  *   getLevel() → 'none' | 'light' | 'medium'
  *   onChange(state)  called with every new state
  *   now, setTimeout, clearTimeout  injectable for tests
@@ -167,14 +167,16 @@ export function createController({
       const text = refined ? data.polishedTranscript : raw
       if (!text.trim()) return finish('failed', MESSAGES.noSpeech, { code: 'no_speech' })
       lastTranscript = text
-      if (!copy(text)) return finish('copy_failed', MESSAGES.copyFailed, { code: 'clipboard' })
+      const copied = await copy(text)
+      if (id !== session) return
+      if (!copied) return finish('copy_failed', MESSAGES.copyFailed, { code: 'clipboard' })
       finish(refined ? 'refined' : 'raw', refined ? MESSAGES.copied : MESSAGES.copiedRaw, { level })
     },
 
     /** Tray item: copy the last transcript again, for example after a clipboard failure. */
-    copyLast() {
+    async copyLast() {
       if (!lastTranscript) return false
-      const ok = copy(lastTranscript)
+      const ok = await copy(lastTranscript)
       notice(ok ? MESSAGES.recopied : MESSAGES.copyFailed)
       return ok
     },

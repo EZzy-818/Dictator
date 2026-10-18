@@ -11,7 +11,7 @@ function setup(overrides = {}) {
     recorder: { start: vi.fn(), stop: vi.fn(), cancel: vi.fn() },
     microphone: { ensureAccess: vi.fn(async () => 'granted') },
     transcribe: vi.fn(async () => ({ rawTranscript: 'um hello', polishedTranscript: 'Hello.', refinementStatus: 'success' })),
-    copy: vi.fn(() => true),
+    copy: vi.fn(async () => true),
     getLevel: vi.fn(() => 'light'),
     onChange: (state) => states.push(state),
     now: () => clock,
@@ -98,12 +98,12 @@ describe('controller', () => {
   })
 
   it('reports a clipboard failure and can copy the transcript again', async () => {
-    const copy = vi.fn().mockReturnValueOnce(false).mockReturnValue(true)
+    const copy = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true)
     const t = setup({ copy })
     await dictate(t)
     expect(t.controller.getState()).toMatchObject({ outcome: 'copy_failed', code: 'clipboard' })
     expect(t.controller.getLastTranscript()).toBe('Hello.')
-    expect(t.controller.copyLast()).toBe(true)
+    expect(await t.controller.copyLast()).toBe(true)
     expect(copy).toHaveBeenLastCalledWith('Hello.')
   })
 

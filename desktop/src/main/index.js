@@ -1,7 +1,10 @@
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, ipcMain, powerMonitor } from 'electron'
-import { API_BASE_URL, getHealth } from './api.js'
+import fs from 'node:fs'
+import { app, clipboard, ipcMain, powerMonitor } from 'electron'
+import { REFINEMENT_LEVEL_OPTIONS } from '@frontend/refinementLevels.js'
+import { API_BASE_URL, getHealth, processAudio } from './api.js'
+import { createCopy } from './clipboard.js'
 import { createController } from './controller.js'
 import { createIndicatorWindow, hideIndicator, showIndicator } from './indicator.js'
 import { isTrustedSender, parseRecorderError, parseRecording } from './ipc.js'
@@ -9,11 +12,14 @@ import { RECORDER_MESSAGES } from './messages.js'
 import { ensureMicrophoneAccess, openMicrophoneSettings } from './microphone.js'
 import { installPermissionHandlers } from './permissions.js'
 import { isAppUrl } from './security.js'
-import { runRecordTest, runSelfCheck } from './selftest.js'
+import { runRecordTest, runSelfCheck, runTranscribeTest } from './selftest.js'
+import { createSettings } from './settings.js'
 import { createTray } from './tray.js'
 
 const selfCheck = process.argv.includes('--self-check')
-const recordTestMs = Number(process.argv.find((arg) => arg.startsWith('--record-test='))?.split('=')[1]) || 0
+const argValue = (name) => process.argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3)
+const recordTestMs = Number(argValue('record-test')) || 0
+const transcribeTestFile = argValue('transcribe-test')
 // Tests run with Chromium's fake microphone, which needs no macOS permission.
 const fakeDevice = app.commandLine.hasSwitch('use-fake-device-for-media-stream')
 
@@ -74,28 +80,54 @@ app.whenReady().then(async () => {
 
   if (selfCheck) return runSelfCheck({ indicator, apiBaseUrl: API_BASE_URL, checkServer })
 
-  let view = { version: app.getVersion(), phase: 'idle', serverState: 'checking' }
-  let tray
+  const settings = createSettings(path.join(app.getPath('userData'), 'settings.json'), {
+    defaults: { hotkey: 'Control+Alt+Space' },
+  })
+  // The same request the web app makes: batch transcription, then refinement at the chosen level.
+  const transcribe = (recording, level) => processAudio(recording, level)
+  const copy = createCopy(clipboard)
 
-  const controller = createController({
+  if (transcribeTestFile) {
+    const level = argValue('level') ?? settings.get().refinementLevel
+    return runTranscribeTest({ file: transcribeTestFile, level, transcribe, copy, clipboard, createController, fileSystem: fs })
+  }
+
+  let view = {
+    version: app.getVersion(),
+    phase: 'idle',
+    serverState: 'checking',
+    levels: REFINEMENT_LEVEL_OPTIONS,
+    level: settings.get().refinementLevel,
+    hasLastTranscript: false,
+  }
+  let tray
+  let controller
+  const renderView = (patch) => {
+    view = { ...view, ...patch }
+    tray?.render(view)
+  }
+
+  controller = createController({
     recorder: {
       start: ({ measure }) => sendCommand({ type: 'start', measure }),
       stop: () => sendCommand({ type: 'stop' }),
       cancel: () => sendCommand({ type: 'cancel' }),
     },
     microphone: { ensureAccess },
-    // D1: no backend yet. Report the recording so it can be checked by hand.
-    transcribe: async (recording) => {
-      throw new Error(`Recorded ${(recording.blob.size / 1024).toFixed(0)} KB (${recording.mimeType}). Transcription arrives in D2.`)
-    },
-    copy: () => false,
-    getLevel: () => 'light',
+    transcribe,
+    copy,
+    getLevel: () => settings.get().refinementLevel,
     onChange: (state) => {
-      view = { version: view.version, serverState: view.serverState, ...state, message: state.notice ?? state.message }
       if (!indicator.isDestroyed()) indicator.webContents.send('indicator:state', state)
       if (state.phase === 'idle' && !state.notice) hideIndicator(indicator)
       else showIndicator(indicator)
-      tray?.render(view)
+      renderView({
+        phase: state.phase,
+        outcome: state.outcome,
+        code: state.code,
+        message: state.notice ?? state.message,
+        hasLastTranscript: Boolean(controller?.getLastTranscript()),
+      })
     },
   })
 
@@ -111,6 +143,8 @@ app.whenReady().then(async () => {
     iconDir,
     actions: {
       toggle: () => controller.toggle(),
+      setLevel: (level) => renderView({ level: settings.set({ refinementLevel: level }).refinementLevel }),
+      copyLast: () => controller.copyLast(),
       openMicrophoneSettings: () => openMicrophoneSettings(),
       quit: () => app.quit(),
     },
@@ -121,10 +155,7 @@ app.whenReady().then(async () => {
   powerMonitor.on('suspend', () => controller.interrupt())
   powerMonitor.on('lock-screen', () => controller.interrupt())
   // Checking early also wakes the backend, which sleeps when idle on Render's free plan.
-  const refreshServer = async () => {
-    view = { ...view, serverState: (await checkServer()).state }
-    tray.render(view)
-  }
+  const refreshServer = async () => renderView({ serverState: (await checkServer()).state })
   powerMonitor.on('resume', refreshServer)
   refreshServer()
 })

@@ -14,7 +14,15 @@ export default defineConfig({
       {
         extends: true,
         // Builds the app and launches Electron, so slower than the unit tests.
-        test: { name: 'integration', include: ['tests/integration/*.test.js'], environment: 'node', testTimeout: 180_000, hookTimeout: 180_000 },
+        test: {
+          name: 'integration',
+          include: ['tests/integration/*.test.js'],
+          environment: 'node',
+          // The files share desktop/out, so they run one at a time.
+          fileParallelism: false,
+          testTimeout: 180_000,
+          hookTimeout: 180_000,
+        },
       },
     ],
   },

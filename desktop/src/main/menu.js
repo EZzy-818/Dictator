@@ -15,8 +15,9 @@ const STATUS_LABELS = {
 }
 
 /**
- * view: { version, phase, outcome, message, code, serverState }
- * actions: { toggle, openMicrophoneSettings, quit }
+ * view: { version, phase, outcome, message, code, serverState, level, levels, hasLastTranscript }
+ *   levels: [{ value, label, description }] from the web app's refinementLevels.js
+ * actions: { toggle, setLevel(value), copyLast, openMicrophoneSettings, quit }
  */
 export function buildMenuTemplate(view, actions) {
   const { phase } = view
@@ -31,6 +32,18 @@ export function buildMenuTemplate(view, actions) {
       click: actions.toggle,
     },
   ]
+  template.push({ label: 'Copy Last Transcript', enabled: Boolean(view.hasLastTranscript), click: actions.copyLast })
+  if (view.levels) {
+    template.push({
+      label: 'Refinement',
+      submenu: view.levels.map((option) => ({
+        label: `${option.label} — ${option.description}`,
+        type: 'radio',
+        checked: option.value === view.level,
+        click: () => actions.setLevel(option.value),
+      })),
+    })
+  }
   if (view.code === 'permission-denied') {
     template.push({ label: 'Open Microphone Settings…', click: actions.openMicrophoneSettings })
   }
