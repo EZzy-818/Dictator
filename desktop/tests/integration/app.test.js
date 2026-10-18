@@ -46,11 +46,11 @@ function build(mode, apiBaseUrl) {
   return run(bin('electron-vite'), ['build', '--mode', mode], { cwd: desktopRoot, env })
 }
 
-// Launches the app and returns the self-check report it prints before quitting.
-function selfCheck(command, args = []) {
+// Launches the app and returns the report it prints before quitting (--self-check by default).
+function launch(command, args = [], { mode = '--self-check', report = 'DICTATOR_SELF_CHECK' } = {}) {
   // Containers run as root without a display: Chromium needs --no-sandbox there, and a virtual
   // X server. macOS needs neither.
-  const full = onLinux ? ['xvfb-run', ['-a', command, ...args, '--no-sandbox', '--self-check']] : [command, [...args, '--self-check']]
+  const full = onLinux ? ['xvfb-run', ['-a', command, ...args, '--no-sandbox', mode]] : [command, [...args, mode]]
   return new Promise((resolve, reject) => {
     const child = spawn(full[0], full[1], { cwd: desktopRoot, env: { ...process.env, ELECTRON_RENDERER_URL: '' } })
     let output = ''
@@ -59,9 +59,9 @@ function selfCheck(command, args = []) {
     const timer = setTimeout(() => child.kill('SIGKILL'), 60_000)
     child.on('close', () => {
       clearTimeout(timer)
-      const line = output.split('\n').find((l) => l.startsWith('DICTATOR_SELF_CHECK '))
-      if (!line) return reject(new Error(`No self-check report. Output:\n${output}`))
-      resolve(JSON.parse(line.slice('DICTATOR_SELF_CHECK '.length)))
+      const line = output.split('\n').find((l) => l.startsWith(`${report} `))
+      if (!line) return reject(new Error(`No ${report} report. Output:\n${output}`))
+      resolve(JSON.parse(line.slice(report.length + 1)))
     })
   })
 }
@@ -98,13 +98,25 @@ describe('desktop build and launch', () => {
   it('reaches the backend from a development build, without an Origin header', async () => {
     await build('development', baseUrl)
     requests.length = 0
-    expectHealthyReport(await selfCheck(electronBinary, ['.']), { packaged: false })
+    expectHealthyReport(await launch(electronBinary, ['.']), { packaged: false })
     expect(requests).toEqual([{ url: '/api/health', origin: null }])
+  })
+
+  it('records in the hidden window with a fake microphone', async () => {
+    // Uses the development build from the previous test. Chromium's fake device plays a beep.
+    const report = await launch(electronBinary, ['.', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'], {
+      mode: '--record-test=1500',
+      report: 'DICTATOR_RECORD_TEST',
+    })
+    expect(report).toMatchObject({ access: 'granted', visibleWhileRecording: false, mimeType: 'audio/webm;codecs=opus' })
+    expect(report.bytes).toBeGreaterThan(1000)
+    expect(report.durationMs).toBeGreaterThanOrEqual(1400)
+    expect(report.peak).toBeGreaterThan(0.01)
   })
 
   it('reaches the backend from a production build', async () => {
     await build('production', baseUrl)
-    expectHealthyReport(await selfCheck(electronBinary, ['.']), { packaged: false })
+    expectHealthyReport(await launch(electronBinary, ['.']), { packaged: false })
   })
 
   it.skipIf(process.env.DICTATOR_SKIP_PACKAGED === '1')('reaches the backend from the packaged app', async () => {
@@ -114,7 +126,7 @@ describe('desktop build and launch', () => {
       ? path.join(desktopRoot, 'release/linux-unpacked', 'dictator-desktop')
       : path.join(desktopRoot, `release/mac${process.arch === 'arm64' ? '-arm64' : ''}/Dictator.app/Contents/MacOS/Dictator`)
     requests.length = 0
-    expectHealthyReport(await selfCheck(executable), { packaged: true })
+    expectHealthyReport(await launch(executable), { packaged: true })
     expect(requests).toEqual([{ url: '/api/health', origin: null }])
   })
 })
