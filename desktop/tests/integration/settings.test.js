@@ -141,7 +141,7 @@ describe('Settings window', () => {
 
     app.send('settings-click reset')
     expect(await prefs((p) => p.shortcut === 'Control+Alt+Space')).toMatchObject({ registered: true, shortcutOk: true })
-    expect(JSON.parse(fs.readFileSync(path.join(profile, 'settings.json'), 'utf8'))).toEqual({ refinementLevel: 'medium', hotkey: 'Control+Alt+Space' })
+    expect(JSON.parse(fs.readFileSync(path.join(profile, 'settings.json'), 'utf8'))).toEqual({ refinementLevel: 'medium', hotkey: 'Control+Alt+Space', outputMode: 'copy' })
   })
 
   it('keeps the menu bar and the Settings window on the same refinement level', async () => {
@@ -154,6 +154,30 @@ describe('Settings window', () => {
     app.send('settings-level medium')
     await prefs((p) => p.level === 'medium')
     expect(await app.ask('view', 'DICTATOR_VIEW')).toMatchObject({ level: 'medium' })
+  })
+
+  it('chooses the output behavior in Settings or the menu bar, explains it, and keeps it', async () => {
+    await launch()
+    expect(await prefs()).toMatchObject({ outputMode: 'copy' })
+    await settingsText((text) => text.includes('Copy Only') && text.includes('Auto-Paste (experimental)') && text.includes('cannot tell whether that is the same field'))
+    expect(await app.ask('settings-output-checked', 'DICTATOR_CHECKED')).toBe('copy')
+    expect(await app.ask('settings-output paste', 'DICTATOR_CLICKED')).toBe(true)
+    await prefs((p) => p.outputMode === 'paste')
+    expect(await app.ask('view', 'DICTATOR_VIEW')).toMatchObject({ outputMode: 'paste' })
+    // Not macOS here, so no Accessibility status, and Settings says Auto-Paste is unavailable.
+    await settingsText((text) => text.includes('Auto-Paste is not available on this computer'))
+    if (process.env.DICTATOR_SCREENSHOTS) {
+      expect(await app.ask(`settings-screenshot ${path.join(process.env.DICTATOR_SCREENSHOTS, 'settings-output.png')}`, 'DICTATOR_SCREENSHOT')).toBe(true)
+    }
+    // Chosen in the menu bar: Settings follows.
+    app.send('output copy')
+    await until('settings-output-checked', 'DICTATOR_CHECKED', (mode) => mode === 'copy')
+    app.send('output paste')
+    await prefs((p) => p.outputMode === 'paste')
+    await app.quit()
+    await launch({ keepProfile: true })
+    expect(await prefs()).toMatchObject({ outputMode: 'paste' })
+    expect(await app.ask('settings-output-checked', 'DICTATOR_CHECKED')).toBe('paste')
   })
 
   it('opens one window, and closing it leaves the app running', async () => {

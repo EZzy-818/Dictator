@@ -98,6 +98,29 @@ describe.skipIf(!backendReady)('dictation end to end', () => {
     expect(done.message).toBe('Copied to clipboard')
   })
 
+  it('with Auto-Paste on, still copies, and says why it did not paste where it is unavailable', async () => {
+    refineFails = false
+    app = start()
+    await app.waitFor('DICTATOR_E2E_READY')
+    app.send('output paste')
+    app.send('toggle')
+    const recording = await app.waitFor('DICTATOR_STATE', (s) => s.phase === 'recording')
+    expect(recording.output).toBe('paste')
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+    app.send('toggle')
+    const done = await app.waitFor('DICTATOR_STATE', (s) => s.phase === 'done')
+    expect(done).toMatchObject({
+      outcome: 'refined',
+      output: 'paste',
+      delivery: 'skipped',
+      pasteReason: 'unsupported',
+      message: 'Copied to clipboard. Not pasted: Auto-Paste is not available on this computer.',
+    })
+    app.send('clipboard')
+    expect(await app.waitFor('DICTATOR_CLIPBOARD')).toBe('I think we should use PostgreSQL. 我觉得')
+    app.send('output copy')
+  })
+
   it('reports a too-short recording and copies nothing', async () => {
     app = start()
     await app.waitFor('DICTATOR_E2E_READY')

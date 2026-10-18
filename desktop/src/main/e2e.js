@@ -6,13 +6,16 @@ import { BrowserWindow, app } from 'electron'
  * and prints every state change as a DICTATOR_STATE line and every preference change as a
  * DICTATOR_PREFS line. Lets tests press the "hotkey" and use the Settings window without
  * synthesizing system key events. Commands:
- *   toggle, copy-last, clipboard, view, level <none|light|medium>, crash-renderer, quit
+ *   toggle, copy-last, clipboard, view, level <none|light|medium>, output <copy|paste>,
+ *   crash-renderer, quit
  *   press-hotkey                what the global hotkey does when pressed
  *   prefs                       print the preferences and whether the shortcut is registered
  *   open-settings, close-settings, settings-window
  *   settings-click <action>     click the Settings button with that data-action
  *   settings-level <level>      click that level's radio button
+ *   settings-output <mode>      click that output behavior's radio button
  *   settings-checked            print the level checked in the Settings window
+ *   settings-output-checked     print the output behavior checked there
  *   settings-key <json>         send a key event to the Settings window (webContents.sendInputEvent)
  *   settings-text               print the Settings window's text
  *   settings-screenshot <file>  save the Settings window's page as a PNG
@@ -28,6 +31,7 @@ export function attachE2E({ controller, indicator, clipboard, getView, setLevel,
     clipboard: async () => print('DICTATOR_CLIPBOARD', await clipboard.readText()),
     view: () => print('DICTATOR_VIEW', getView()),
     level: (value) => setLevel(value),
+    output: (value) => preferences.setOutputMode(value),
     'crash-renderer': () => indicator.webContents.forcefullyCrashRenderer(),
     quit: () => app.quit(),
     'press-hotkey': () => hotkey.press(),
@@ -51,7 +55,12 @@ export function attachE2E({ controller, indicator, clipboard, getView, setLevel,
       if (!/^\w+$/.test(level)) return
       print('DICTATOR_CLICKED', await inSettings(`(() => { const r = document.querySelector('input[value="${level}"]'); r?.click(); return Boolean(r) })()`))
     },
+    'settings-output': async (mode) => {
+      if (!/^\w+$/.test(mode)) return
+      print('DICTATOR_CLICKED', await inSettings(`(() => { const r = document.querySelector('input[name="output"][value="${mode}"]'); r?.click(); return Boolean(r) })()`))
+    },
     'settings-checked': async () => print('DICTATOR_CHECKED', await inSettings(`document.querySelector('input[name="level"]:checked')?.value ?? null`)),
+    'settings-output-checked': async () => print('DICTATOR_CHECKED', await inSettings(`document.querySelector('input[name="output"]:checked')?.value ?? null`)),
     'settings-key': (json) => settingsWindows.get()?.webContents.sendInputEvent(JSON.parse(json)),
     'settings-screenshot': async (file) => {
       const image = await settingsWindows.get()?.webContents.capturePage()

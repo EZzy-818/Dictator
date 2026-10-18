@@ -22,32 +22,40 @@ beforeEach(() => {
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }))
 
 describe('createSettings', () => {
-  it('starts with Light and the default hotkey', () => {
-    expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space' })
+  it('starts with Light, the default hotkey and Copy Only', () => {
+    expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space', outputMode: 'copy' })
   })
 
   it('saves choices and reads them back on the next launch', () => {
     createSettings(file, options).set({ refinementLevel: 'medium', hotkey: 'Control+Alt+D' })
-    expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'medium', hotkey: 'Control+Alt+D' })
+    expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'medium', hotkey: 'Control+Alt+D', outputMode: 'copy' })
   })
 
   it('ignores a damaged file and unknown values', () => {
     fs.writeFileSync(file, '{not json')
     expect(createSettings(file, options).get().refinementLevel).toBe('light')
     fs.writeFileSync(file, JSON.stringify({ refinementLevel: 'heavy', hotkey: 'Command+Q' }))
-    expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space' })
+    expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space', outputMode: 'copy' })
   })
 
   it('keeps a custom shortcut, stored in canonical form', () => {
     fs.writeFileSync(file, JSON.stringify({ refinementLevel: 'none', hotkey: 'Command+Shift+d' }))
-    expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'none', hotkey: 'Shift+Command+D' })
+    expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'none', hotkey: 'Shift+Command+D', outputMode: 'copy' })
   })
 
   it('recovers from settings of the wrong shape', () => {
     for (const content of ['null', '[]', '"text"', JSON.stringify({ hotkey: 42, refinementLevel: ['x'] }), JSON.stringify({ hotkey: 'Shift+D' })]) {
       fs.writeFileSync(file, content)
-      expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space' })
+      expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space', outputMode: 'copy' })
     }
+  })
+
+  it('saves the output behavior and ignores an unknown one', () => {
+    createSettings(file, options).set({ outputMode: 'paste' })
+    expect(createSettings(file, options).get().outputMode).toBe('paste')
+    fs.writeFileSync(file, JSON.stringify({ outputMode: 'type' }))
+    expect(createSettings(file, options).get().outputMode).toBe('copy')
+    expect(() => createSettings(file, options).set({ outputMode: 'type' })).toThrow()
   })
 
   it('refuses invalid choices', () => {

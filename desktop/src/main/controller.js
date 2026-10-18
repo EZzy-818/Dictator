@@ -1,7 +1,7 @@
-import { MESSAGES, recorderMessage } from './messages.js'
+import { MESSAGES, deliveryMessage, recorderMessage } from './messages.js'
 
 // How long each result stays on screen before the indicator hides.
-export const RESULT_MS = { refined: 1500, raw: 4000, failed: 5000, copy_failed: 6000, notice: 1500 }
+export const RESULT_MS = { refined: 1500, raw: 4000, failed: 5000, copy_failed: 6000, notice: 1500, pasteNote: 4000 }
 // Presses closer together than this are one press (key repeat, a double tap).
 export const DEBOUNCE_MS = 300
 // A recording whose loudest sample is below this is digital silence (muted or disconnected
@@ -18,6 +18,9 @@ export const SLOW_MS = 10_000
  * outcome (when done): 'refined' | 'raw' | 'failed' | 'copy_failed'
  *   refined: final text copied. raw: refinement failed, raw transcript copied.
  *   failed: nothing copied, clipboard untouched. copy_failed: transcript ready, clipboard refused.
+ * output (from when recording started): 'copy' | 'paste'. With 'paste', a refined or raw result
+ *   also carries delivery: 'pasted' | 'attempted' | 'skipped' (and pasteReason when skipped);
+ *   the text is on the clipboard in every case.
  *
  * deps:
  *   recorder: { start(), stop(), cancel() }  commands to the renderer
@@ -25,6 +28,8 @@ export const SLOW_MS = 10_000
  *   transcribe(recording, level) → { rawTranscript, polishedTranscript, refinementStatus }
  *   copy(text) → Promise<true> when the clipboard now holds text
  *   getLevel() → 'none' | 'light' | 'medium'
+ *   getOutputMode() → 'copy' | 'paste'
+ *   autoPaste: { captureTarget(), paste(text, target) }  see autoPaste.js; only used for 'paste'
  *   onChange(state)  called with every new state
  *   now, setTimeout, clearTimeout  injectable for tests
  */
@@ -34,6 +39,8 @@ export function createController({
   transcribe,
   copy,
   getLevel,
+  getOutputMode = () => 'copy',
+  autoPaste = null,
   onChange = () => {},
   now = Date.now,
   setTimeout: setTimer = globalThis.setTimeout,
@@ -48,6 +55,10 @@ export function createController({
   let noticeTimer = null
   // True from receiving the audio until the transcription request settles.
   let transcribing = false
+  // Auto-Paste: the app in front when this session's recording started, and the last session
+  // that tried to paste, so a session never sends ⌘V twice.
+  let target = null
+  let pastedSession = 0
 
   function set(next) {
     state = next
@@ -65,9 +76,11 @@ export function createController({
     clearTimers()
     const id = session
     set({ phase: 'done', outcome, message, ...extra })
+    // A paste that was skipped or not confirmed stays up long enough to read why.
+    const ms = extra.delivery && extra.delivery !== 'pasted' ? Math.max(RESULT_MS[outcome], RESULT_MS.pasteNote) : RESULT_MS[outcome]
     resultTimer = setTimer(() => {
       if (id === session && state.phase === 'done') set({ phase: 'idle' })
-    }, RESULT_MS[outcome])
+    }, ms)
   }
 
   // A short message over the current state, without changing the phase.
@@ -80,7 +93,10 @@ export function createController({
   async function begin() {
     clearTimers()
     const id = ++session
-    set({ phase: 'starting', message: MESSAGES.starting, level: getLevel() })
+    const output = autoPaste && getOutputMode() === 'paste' ? 'paste' : 'copy'
+    // Read before anything of Dictator's can come to the front.
+    target = output === 'paste' ? autoPaste.captureTarget() : null
+    set({ phase: 'starting', message: MESSAGES.starting, level: getLevel(), output })
     let access
     try {
       access = await microphone.ensureAccess()
@@ -188,7 +204,18 @@ export function createController({
       const copied = await copy(text)
       if (id !== session) return
       if (!copied) return finish('copy_failed', MESSAGES.copyFailed, { code: 'clipboard' })
-      finish(refined ? 'refined' : 'raw', refined ? MESSAGES.copied : MESSAGES.copiedRaw, { level })
+      const output = state.output ?? 'copy'
+      let paste = {}
+      if (output === 'paste') {
+        if (pastedSession === id) return
+        pastedSession = id
+        const result = await autoPaste.paste(text, await target)
+        if (id !== session) return
+        paste = { delivery: result.delivery, ...(result.reason ? { pasteReason: result.reason } : {}) }
+        if (result.reason === 'accessibility') paste.code = 'accessibility'
+      }
+      const message = deliveryMessage({ refined, output, delivery: paste.delivery, reason: paste.pasteReason })
+      finish(refined ? 'refined' : 'raw', message, { level, output, ...paste })
     },
 
     /** Tray item: copy the last transcript again, for example after a clipboard failure. */

@@ -26,7 +26,7 @@ export default function Indicator({ view = { phase: 'idle' }, stream = null }) {
   const tone = toneOf(view)
   const text = view.notice ?? (view.phase === 'recording' ? `Recording ${formatDuration(elapsed)}` : view.message ?? 'Dictator')
   return (
-    <div className={`indicator tone-${tone}`} data-indicator data-phase={view.phase} data-outcome={view.outcome ?? ''} role="status">
+    <div className={`indicator tone-${tone}`} data-indicator data-phase={view.phase} data-outcome={view.outcome ?? ''} data-delivery={view.delivery ?? ''} role="status">
       <span className="dot" aria-hidden="true" />
       <span className="label">{text}</span>
       {view.phase === 'recording' && (

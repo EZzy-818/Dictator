@@ -26,6 +26,32 @@ export const MESSAGES = {
   silent: 'No sound reached the microphone. Check the input in System Settings › Sound (a closed MacBook lid turns off the built-in microphone).',
   copyFailed: 'Could not copy to the clipboard. Use Copy Last Transcript in the menu bar.',
   recopied: 'Copied last transcript again',
+  // Auto-Paste. "Pasted" only when the text field's length changed by exactly the text's length.
+  pasted: 'Pasted',
+  pastedRaw: 'Pasted raw transcript (refinement failed)',
+  pasteAttempted: 'Paste attempted. The text is also on the clipboard.',
+  pasteAttemptedRaw: 'Paste attempted with the raw transcript (refinement failed). Also on the clipboard.',
+}
+
+// Why Auto-Paste did not paste, after "Copied to clipboard. Not pasted: ".
+export const PASTE_SKIPPED = {
+  unsupported: 'Auto-Paste is not available on this computer.',
+  accessibility: 'Dictator needs Accessibility access (see Settings).',
+  'no-app': 'the app you were in could not be detected.',
+  self: 'Dictator was the active app.',
+  'app-changed': 'you switched apps.',
+  secure: 'password fields are never pasted into.',
+  'no-target': 'no text field was detected.',
+  failed: 'macOS did not respond.',
+}
+
+/** What the pill says after a successful dictation, for each Auto-Paste result. */
+export function deliveryMessage({ refined, output, delivery, reason }) {
+  const copied = refined ? MESSAGES.copied : MESSAGES.copiedRaw
+  if (output !== 'paste') return copied
+  if (delivery === 'pasted') return refined ? MESSAGES.pasted : MESSAGES.pastedRaw
+  if (delivery === 'attempted') return refined ? MESSAGES.pasteAttempted : MESSAGES.pasteAttemptedRaw
+  return `${copied}. Not pasted: ${PASTE_SKIPPED[reason] ?? PASTE_SKIPPED.failed}`
 }
 
 export function recorderMessage(code) {

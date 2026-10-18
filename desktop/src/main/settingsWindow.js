@@ -3,7 +3,7 @@ import { BrowserWindow, app, nativeTheme } from 'electron'
 import { secureWebPreferences } from './security.js'
 
 export const SETTINGS_WIDTH = 520
-export const SETTINGS_HEIGHT = 480
+export const SETTINGS_HEIGHT = 760
 
 /**
  * Makes a window the frontmost one. A menu bar app is not the active app when its menu is used
@@ -43,9 +43,10 @@ export function createSettingsWindows(create, { activate = (win) => (win.show(),
  * The Settings window: a small fixed-size preferences window on the app's own page, sandboxed
  * like the indicator, with its own preload that exposes only the settings functions.
  * onKey(event, input): every key event before the page sees it (used while recording a shortcut).
- * onLeave(): the window lost focus or closed.
+ * onLeave(): the window lost focus or closed. onFocus(): it came to the front (for example back
+ * from System Settings, so the Accessibility status is read again).
  */
-export function createSettingsWindow({ url, onKey, onLeave }) {
+export function createSettingsWindow({ url, onKey, onLeave, onFocus = () => {} }) {
   const win = new BrowserWindow({
     width: SETTINGS_WIDTH,
     height: SETTINGS_HEIGHT,
@@ -62,6 +63,7 @@ export function createSettingsWindow({ url, onKey, onLeave }) {
   })
   win.webContents.on('before-input-event', onKey)
   win.on('blur', onLeave)
+  win.on('focus', onFocus)
   win.on('closed', onLeave)
   win.once('ready-to-show', () => bringToFront(win))
   win.loadURL(url)

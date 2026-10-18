@@ -17,7 +17,9 @@ export function build(mode, apiBaseUrl) {
   return run(bin('electron-vite'), ['build', '--mode', mode], { cwd: desktopRoot, env })
 }
 
-export function pack() {
+// Compiles the Auto-Paste helper first (macOS only; packaging copies it into the app).
+export async function pack() {
+  await run(process.execPath, [path.join(desktopRoot, 'scripts/build-helper.mjs')], { cwd: desktopRoot })
   return run(bin('electron-builder'), ['--dir', '--publish', 'never'], { cwd: desktopRoot, env: process.env, maxBuffer: 64 * 1024 * 1024 })
 }
 
@@ -43,12 +45,14 @@ export function launch(command, args = [], { mode = '--self-check', report = 'DI
 
 // Starts the app with the DICTATOR_E2E stdin hook (src/main/e2e.js) and a fake microphone, and
 // returns helpers to send commands and wait for printed lines. userData keeps its settings apart.
+// DICTATOR_PASTE_HELPER is empty so Auto-Paste is unavailable: a test never sends ⌘V to the
+// app in front on a real Mac.
 export function startApp({ userData }) {
   const args = ['.', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
   const [command, argv] = onLinux ? ['xvfb-run', ['-a', electronBinary, ...args, '--no-sandbox']] : [electronBinary, args]
   const child = spawn(command, argv, {
     cwd: desktopRoot,
-    env: { ...process.env, ELECTRON_RENDERER_URL: '', DICTATOR_E2E: '1', DICTATOR_USER_DATA: userData },
+    env: { ...process.env, ELECTRON_RENDERER_URL: '', DICTATOR_E2E: '1', DICTATOR_USER_DATA: userData, DICTATOR_PASTE_HELPER: '' },
   })
   const lines = []
   const waiters = []

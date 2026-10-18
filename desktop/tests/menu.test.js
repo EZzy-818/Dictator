@@ -68,6 +68,29 @@ describe('hotkey and settings', () => {
   })
 })
 
+describe('output behavior', () => {
+  const outputOptions = [
+    { value: 'copy', label: 'Copy Only' },
+    { value: 'paste', label: 'Auto-Paste (experimental)' },
+  ]
+  it('offers Copy Only and Auto-Paste with the current one checked', () => {
+    const setOutputMode = vi.fn()
+    const template = buildMenuTemplate({ phase: 'idle', outputOptions, outputMode: 'copy' }, { ...actions, setOutputMode })
+    const submenu = template.find((item) => item.label === 'Output').submenu
+    expect(submenu.map((item) => [item.label, item.checked])).toEqual([['Copy Only', true], ['Auto-Paste (experimental)', false]])
+    submenu[1].click()
+    expect(setOutputMode).toHaveBeenCalledWith('paste')
+  })
+
+  it('points to the Accessibility settings when a paste was skipped for lack of access', () => {
+    const openAccessibilitySettings = vi.fn()
+    const template = buildMenuTemplate({ phase: 'done', code: 'accessibility', message: 'Copied to clipboard. Not pasted.' }, { ...actions, openAccessibilitySettings })
+    template.find((item) => item.label === 'Open Accessibility Settings…').click()
+    expect(openAccessibilitySettings).toHaveBeenCalled()
+    expect(labels(buildMenuTemplate({ phase: 'done', code: 'no-target' }, actions))).not.toContain('Open Accessibility Settings…')
+  })
+})
+
 describe('trayTitle', () => {
   it('marks recording and transcribing', () => {
     expect(trayTitle('recording')).toBe(' ●')

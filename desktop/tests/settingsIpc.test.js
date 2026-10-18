@@ -16,6 +16,8 @@ function setup() {
     saveCapture: vi.fn(() => ({ ok: true })),
     resetShortcut: vi.fn(() => ({ ok: true })),
     setLevel: vi.fn(() => true),
+    setOutputMode: vi.fn(() => true),
+    openAccessibilitySettings: vi.fn(),
   }
   const focusWindow = vi.fn()
   handleSettingsRequests({ ipcMain, getWindow: () => open, appUrl, preferences, focusWindow })
@@ -40,6 +42,16 @@ describe('Settings window requests', () => {
     expect(call('settings:capture-save')).toEqual({ ok: true })
     call('settings:set-level', undefined, 'medium')
     expect(preferences.setLevel).toHaveBeenCalledWith('medium')
+  })
+
+  it('sets the output behavior and opens the Accessibility settings', () => {
+    const { call, preferences } = setup()
+    expect(call('settings:set-output', undefined, 'paste')).toBe(true)
+    expect(preferences.setOutputMode).toHaveBeenCalledWith('paste')
+    call('settings:set-output', undefined, ['paste'])
+    expect(preferences.setOutputMode).toHaveBeenLastCalledWith('')
+    expect(call('settings:open-accessibility')).toBe(null)
+    expect(preferences.openAccessibilitySettings).toHaveBeenCalled()
   })
 
   it('passes only strings on as levels', () => {
