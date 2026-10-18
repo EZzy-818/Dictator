@@ -1,0 +1,41 @@
+# Packaging for the desktop app. See docs/desktop.md. Release builds are not published anywhere.
+appId: com.ezzy818.dictator
+productName: Dictator
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+extraResources:
+  # Menu bar icons, read from process.resourcesPath at runtime.
+  - from: build/trayTemplate.png
+    to: trayTemplate.png
+  - from: build/trayTemplate@2x.png
+    to: trayTemplate@2x.png
+asar: true
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    # Menu bar app: no Dock icon and no entry in the app switcher.
+    LSUIElement: true
+    NSMicrophoneUsageDescription: Dictator records your voice while you dictate, then sends the audio to the Dictator server for transcription.
+# Linux is only used to test packaging in CI-like containers; it is not a supported client.
+linux:
+  target: dir
+publish: null

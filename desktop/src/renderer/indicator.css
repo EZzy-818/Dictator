@@ -1,0 +1,58 @@
+/* The window is transparent; only the pill is drawn. */
+html,
+body {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  font: 13px/1 -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.indicator {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  margin: 4px;
+  padding: 0 14px;
+  border-radius: 20px;
+  background: rgba(24, 24, 27, 0.88);
+  color: #fafafa;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a1a1aa;
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.wave {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* The shared Waveform is styled with the web app's Tailwind classes, which desktop does not
+   load; these rules give its bars the same shape here. */
+.wave [data-testid='waveform'] {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  height: 20px;
+}
+
+.wave [data-testid='waveform'] span {
+  width: 2px;
+  height: 100%;
+  border-radius: 1px;
+  background: #fafafa;
+  opacity: 0.7;
+  transition: transform 75ms;
+}

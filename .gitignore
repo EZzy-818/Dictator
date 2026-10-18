@@ -17,3 +17,7 @@ coverage/
 .live-samples/
 .eval-samples/
 .eval-runs/
+
+# Desktop app build output (desktop/).
+desktop/out/
+desktop/release/

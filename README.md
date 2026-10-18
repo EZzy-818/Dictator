@@ -56,6 +56,10 @@ Editable Text → Copy
 
 Audio is recorded in the browser and sent to the backend for transcription. Depending on the selected refinement level, the backend either returns the raw transcript or processes it through an LLM.
 
+## Desktop App (macOS, in development)
+
+A macOS menu bar client lives in [`desktop/`](desktop/). It uses the same backend and pipeline as the web app, which is unchanged and keeps running on Vercel. See [docs/desktop.md](docs/desktop.md) to run it locally.
+
 ## Future Roadmap
 
 ### 1. Realtime Transcription

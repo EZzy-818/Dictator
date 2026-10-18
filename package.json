@@ -5,7 +5,10 @@
     "install:all": "npm install --prefix backend && npm install --prefix frontend",
     "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
     "test": "npm test --prefix backend && npm test --prefix frontend",
-    "build": "npm run build --prefix frontend"
+    "build": "npm run build --prefix frontend",
+    "dev:desktop": "npm run dev --prefix desktop",
+    "test:desktop": "npm test --prefix desktop && npm run test:integration --prefix desktop",
+    "build:desktop": "npm run build --prefix desktop"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"
