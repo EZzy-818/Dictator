@@ -29,7 +29,7 @@ const rendererUrl = process.env.ELECTRON_RENDERER_URL || APP_URL
 const iconDir = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '../../build')
 
 // Tests keep their settings out of the real profile.
-if (process.env.DICTATOR_E2E === '1' && process.env.DICTATOR_USER_DATA) app.setPath('userData', process.env.DICTATOR_USER_DATA)
+if (process.env.DICTATOR_E2E === '1' && process.env.DICTATOR_USER_DATA && !app.isPackaged) app.setPath('userData', process.env.DICTATOR_USER_DATA)
 
 registerAppScheme()
 
@@ -185,8 +185,17 @@ app.whenReady().then(async () => {
   })
   applyHotkey(settings.get().hotkey)
 
-  // Tests drive the app over stdin when DICTATOR_E2E=1 (see src/main/e2e.js).
-  if (process.env.DICTATOR_E2E === '1') onStateForTests = attachE2E({ controller, indicator, clipboard, getView: () => view })
+  // Tests drive the app over stdin when DICTATOR_E2E=1 (see src/main/e2e.js). Never in the
+  // packaged app.
+  if (process.env.DICTATOR_E2E === '1' && !app.isPackaged) {
+    onStateForTests = attachE2E({
+      controller,
+      indicator,
+      clipboard,
+      getView: () => view,
+      setLevel: (level) => renderView({ level: settings.set({ refinementLevel: level }).refinementLevel }),
+    })
+  }
 
   // Keep what was said when the Mac sleeps or locks mid-recording.
   powerMonitor.on('suspend', () => controller.interrupt())
