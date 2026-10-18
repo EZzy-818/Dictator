@@ -1,11 +1,13 @@
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import fs from 'node:fs'
-import { app, clipboard, ipcMain, powerMonitor } from 'electron'
+import { app, clipboard, globalShortcut, ipcMain, powerMonitor } from 'electron'
 import { REFINEMENT_LEVEL_OPTIONS } from '@frontend/refinementLevels.js'
 import { API_BASE_URL, getHealth, processAudio } from './api.js'
 import { createCopy } from './clipboard.js'
 import { createController } from './controller.js'
+import { attachE2E } from './e2e.js'
+import { DEFAULT_HOTKEY, HOTKEY_OPTIONS, createHotkey, isKnownHotkey } from './hotkey.js'
 import { createIndicatorWindow, hideIndicator, showIndicator } from './indicator.js'
 import { isTrustedSender, parseRecorderError, parseRecording } from './ipc.js'
 import { RECORDER_MESSAGES } from './messages.js'
@@ -25,6 +27,9 @@ const fakeDevice = app.commandLine.hasSwitch('use-fake-device-for-media-stream')
 
 const rendererUrl = process.env.ELECTRON_RENDERER_URL || pathToFileURL(path.join(import.meta.dirname, '../renderer/index.html')).href
 const iconDir = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '../../build')
+
+// Tests keep their settings out of the real profile.
+if (process.env.DICTATOR_E2E === '1' && process.env.DICTATOR_USER_DATA) app.setPath('userData', process.env.DICTATOR_USER_DATA)
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -81,7 +86,8 @@ app.whenReady().then(async () => {
   if (selfCheck) return runSelfCheck({ indicator, apiBaseUrl: API_BASE_URL, checkServer })
 
   const settings = createSettings(path.join(app.getPath('userData'), 'settings.json'), {
-    defaults: { hotkey: 'Control+Alt+Space' },
+    defaults: { hotkey: DEFAULT_HOTKEY },
+    isValidHotkey: isKnownHotkey,
   })
   // The same request the web app makes: batch transcription, then refinement at the chosen level.
   const transcribe = (recording, level) => processAudio(recording, level)
@@ -99,9 +105,19 @@ app.whenReady().then(async () => {
     levels: REFINEMENT_LEVEL_OPTIONS,
     level: settings.get().refinementLevel,
     hasLastTranscript: false,
+    hotkeys: HOTKEY_OPTIONS,
+    hotkey: settings.get().hotkey,
+    hotkeyOk: false,
   }
   let tray
   let controller
+  let onStateForTests
+  const events = listenToRenderer(indicator, {
+    started: () => controller.recorderStarted(),
+    error: (code) => controller.recorderFailed(code),
+    recording: (recording) => controller.recordingReady(recording),
+  })
+
   const renderView = (patch) => {
     view = { ...view, ...patch }
     tray?.render(view)
@@ -109,7 +125,8 @@ app.whenReady().then(async () => {
 
   controller = createController({
     recorder: {
-      start: ({ measure }) => sendCommand({ type: 'start', measure }),
+      // A press right after launch waits for the recorder page to finish loading.
+      start: ({ measure }) => events.ready.then(() => controller.getState().phase === 'starting' && sendCommand({ type: 'start', measure })),
       stop: () => sendCommand({ type: 'stop' }),
       cancel: () => sendCommand({ type: 'cancel' }),
     },
@@ -121,6 +138,7 @@ app.whenReady().then(async () => {
       if (!indicator.isDestroyed()) indicator.webContents.send('indicator:state', state)
       if (state.phase === 'idle' && !state.notice) hideIndicator(indicator)
       else showIndicator(indicator)
+      onStateForTests?.(state)
       renderView({
         phase: state.phase,
         outcome: state.outcome,
@@ -131,25 +149,31 @@ app.whenReady().then(async () => {
     },
   })
 
-  const events = listenToRenderer(indicator, {
-    started: () => controller.recorderStarted(),
-    error: (code) => controller.recorderFailed(code),
-    recording: (recording) => controller.recordingReady(recording),
-  })
-
   if (recordTestMs) return runRecordTest({ indicator, durationMs: recordTestMs, ensureAccess, events, sendCommand })
+
+  const hotkey = createHotkey(globalShortcut, () => controller.toggle())
+  const applyHotkey = (accelerator) => {
+    const ok = hotkey.use(accelerator)
+    if (ok) settings.set({ hotkey: accelerator })
+    renderView({ hotkey: accelerator, hotkeyOk: ok })
+  }
+  app.on('will-quit', () => hotkey.release())
 
   tray = createTray({
     iconDir,
     actions: {
       toggle: () => controller.toggle(),
+      setHotkey: (accelerator) => applyHotkey(accelerator),
       setLevel: (level) => renderView({ level: settings.set({ refinementLevel: level }).refinementLevel }),
       copyLast: () => controller.copyLast(),
       openMicrophoneSettings: () => openMicrophoneSettings(),
       quit: () => app.quit(),
     },
   })
-  tray.render(view)
+  applyHotkey(settings.get().hotkey)
+
+  // Tests drive the app over stdin when DICTATOR_E2E=1 (see src/main/e2e.js).
+  if (process.env.DICTATOR_E2E === '1') onStateForTests = attachE2E({ controller, indicator, clipboard, getView: () => view })
 
   // Keep what was said when the Mac sleeps or locks mid-recording.
   powerMonitor.on('suspend', () => controller.interrupt())

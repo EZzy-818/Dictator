@@ -140,6 +140,8 @@ export function createController({
 
     recorderStarted() {
       if (state.phase === 'starting') set({ ...state, phase: 'recording', message: MESSAGES.recording, startedAt: now() })
+      // A recorder that started after it was no longer wanted is stopped and its audio dropped.
+      else if (state.phase !== 'recording') recorder.cancel()
     },
 
     recorderFailed(code) {

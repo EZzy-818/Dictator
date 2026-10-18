@@ -158,6 +158,7 @@ describe('controller', () => {
     // A late "started" from the cancelled recording changes nothing.
     t.controller.recorderStarted()
     expect(t.phase()).toBe('idle')
+    expect(t.deps.recorder.cancel).toHaveBeenCalledTimes(2)
   })
 
   it('starts a new recording from a shown result', async () => {

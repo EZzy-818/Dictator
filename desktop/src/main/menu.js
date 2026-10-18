@@ -15,9 +15,11 @@ const STATUS_LABELS = {
 }
 
 /**
- * view: { version, phase, outcome, message, code, serverState, level, levels, hasLastTranscript }
+ * view: { version, phase, outcome, message, code, serverState, level, levels, hasLastTranscript,
+ *         hotkey, hotkeyOk, hotkeys }
  *   levels: [{ value, label, description }] from the web app's refinementLevels.js
- * actions: { toggle, setLevel(value), copyLast, openMicrophoneSettings, quit }
+ *   hotkeys: [{ accelerator, label }]; hotkeyOk is false when another app owns the hotkey
+ * actions: { toggle, setLevel(value), setHotkey(accelerator), copyLast, openMicrophoneSettings, quit }
  */
 export function buildMenuTemplate(view, actions) {
   const { phase } = view
@@ -30,8 +32,13 @@ export function buildMenuTemplate(view, actions) {
       label: phase === 'recording' ? 'Stop Recording' : 'Start Recording',
       enabled: phase !== 'processing' && phase !== 'starting',
       click: actions.toggle,
+      // Shown for reference only; the global hotkey itself is registered separately.
+      ...(view.hotkey && view.hotkeyOk ? { accelerator: view.hotkey, registerAccelerator: false } : {}),
     },
   ]
+  if (view.hotkey && view.hotkeyOk === false) {
+    template.push({ label: 'Hotkey unavailable: another app uses it. Choose another below.', enabled: false })
+  }
   template.push({ label: 'Copy Last Transcript', enabled: Boolean(view.hasLastTranscript), click: actions.copyLast })
   if (view.levels) {
     template.push({
@@ -41,6 +48,17 @@ export function buildMenuTemplate(view, actions) {
         type: 'radio',
         checked: option.value === view.level,
         click: () => actions.setLevel(option.value),
+      })),
+    })
+  }
+  if (view.hotkeys) {
+    template.push({
+      label: 'Hotkey',
+      submenu: view.hotkeys.map((option) => ({
+        label: option.label,
+        type: 'radio',
+        checked: option.accelerator === view.hotkey,
+        click: () => actions.setHotkey(option.accelerator),
       })),
     })
   }

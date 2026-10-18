@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { buildMenuTemplate, trayTitle } from '../src/main/menu.js'
 
-const actions = { toggle: vi.fn(), setLevel: vi.fn(), copyLast: vi.fn(), openMicrophoneSettings: vi.fn(), quit: vi.fn() }
+const actions = { toggle: vi.fn(), setLevel: vi.fn(), setHotkey: vi.fn(), copyLast: vi.fn(), openMicrophoneSettings: vi.fn(), quit: vi.fn() }
 const levels = [
   { value: 'none', label: 'None', description: 'No changes' },
   { value: 'light', label: 'Light', description: 'Clean up filler words and grammar' },
@@ -41,6 +41,28 @@ describe('levels and copy', () => {
     const find = (view) => buildMenuTemplate(view, actions).find((item) => item.label === 'Copy Last Transcript')
     expect(find({ phase: 'idle' }).enabled).toBe(false)
     expect(find({ phase: 'idle', hasLastTranscript: true }).enabled).toBe(true)
+  })
+})
+
+describe('hotkey', () => {
+  const hotkeys = [
+    { accelerator: 'Control+Alt+Space', label: '⌃⌥Space' },
+    { accelerator: 'Control+Alt+D', label: '⌃⌥D' },
+  ]
+
+  it('shows the hotkey next to Start Recording and lets the user pick another', () => {
+    const template = buildMenuTemplate({ phase: 'idle', hotkey: 'Control+Alt+Space', hotkeyOk: true, hotkeys }, actions)
+    expect(template.find((item) => item.label === 'Start Recording')).toMatchObject({ accelerator: 'Control+Alt+Space', registerAccelerator: false })
+    const submenu = template.find((item) => item.label === 'Hotkey').submenu
+    expect(submenu.map((item) => item.checked)).toEqual([true, false])
+    submenu[1].click()
+    expect(actions.setHotkey).toHaveBeenCalledWith('Control+Alt+D')
+  })
+
+  it('says when another app owns the hotkey', () => {
+    const template = buildMenuTemplate({ phase: 'idle', hotkey: 'Control+Alt+Space', hotkeyOk: false, hotkeys }, actions)
+    expect(labels(template).some((label) => label.startsWith('Hotkey unavailable'))).toBe(true)
+    expect(template.find((item) => item.label === 'Start Recording').accelerator).toBeUndefined()
   })
 })
 
