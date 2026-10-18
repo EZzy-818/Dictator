@@ -43,6 +43,8 @@ export function createController({
   let resultTimer = null
   let slowTimer = null
   let noticeTimer = null
+  // True from receiving the audio until the transcription request settles.
+  let transcribing = false
 
   function set(next) {
     state = next
@@ -150,6 +152,13 @@ export function createController({
       }
     },
 
+    /** The recorder page crashed: a dictation still waiting on it cannot finish. */
+    rendererLost() {
+      if (state.phase === 'starting' || state.phase === 'recording' || (state.phase === 'processing' && !transcribing)) {
+        finish('failed', recorderMessage('recording-failed'), { code: 'recording-failed' })
+      }
+    },
+
     async recordingReady(recording) {
       // The 2-minute limit stops the recorder on its own, without a second press.
       if (state.phase === 'recording') startProcessing()
@@ -157,11 +166,14 @@ export function createController({
       const id = session
       const level = state.level ?? getLevel()
       let data
+      transcribing = true
       try {
         data = await transcribe(recording, level)
       } catch (err) {
         if (id === session) finish('failed', err?.message || 'Transcription failed. Please try again.', { code: err?.code })
         return
+      } finally {
+        transcribing = false
       }
       if (id !== session) return
       const raw = typeof data?.rawTranscript === 'string' ? data.rawTranscript : ''

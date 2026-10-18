@@ -1,5 +1,4 @@
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import fs from 'node:fs'
 import { app, clipboard, globalShortcut, ipcMain, powerMonitor } from 'electron'
 import { REFINEMENT_LEVEL_OPTIONS } from '@frontend/refinementLevels.js'
@@ -13,6 +12,7 @@ import { isTrustedSender, parseRecorderError, parseRecording } from './ipc.js'
 import { RECORDER_MESSAGES } from './messages.js'
 import { ensureMicrophoneAccess, openMicrophoneSettings } from './microphone.js'
 import { installPermissionHandlers } from './permissions.js'
+import { APP_URL, registerAppScheme, serveRenderer } from './protocol.js'
 import { isAppUrl } from './security.js'
 import { runRecordTest, runSelfCheck, runTranscribeTest } from './selftest.js'
 import { createSettings } from './settings.js'
@@ -25,11 +25,13 @@ const transcribeTestFile = argValue('transcribe-test')
 // Tests run with Chromium's fake microphone, which needs no macOS permission.
 const fakeDevice = app.commandLine.hasSwitch('use-fake-device-for-media-stream')
 
-const rendererUrl = process.env.ELECTRON_RENDERER_URL || pathToFileURL(path.join(import.meta.dirname, '../renderer/index.html')).href
+const rendererUrl = process.env.ELECTRON_RENDERER_URL || APP_URL
 const iconDir = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '../../build')
 
 // Tests keep their settings out of the real profile.
 if (process.env.DICTATOR_E2E === '1' && process.env.DICTATOR_USER_DATA) app.setPath('userData', process.env.DICTATOR_USER_DATA)
+
+registerAppScheme()
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -59,7 +61,13 @@ async function checkServer() {
 // Messages from the indicator window, checked before anything acts on them.
 function listenToRenderer(indicator, handlers) {
   let markReady
-  const events = { ready: new Promise((resolve) => (markReady = resolve)) }
+  const events = {
+    // Replaced when the page reloads after a crash, so commands wait for the new page.
+    resetReady() {
+      events.ready = new Promise((resolve) => (markReady = resolve))
+    },
+  }
+  events.resetReady()
   const on = (channel, handler) =>
     ipcMain.on(channel, (event, payload) => {
       if (isTrustedSender(event, indicator, rendererUrl)) handler(payload)
@@ -78,8 +86,9 @@ function listenToRenderer(indicator, handlers) {
 app.whenReady().then(async () => {
   // No Dock icon or app switcher entry (LSUIElement does the same for the packaged app).
   app.dock?.hide()
+  serveRenderer(path.join(import.meta.dirname, '../renderer'))
   installPermissionHandlers(rendererUrl)
-  const indicator = createIndicatorWindow()
+  const indicator = createIndicatorWindow(rendererUrl)
   const sendCommand = (command) => !indicator.isDestroyed() && indicator.webContents.send('recorder:command', command)
   const ensureAccess = () => ensureMicrophoneAccess({ fakeDevice })
 
@@ -112,6 +121,7 @@ app.whenReady().then(async () => {
   let tray
   let controller
   let onStateForTests
+  let refreshServer = async () => {}
   const events = listenToRenderer(indicator, {
     started: () => controller.recorderStarted(),
     error: (code) => controller.recorderFailed(code),
@@ -139,6 +149,9 @@ app.whenReady().then(async () => {
       if (state.phase === 'idle' && !state.notice) hideIndicator(indicator)
       else showIndicator(indicator)
       onStateForTests?.(state)
+      // A failed request rechecks the server; a successful one proves it is up.
+      if (state.phase === 'done' && state.code === 'network_error') refreshServer()
+      if (state.phase === 'done' && (state.outcome === 'refined' || state.outcome === 'raw')) view.serverState = 'ready'
       renderView({
         phase: state.phase,
         outcome: state.outcome,
@@ -179,7 +192,16 @@ app.whenReady().then(async () => {
   powerMonitor.on('suspend', () => controller.interrupt())
   powerMonitor.on('lock-screen', () => controller.interrupt())
   // Checking early also wakes the backend, which sleeps when idle on Render's free plan.
-  const refreshServer = async () => renderView({ serverState: (await checkServer()).state })
+  refreshServer = async () => renderView({ serverState: (await checkServer()).state })
+
+  // A crashed recorder page is reloaded; a dictation it was part of ends with an error.
+  indicator.webContents.on('render-process-gone', () => {
+    events.resetReady()
+    controller.rendererLost()
+    if (!indicator.isDestroyed()) indicator.webContents.reload()
+  })
+  // Release the microphone if the app quits mid-recording.
+  app.on('before-quit', () => sendCommand({ type: 'cancel' }))
   powerMonitor.on('resume', refreshServer)
   refreshServer()
 })

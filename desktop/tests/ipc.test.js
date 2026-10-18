@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { isTrustedSender, parseRecorderError, parseRecording } from '../src/main/ipc.js'
 
-const appUrl = 'file:///app/out/renderer/index.html'
+const appUrl = 'app://dictator/index.html'
 
 describe('parseRecording', () => {
   it('accepts a recording and builds a Blob for the API client', () => {

@@ -206,6 +206,28 @@ describe('controller', () => {
     expect(t.controller.getState().message).toBe(MESSAGES.slow)
   })
 
+  it('ends a dictation whose recorder page crashed', async () => {
+    const t = setup()
+    await t.press()
+    t.controller.recorderStarted()
+    t.controller.rendererLost()
+    expect(t.controller.getState()).toMatchObject({ outcome: 'failed', code: 'recording-failed' })
+  })
+
+  it('lets a transcription in flight finish when the recorder page crashes', async () => {
+    let resolve
+    const t = setup({ transcribe: vi.fn(() => new Promise((r) => (resolve = r))) })
+    await t.press()
+    t.controller.recorderStarted()
+    await t.press()
+    const pending = t.controller.recordingReady(recording)
+    t.controller.rendererLost()
+    expect(t.phase()).toBe('processing')
+    resolve({ rawTranscript: 'a', polishedTranscript: 'A.', refinementStatus: 'success' })
+    await pending
+    expect(t.controller.getState().outcome).toBe('refined')
+  })
+
   it('uses the level chosen when recording started', async () => {
     let level = 'medium'
     const t = setup({ getLevel: () => level })

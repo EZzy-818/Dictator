@@ -119,6 +119,25 @@ describe.skipIf(!backendReady)('dictation end to end', () => {
     expect(await app.waitFor('DICTATOR_CLIPBOARD')).toBe('um I think we should use PostgreSQL 我觉得')
   })
 
+  it('recovers from a recorder page crash mid-recording', async () => {
+    refineFails = false
+    app = start()
+    await app.waitFor('DICTATOR_E2E_READY')
+    app.send('toggle')
+    await app.waitFor('DICTATOR_STATE', (s) => s.phase === 'recording')
+    app.send('crash-renderer')
+    const failed = await app.waitFor('DICTATOR_STATE', (s) => s.phase === 'done')
+    expect(failed).toMatchObject({ outcome: 'failed', code: 'recording-failed' })
+    // The page reloads; the next dictation works.
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    app.send('toggle')
+    await app.waitFor('DICTATOR_STATE', (s) => s.phase === 'recording' && s.startedAt)
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+    app.send('toggle')
+    const done = await app.waitFor('DICTATOR_STATE', (s) => s.phase === 'done' && s.outcome === 'refined')
+    expect(done.message).toBe('Copied to clipboard')
+  })
+
   it('reports a too-short recording and copies nothing', async () => {
     app = start()
     await app.waitFor('DICTATOR_E2E_READY')

@@ -21,6 +21,8 @@ electronFuses:
   enableNodeCliInspectArguments: false
   enableEmbeddedAsarIntegrityValidation: true
   onlyLoadAppFromAsar: true
+  # The page loads from app://dictator, so file:// needs no extra privileges.
+  grantFileProtocolExtraPrivileges: false
 mac:
   category: public.app-category.productivity
   target:

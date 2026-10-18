@@ -13,7 +13,7 @@ export function indicatorPosition(workArea) {
 
 // The floating status window. It also hosts the recorder, so it is created at launch and kept
 // loaded while hidden. Shown with showInactive() so it never takes focus from the user's app.
-export function createIndicatorWindow() {
+export function createIndicatorWindow(url) {
   const win = new BrowserWindow({
     width: WIDTH,
     height: HEIGHT,
@@ -36,11 +36,7 @@ export function createIndicatorWindow() {
   // Clicks pass through to whatever is underneath; the pill is display only.
   win.setIgnoreMouseEvents(true)
 
-  if (process.env.ELECTRON_RENDERER_URL) {
-    win.loadURL(process.env.ELECTRON_RENDERER_URL)
-  } else {
-    win.loadFile(path.join(import.meta.dirname, '../renderer/index.html'))
-  }
+  win.loadURL(url)
   return win
 }
 
