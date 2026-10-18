@@ -34,7 +34,7 @@ describe('createSettings', () => {
   it('ignores a damaged file and unknown values', () => {
     fs.writeFileSync(file, '{not json')
     expect(createSettings(file, options).get().refinementLevel).toBe('light')
-    fs.writeFileSync(file, JSON.stringify({ refinementLevel: 'heavy', hotkey: 'Command+Q' }))
+    fs.writeFileSync(file, JSON.stringify({ refinementLevel: 'heavy', hotkey: 'Command+Hyper' }))
     expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space', outputMode: 'copy' })
   })
 
@@ -44,7 +44,7 @@ describe('createSettings', () => {
   })
 
   it('recovers from settings of the wrong shape', () => {
-    for (const content of ['null', '[]', '"text"', JSON.stringify({ hotkey: 42, refinementLevel: ['x'] }), JSON.stringify({ hotkey: 'Shift+D' })]) {
+    for (const content of ['null', '[]', '"text"', JSON.stringify({ hotkey: 42, refinementLevel: ['x'] }), JSON.stringify({ hotkey: 'Shift' })]) {
       fs.writeFileSync(file, content)
       expect(createSettings(file, options).get()).toEqual({ refinementLevel: 'light', hotkey: 'Control+Alt+Space', outputMode: 'copy' })
     }
@@ -59,7 +59,7 @@ describe('createSettings', () => {
   })
 
   it('refuses invalid choices', () => {
-    expect(() => createSettings(file, options).set({ hotkey: 'Command+C' })).toThrow()
+    expect(() => createSettings(file, options).set({ hotkey: 'Command' })).toThrow()
     expect(() => createSettings(file, options).set({ hotkey: 'Command+Shift+D' })).toThrow()
     const settings = createSettings(file, options)
     expect(() => settings.set({ refinementLevel: 'heavy' })).toThrow()

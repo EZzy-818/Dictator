@@ -84,15 +84,17 @@ describe('Settings window', () => {
     }
   })
 
-  it('shows an inline error for an invalid combination and keeps the old shortcut', async () => {
+  it('accepts a single key with a warning, and Escape keeps the old shortcut', async () => {
     await launch()
-    const rejected = await record('C', ['meta'])
-    expect(rejected.capture).toMatchObject({ state: 'listening', error: '⌘C is a standard app shortcut. Add ⌃, ⌥ or ⇧.' })
-    await settingsText((text) => text.includes('standard app shortcut') && text.includes('Press your new shortcut…'))
-    app.send(key('D'))
-    await prefs((p) => p.capture?.error?.includes('would block typing'))
+    const captured = await record('D', [])
+    expect(captured.capture).toMatchObject({ state: 'captured', accelerator: 'D', warning: expect.stringMatching(/no longer types/) })
+    await settingsText((text) => text.includes('no longer types') && text.includes('Save Shortcut'))
     app.send(key('Escape'))
     expect(await prefs((p) => p.capture === null)).toMatchObject({ shortcut: 'Control+Alt+Space', shortcutOk: true, registered: true })
+    // Saved, a single key becomes the global hotkey.
+    await record('F7', [])
+    app.send('settings-click save')
+    expect(await prefs((p) => p.shortcut === 'F7')).toMatchObject({ registered: true, shortcutOk: true })
   })
 
   it('does not start a dictation when the hotkey is pressed while recording a shortcut', async () => {

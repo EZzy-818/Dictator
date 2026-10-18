@@ -20,7 +20,7 @@ It lives in `desktop/` as its own npm package. The web frontend (`frontend/`, on
 
 **Settings…** in the menu bar opens a small preferences window. Opening it does not interrupt a dictation, choosing it again brings the same window forward, and closing it leaves Dictator running in the menu bar.
 
-- **General › Recording shortcut:** click **Record Shortcut**, press the new combination (for example ⌘⇧D), then **Save Shortcut** or Return. Esc, **Cancel**, leaving the window, or 30 seconds without a key press keeps the old shortcut. **Reset to Default** goes back to ⌃⌥Space.
+- **General › Recording shortcut:** click **Record Shortcut**, press the new key or combination (for example F13 or ⌘⇧D), then **Save Shortcut** or Return. Esc, **Cancel**, leaving the window, or 30 seconds without a key press keeps the old shortcut. **Reset to Default** goes back to ⌃⌥Space.
 - **Transcription › Refinement:** None, Light or Medium, saved as soon as it is chosen. It is the same setting as the menu bar's Refinement submenu; changing either updates the other.
 - **Output › Output Behavior:** Copy Only (the default) or Auto-Paste (experimental), the same setting as the menu bar's Output submenu. With Auto-Paste chosen it also shows whether Dictator has Accessibility access, with a button to the right place in System Settings.
 
@@ -28,8 +28,10 @@ All three are saved in `settings.json` in Dictator's data folder (`~/Library/App
 
 ### Choosing a shortcut
 
-- Letters, numbers and Space need ⌘, ⌃ or ⌥ (⇧ alone would stop you typing that character). Function keys (F1–F20) work with or without modifiers.
-- Not accepted: modifier keys on their own; other keys (punctuation, arrows, Tab, Return, Esc); ⌘ with just a letter or number (standard app shortcuts like ⌘C); and combinations macOS keeps for itself in its default setup, such as ⌘Space (Spotlight), ⌃Space (input sources), ⇧⌘3/4/5 (screenshots), ⌃⌘Q (lock screen) and ⌃F1–⌃F8 (keyboard navigation).
+- Any key works, on its own or with ⌘ ⌃ ⌥ ⇧: letters, numbers, Space, punctuation, arrows, Return, Tab, Delete, Home/End/Page Up/Page Down, F1–F24 and the keypad. You decide; Dictator only warns.
+- A key on its own (or with only ⇧) stops typing that key in every app while Dictator runs; ⌘ with a letter replaces that app shortcut (⌘C no longer copies). Settings warns before you save these. Function keys like F13 and keys like Home don't type anything, so they make good single-key shortcuts.
+- Combinations macOS keeps for itself, such as ⌘Space (Spotlight) or ⌃Space (input sources), are allowed with a warning: they may never reach Dictator.
+- Not possible: modifier keys on their own (⌘, ⌥, ⌘⇧) or Fn. The macOS hotkey system Dictator uses needs one more key; a "hold Fn" style trigger would need a different key listener with Input Monitoring permission. Media keys (volume, play) can't be used either. Esc alone cancels recording and Return confirms, so to use Return alone press it once to record it and again to save.
 - If macOS refuses to register the combination, Settings says it is unavailable and your current shortcut keeps working. macOS does not always refuse: on macOS 26 two apps can both register the same shortcut (tested with two copies of Dictator on ⌃⌥Space), and then both react to it. So check that a new shortcut isn't already used by another app. If a combination is taken by macOS or another app before it reaches Dictator, nothing appears while recording it; try another.
 - macOS lets some combinations register and then never deliver them, for example ones assigned in System Settings › Keyboard › Keyboard Shortcuts or by another app that does not use the system hotkey API. Dictator cannot detect those; if a new shortcut does nothing, choose another.
 - ⌥ shortcuts stop that key's special character (⌥D types ∂) from being typed while Dictator runs.

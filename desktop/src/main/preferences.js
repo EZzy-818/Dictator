@@ -1,10 +1,8 @@
-import { DEFAULT_SHORTCUT, modifierLabel, shortcutFromKey, shortcutLabel, validateShortcut } from '../shared/shortcut.js'
+import { DEFAULT_SHORTCUT, MODIFIERS_ONLY, modifierLabel, shortcutFromKey, shortcutLabel, validateShortcut } from '../shared/shortcut.js'
 
 // A capture nobody finishes (the window left open in the background, a combination macOS keeps
 // for itself) ends on its own after this long without a key press, so the hotkey is never left off.
 export const CAPTURE_IDLE_MS = 30_000
-
-const MODIFIERS_ONLY = 'Modifier keys on their own can’t be a shortcut. Hold them and press a letter, number or function key.'
 
 // The Output Behavior choices shown in the menu bar and in Settings.
 export const OUTPUT_OPTIONS = [
@@ -104,7 +102,8 @@ export function createPreferences({
       return { ok: false, error }
     }
     settings.set({ hotkey: checked.accelerator })
-    message = checked.accelerator === before ? null : { type: 'saved', text: `Shortcut changed to ${shortcutLabel(checked.accelerator)}.` }
+    const saved = `Shortcut changed to ${shortcutLabel(checked.accelerator)}.`
+    message = checked.accelerator === before ? null : { type: 'saved', text: checked.warning ? `${saved} ${checked.warning}` : saved }
     changed()
     return { ok: true }
   }
@@ -161,6 +160,7 @@ export function createPreferences({
         return this.saveCapture()
       } else if (result.ok) {
         capture = { state: 'captured', accelerator: result.accelerator, label: shortcutLabel(result.accelerator) }
+        if (result.warning) capture.warning = result.warning
       } else {
         capture = { state: 'listening', modifiers: '', error: result.error }
       }

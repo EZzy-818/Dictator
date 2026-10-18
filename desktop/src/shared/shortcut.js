@@ -1,11 +1,14 @@
-// Global recording shortcuts: what may be chosen, how a key press becomes one, and how it is
-// shown. Shared by the main process (which decides) and the Settings window (which displays), so
+// Global recording shortcuts: how a key press becomes one, how it is checked, and how it is
+// shown. Any key may be chosen, alone or with modifiers; risky choices get a warning, not a refusal. Shared by the main process (which decides) and the Settings window (which displays), so
 // it must not import anything from Electron or Node.
 //
 // Shortcuts are stored as Electron accelerators in one canonical form, modifiers in the order
 // macOS shows them (⌃⌥⇧⌘): for example "Control+Alt+Space" or "Shift+Command+D".
 
 export const DEFAULT_SHORTCUT = 'Control+Alt+Space'
+
+// The one thing that can't be a shortcut: macOS global hotkeys need a key besides the modifiers.
+export const MODIFIERS_ONLY = 'Modifier keys on their own can’t be a shortcut (macOS needs one more key). Hold them and press another key.'
 
 const MODIFIERS = ['Control', 'Alt', 'Shift', 'Command']
 const MODIFIER_ALIASES = {
@@ -18,12 +21,56 @@ const MODIFIER_ALIASES = {
   cmd: 'Command',
 }
 const SYMBOLS = { Control: '⌃', Alt: '⌥', Shift: '⇧', Command: '⌘' }
-// The modifiers that make a letter, number or Space a shortcut instead of typing.
-const STRONG = ['Control', 'Alt', 'Command']
-const FUNCTION_KEY = /^F([1-9]|1[0-9]|20)$/
+const FUNCTION_KEY = /^F([1-9]|1[0-9]|2[0-4])$/
 
-// Combinations macOS keeps for itself (in its default setup). Registering them may succeed and
-// then never fire, or take the shortcut away from the system, so they are refused up front.
+// Physical keys (KeyboardEvent.code) that are not letters, digits or function keys, with the
+// Electron accelerator name for each and how it is shown.
+const KEYS = {
+  Space: ['Space', 'Space'],
+  Enter: ['Return', '↩'],
+  Tab: ['Tab', '⇥'],
+  Backspace: ['Backspace', '⌫'],
+  Delete: ['Delete', '⌦'],
+  Insert: ['Insert', 'Insert'],
+  Escape: ['Escape', '⎋'],
+  ArrowUp: ['Up', '↑'],
+  ArrowDown: ['Down', '↓'],
+  ArrowLeft: ['Left', '←'],
+  ArrowRight: ['Right', '→'],
+  Home: ['Home', '↖'],
+  End: ['End', '↘'],
+  PageUp: ['PageUp', '⇞'],
+  PageDown: ['PageDown', '⇟'],
+  Minus: ['-', '-'],
+  Equal: ['=', '='],
+  BracketLeft: ['[', '['],
+  BracketRight: [']', ']'],
+  Backslash: ['\\', '\\'],
+  Semicolon: [';', ';'],
+  Quote: ["'", "'"],
+  Comma: [',', ','],
+  Period: ['.', '.'],
+  Slash: ['/', '/'],
+  Backquote: ['`', '`'],
+  NumpadAdd: ['numadd', 'Keypad +'],
+  NumpadSubtract: ['numsub', 'Keypad −'],
+  NumpadMultiply: ['nummult', 'Keypad ×'],
+  NumpadDivide: ['numdiv', 'Keypad ÷'],
+  NumpadDecimal: ['numdec', 'Keypad .'],
+}
+for (let digit = 0; digit <= 9; digit++) KEYS[`Numpad${digit}`] = [`num${digit}`, `Keypad ${digit}`]
+
+// Accelerator key name (lowercase) → [canonical name, label].
+const KEY_NAMES = Object.fromEntries(Object.values(KEYS).map(([name, label]) => [name.toLowerCase(), [name, label]]))
+KEY_NAMES.enter = KEY_NAMES.return
+KEY_NAMES.esc = KEY_NAMES.escape
+
+// Typing keys: on their own (or with only ⇧) they type text, so a shortcut made of them stops
+// that key from typing anywhere while Dictator runs.
+const TYPING_KEY = /^([A-Z0-9]|Space|Return|Tab|Backspace|Delete|Up|Down|Left|Right|[-=[\]\\;',./`]|num.*)$/
+
+// Combinations macOS keeps for itself in its default setup. They are allowed, but the user is
+// told, because registering them may succeed and then never fire.
 const RESERVED = {
   'Command+Space': 'Spotlight',
   'Control+Space': 'switching input sources',
@@ -32,40 +79,33 @@ const RESERVED = {
   'Shift+Command+3': 'screenshots',
   'Shift+Command+4': 'screenshots',
   'Shift+Command+5': 'screenshots',
-  'Shift+Command+6': 'Touch Bar screenshots',
   'Control+Shift+Command+3': 'screenshots',
   'Control+Shift+Command+4': 'screenshots',
   'Shift+Command+Q': 'logging out',
-  'Alt+Shift+Command+Q': 'logging out',
   'Control+Command+Q': 'locking the screen',
   'Control+Command+F': 'full screen',
   'Alt+Command+D': 'showing and hiding the Dock',
-  'Alt+Command+H': 'hiding other apps',
+  'Command+Tab': 'switching apps',
   'Command+F5': 'VoiceOver',
-  'Alt+Command+F5': 'Accessibility Shortcuts',
-  'Control+F1': 'keyboard navigation',
-  'Control+F2': 'keyboard navigation',
-  'Control+F3': 'keyboard navigation',
-  'Control+F4': 'keyboard navigation',
-  'Control+F5': 'keyboard navigation',
-  'Control+F6': 'keyboard navigation',
-  'Control+F7': 'keyboard navigation',
-  'Control+F8': 'keyboard navigation',
 }
 
 function normalizeKey(token) {
   if (/^[a-z]$/i.test(token)) return token.toUpperCase()
   if (/^[0-9]$/.test(token)) return token
-  if (/^space$/i.test(token)) return 'Space'
   const fn = token.toUpperCase()
-  return FUNCTION_KEY.test(fn) ? fn : null
+  if (FUNCTION_KEY.test(fn)) return fn
+  return KEY_NAMES[token.toLowerCase()]?.[0] ?? null
+}
+
+function keyLabel(key) {
+  return KEY_NAMES[key.toLowerCase()]?.[1] ?? key
 }
 
 /** "Shift+Command+D" → "⇧⌘D". Anything unparseable is shown as is. */
 export function shortcutLabel(accelerator) {
   const parsed = parse(accelerator)
   if (!parsed?.key) return typeof accelerator === 'string' ? accelerator : ''
-  return parsed.modifiers.map((m) => SYMBOLS[m]).join('') + parsed.key
+  return parsed.modifiers.map((m) => SYMBOLS[m]).join('') + keyLabel(parsed.key)
 }
 
 /** Symbols for the modifiers held down, for showing a shortcut while it is being pressed. */
@@ -94,25 +134,28 @@ function parse(accelerator) {
 }
 
 /**
- * Checks a shortcut. Returns { ok: true, accelerator } with the canonical form, or
- * { ok: false, error } with a sentence to show the user. Registration (whether another app owns
- * it) is checked separately, by actually registering it.
+ * Checks a shortcut. Any supported key works, with or without modifiers: the user decides.
+ * Returns { ok: true, accelerator, warning? } with the canonical form and, for a choice that may
+ * get in the way, a sentence saying how; or { ok: false, error } when it is not a shortcut at all
+ * (modifier keys only, or not parseable). Whether another app owns it is checked separately, by
+ * actually registering it.
  */
 export function validateShortcut(accelerator) {
   const parsed = parse(accelerator)
-  if (!parsed) return { ok: false, error: 'That shortcut isn’t supported. Use a letter, number, function key or Space.' }
+  if (!parsed) return { ok: false, error: 'That shortcut isn’t supported.' }
   const { modifiers, key } = parsed
-  if (!key) return { ok: false, error: 'Add a letter, number or function key to the modifier keys.' }
+  if (!key) return { ok: false, error: MODIFIERS_ONLY }
   const canonical = [...modifiers, key].join('+')
+  const warning = shortcutWarning(canonical, modifiers, key)
+  return warning ? { ok: true, accelerator: canonical, warning } : { ok: true, accelerator: canonical }
+}
+
+function shortcutWarning(canonical, modifiers, key) {
   const label = shortcutLabel(canonical)
-  if (!FUNCTION_KEY.test(key) && !modifiers.some((m) => STRONG.includes(m))) {
-    return { ok: false, error: `${label} would block typing. Letters, numbers and Space need ⌘, ⌃ or ⌥.` }
-  }
-  if (modifiers.length === 1 && modifiers[0] === 'Command' && key !== 'Space') {
-    return { ok: false, error: `${label} is a standard app shortcut. Add ⌃, ⌥ or ⇧.` }
-  }
-  if (RESERVED[canonical]) return { ok: false, error: `${label} is reserved by macOS for ${RESERVED[canonical]}.` }
-  return { ok: true, accelerator: canonical }
+  if (RESERVED[canonical]) return `macOS uses ${label} for ${RESERVED[canonical]}, so it may never reach Dictator.`
+  if (TYPING_KEY.test(key) && modifiers.every((m) => m === 'Shift')) return `While Dictator runs, ${label} starts dictation everywhere and no longer types.`
+  if (TYPING_KEY.test(key) && modifiers.length === 1 && modifiers[0] === 'Command') return `While Dictator runs, ${label} starts dictation instead of its usual action in every app.`
+  return null
 }
 
 /**
@@ -121,14 +164,14 @@ export function validateShortcut(accelerator) {
  * Returns one of:
  *   { cancel: true }          Escape with no modifiers
  *   { modifiersOnly: true }   only modifier keys so far; keep waiting
- *   { ok: true, accelerator } / { ok: false, error }  as validateShortcut
+ *   { ok: true, accelerator, warning? } / { ok: false, error }  as validateShortcut
  */
 export function shortcutFromKey({ code, control, alt, shift, meta }) {
   if (typeof code !== 'string') return { ok: false, error: 'That key isn’t supported.' }
   if (/^(Meta|OS|Control|Alt|Shift)(Left|Right)?$/.test(code) || code === 'CapsLock' || code === 'Fn') return { modifiersOnly: true }
   if (code === 'Escape' && !control && !alt && !shift && !meta) return { cancel: true }
-  const key = /^Key([A-Z])$/.exec(code)?.[1] ?? /^Digit([0-9])$/.exec(code)?.[1] ?? (code === 'Space' ? 'Space' : FUNCTION_KEY.test(code) ? code : null)
-  if (!key) return { ok: false, error: 'That key isn’t supported. Use a letter, number, function key or Space.' }
+  const key = /^Key([A-Z])$/.exec(code)?.[1] ?? /^Digit([0-9])$/.exec(code)?.[1] ?? (FUNCTION_KEY.test(code) ? code : KEYS[code]?.[0])
+  if (!key) return { ok: false, error: 'macOS can’t use that key in a shortcut. Try another key.' }
   const modifiers = [control && 'Control', alt && 'Alt', shift && 'Shift', meta && 'Command'].filter(Boolean)
   return validateShortcut([...modifiers, key].join('+'))
 }

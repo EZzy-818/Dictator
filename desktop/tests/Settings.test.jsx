@@ -85,12 +85,19 @@ describe('Settings window', () => {
 
   it('shows capture errors and registration errors inline', async () => {
     const { bridge, screen, button } = await open()
-    bridge.push({ capture: { state: 'listening', modifiers: '', error: '⌘C is a standard app shortcut. Add ⌃, ⌥ or ⇧.' } })
-    expect(screen.getByRole('alert').textContent).toBe('⌘C is a standard app shortcut. Add ⌃, ⌥ or ⇧.')
+    bridge.push({ capture: { state: 'listening', modifiers: '', error: 'Modifier keys on their own can’t be a shortcut.' } })
+    expect(screen.getByRole('alert').textContent).toBe('Modifier keys on their own can’t be a shortcut.')
     fireEvent.click(button('cancel'))
     expect(bridge.cancelCapture).toHaveBeenCalled()
     bridge.push({ message: { type: 'error', text: '⇧⌘D is unavailable. Your shortcut is still ⌃⌥Space.' } })
     expect(screen.getByRole('alert').textContent).toMatch(/still ⌃⌥Space/)
+  })
+
+  it('shows the warning for a single-key shortcut before it is saved', async () => {
+    const { bridge, screen, button } = await open()
+    bridge.push({ capture: { state: 'captured', accelerator: 'D', label: 'D', warning: 'While Dictator runs, D starts dictation everywhere and no longer types.' } })
+    expect(screen.container.querySelector('[data-note="warning"]').textContent).toMatch(/no longer types.*use it anyway/)
+    expect(button('save').disabled).toBe(false)
   })
 
   it('marks a shortcut that could not be registered and lets the user reset it', async () => {
