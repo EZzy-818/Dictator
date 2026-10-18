@@ -4,6 +4,8 @@ import { DEFAULT_SHORTCUT, modifierLabel, shortcutFromKey, shortcutLabel, valida
 // for itself) ends on its own after this long without a key press, so the hotkey is never left off.
 export const CAPTURE_IDLE_MS = 30_000
 
+const MODIFIERS_ONLY = 'Modifier keys on their own can’t be a shortcut. Hold them and press a letter, number or function key.'
+
 // The Output Behavior choices shown in the menu bar and in Settings.
 export const OUTPUT_OPTIONS = [
   { value: 'copy', label: 'Copy Only', description: 'Copy the text. Paste it yourself with ⌘V.' },
@@ -142,9 +144,12 @@ export function createPreferences({
       restartIdleTimer()
       const result = shortcutFromKey(input)
       if (input.type === 'keyUp' || input.isAutoRepeat) {
-        // Releasing a modifier updates the keys shown while still listening.
+        // Releasing a modifier updates the keys shown while still listening. Letting go of
+        // modifier keys pressed on their own says why that can't be a shortcut.
         if (result.modifiersOnly && capture.state === 'listening') {
-          capture = { ...capture, modifiers: modifierLabel(input) }
+          const modifiers = modifierLabel(input)
+          const released = input.type === 'keyUp' && !modifiers && capture.modifiers
+          capture = released ? { state: 'listening', modifiers: '', error: MODIFIERS_ONLY } : { ...capture, modifiers }
           changed()
         }
         return

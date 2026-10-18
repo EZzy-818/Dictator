@@ -80,10 +80,13 @@ describe('recording a new shortcut', () => {
     expect(app.last().capture.error).toMatch(/Spotlight/)
     app.key('Tab', { control: true })
     expect(app.last().capture.error).toMatch(/isn’t supported/)
-    // Releasing modifier keys alone never becomes a shortcut.
+    // Releasing modifier keys alone never becomes a shortcut, and says why.
     app.key('MetaLeft', { meta: true })
+    app.key('ShiftLeft', { meta: true, shift: true })
+    app.key('ShiftLeft', { meta: true }, 'keyUp')
+    expect(app.last().capture).toMatchObject({ state: 'listening', modifiers: '⌘' })
     app.key('MetaLeft', {}, 'keyUp')
-    expect(app.last().capture.state).toBe('listening')
+    expect(app.last().capture).toEqual({ state: 'listening', modifiers: '', error: expect.stringMatching(/Modifier keys on their own/) })
     expect(app.preferences.saveCapture().ok).toBe(false)
     expect(app.settings.get().hotkey).toBe('Control+Alt+Space')
   })
