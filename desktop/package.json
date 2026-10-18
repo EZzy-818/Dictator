@@ -5,15 +5,16 @@
   "description": "Dictator macOS menu bar app",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "node scripts/build-helper.mjs && electron-vite dev",
+    "build:helper": "node scripts/build-helper.mjs",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "lint": "oxlint",
     "test": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:all": "vitest run",
-    "pack": "electron-vite build && electron-builder --dir",
-    "dist:mac": "electron-vite build && electron-builder --mac"
+    "pack": "node scripts/build-helper.mjs && electron-vite build && electron-builder --dir",
+    "dist:mac": "node scripts/build-helper.mjs && electron-vite build && electron-builder --mac"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",

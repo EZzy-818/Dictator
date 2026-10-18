@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import { app, clipboard, globalShortcut, ipcMain, powerMonitor } from 'electron'
 import { REFINEMENT_LEVEL_OPTIONS } from '@frontend/refinementLevels.js'
 import { API_BASE_URL, getHealth, processAudio } from './api.js'
+import { createAutoPaste } from './autoPaste.js'
 import { createCopy } from './clipboard.js'
 import { createController } from './controller.js'
 import { attachE2E } from './e2e.js'
@@ -11,9 +12,10 @@ import { DEFAULT_HOTKEY, createHotkey } from './hotkey.js'
 import { createIndicatorWindow, hideIndicator, showIndicator } from './indicator.js'
 import { isTrustedSender, parseRecorderError, parseRecording } from './ipc.js'
 import { RECORDER_MESSAGES } from './messages.js'
+import { createMacAutomation, openAccessibilitySettings } from './macAutomation.js'
 import { ensureMicrophoneAccess, openMicrophoneSettings } from './microphone.js'
 import { installPermissionHandlers } from './permissions.js'
-import { createPreferences } from './preferences.js'
+import { OUTPUT_OPTIONS, createPreferences } from './preferences.js'
 import { APP_URL, registerAppScheme, serveRenderer } from './protocol.js'
 import { isAppUrl } from './security.js'
 import { runRecordTest, runSelfCheck, runTranscribeTest } from './selftest.js'
@@ -32,6 +34,11 @@ const fakeDevice = app.commandLine.hasSwitch('use-fake-device-for-media-stream')
 const rendererUrl = process.env.ELECTRON_RENDERER_URL || APP_URL
 const settingsUrl = new URL('settings.html', rendererUrl).href
 const iconDir = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '../../build')
+// The Auto-Paste helper, compiled by scripts/build-helper.mjs (macOS only). Automated tests set
+// DICTATOR_PASTE_HELPER (empty: no helper) so they never send ⌘V to whatever app is in front.
+const testPasteHelper = process.env.DICTATOR_E2E === '1' && !app.isPackaged ? process.env.DICTATOR_PASTE_HELPER : undefined
+const pasteHelper =
+  testPasteHelper ?? (app.isPackaged ? path.join(process.resourcesPath, 'dictator-paste') : path.join(import.meta.dirname, '../../out-native/dictator-paste'))
 
 // Tests keep their settings out of the real profile.
 if (process.env.DICTATOR_E2E === '1' && process.env.DICTATOR_USER_DATA && !app.isPackaged) app.setPath('userData', process.env.DICTATOR_USER_DATA)
@@ -113,6 +120,8 @@ app.whenReady().then(async () => {
   // The same request the web app makes: batch transcription, then refinement at the chosen level.
   const transcribe = (recording, level) => processAudio(recording, level)
   const copy = createCopy(clipboard)
+  const automation = createMacAutomation({ helperPath: pasteHelper })
+  const accessibility = { isSupported: automation.isSupported, isTrusted: automation.isTrusted, open: openAccessibilitySettings }
 
   if (transcribeTestFile) {
     const level = argValue('level') ?? settings.get().refinementLevel
@@ -128,6 +137,8 @@ app.whenReady().then(async () => {
     hasLastTranscript: false,
     hotkey: settings.get().hotkey,
     hotkeyOk: false,
+    outputOptions: OUTPUT_OPTIONS,
+    outputMode: settings.get().outputMode,
   }
   let tray
   let controller
@@ -156,6 +167,8 @@ app.whenReady().then(async () => {
     transcribe,
     copy,
     getLevel: () => settings.get().refinementLevel,
+    getOutputMode: () => settings.get().outputMode,
+    autoPaste: createAutoPaste({ automation, selfPid: process.pid }),
     onChange: (state) => {
       if (!indicator.isDestroyed()) indicator.webContents.send('indicator:state', state)
       if (state.phase === 'idle' && !state.notice) hideIndicator(indicator)
@@ -195,6 +208,7 @@ app.whenReady().then(async () => {
         preferences.captureKey(input)
       },
       onLeave: () => preferences.cancelCapture(),
+      onFocus: () => preferences.refresh(),
     }),
     { activate: bringToFront },
   )
@@ -203,9 +217,10 @@ app.whenReady().then(async () => {
     settings,
     hotkey,
     levels: REFINEMENT_LEVEL_OPTIONS,
-    // Keeps the menu bar and the Settings window showing the same shortcut and level.
+    accessibility,
+    // Keeps the menu bar and the Settings window showing the same shortcut, level and output.
     onChange: (prefs) => {
-      renderView({ hotkey: prefs.shortcut, hotkeyOk: prefs.shortcutOk, level: prefs.level })
+      renderView({ hotkey: prefs.shortcut, hotkeyOk: prefs.shortcutOk, level: prefs.level, outputMode: prefs.outputMode })
       onPrefsForTests?.(prefs)
       const win = settingsWindows.get()
       if (win && !win.webContents.isDestroyed()) win.webContents.send('settings:view', prefs)
@@ -225,8 +240,10 @@ app.whenReady().then(async () => {
     actions: {
       toggle: () => controller.toggle(),
       setLevel: (level) => preferences.setLevel(level),
+      setOutputMode: (mode) => preferences.setOutputMode(mode),
       copyLast: () => controller.copyLast(),
       openMicrophoneSettings: () => openMicrophoneSettings(),
+      openAccessibilitySettings: () => preferences.openAccessibilitySettings(),
       // Opening Settings leaves any dictation in progress alone.
       openSettings: () => settingsWindows.open(),
       quit: () => app.quit(),

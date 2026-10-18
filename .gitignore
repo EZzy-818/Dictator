@@ -21,3 +21,4 @@ coverage/
 # Desktop app build output (desktop/).
 desktop/out/
 desktop/release/
+desktop/out-native/

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEBOUNCE_MS, RESULT_MS, SLOW_MS, createController } from '../src/main/controller.js'
-import { MESSAGES } from '../src/main/messages.js'
+import { MESSAGES, PASTE_SKIPPED } from '../src/main/messages.js'
 
 const recording = { blob: new Blob(['x'], { type: 'audio/webm' }), mimeType: 'audio/webm', durationMs: 2000 }
 
@@ -259,5 +259,130 @@ describe('controller', () => {
     await t.press()
     await t.controller.recordingReady(recording)
     expect(t.deps.transcribe).toHaveBeenCalledWith(recording, 'medium')
+  })
+})
+
+describe('output behavior', () => {
+  const notes = { pid: 42, bundleId: 'com.apple.Notes' }
+  const pasteSetup = (overrides = {}, result = { delivery: 'pasted' }) => {
+    const order = []
+    const autoPaste = {
+      captureTarget: vi.fn(async () => notes),
+      paste: vi.fn(async (text) => {
+        order.push(`paste ${text}`)
+        return result
+      }),
+    }
+    const copy = vi.fn(async (text) => {
+      order.push(`copy ${text}`)
+      return true
+    })
+    const t = setup({ autoPaste, copy, getOutputMode: () => 'paste', ...overrides })
+    return { ...t, autoPaste, order }
+  }
+
+  it('Copy Only copies as before and never looks at other apps', async () => {
+    const autoPaste = { captureTarget: vi.fn(), paste: vi.fn() }
+    const t = setup({ autoPaste, getOutputMode: () => 'copy' })
+    await dictate(t)
+    expect(t.deps.copy).toHaveBeenCalledWith('Hello.')
+    expect(autoPaste.captureTarget).not.toHaveBeenCalled()
+    expect(autoPaste.paste).not.toHaveBeenCalled()
+    expect(t.controller.getState()).toMatchObject({ outcome: 'refined', message: MESSAGES.copied, output: 'copy' })
+    expect(t.controller.getState().delivery).toBeUndefined()
+    t.advance(RESULT_MS.refined)
+    expect(t.phase()).toBe('idle')
+  })
+
+  it('Auto-Paste records the app at the start, copies, then pastes the final text once', async () => {
+    const t = pasteSetup()
+    await t.press()
+    expect(t.autoPaste.captureTarget).toHaveBeenCalledTimes(1)
+    t.controller.recorderStarted()
+    await t.press()
+    expect(t.autoPaste.paste).not.toHaveBeenCalled()
+    await t.controller.recordingReady(recording)
+    expect(t.order).toEqual(['copy Hello.', 'paste Hello.'])
+    expect(t.autoPaste.paste).toHaveBeenCalledWith('Hello.', notes)
+    expect(t.controller.getState()).toMatchObject({ outcome: 'refined', output: 'paste', delivery: 'pasted', message: MESSAGES.pasted })
+  })
+
+  it('says "Paste attempted" when the paste could not be confirmed', async () => {
+    const t = pasteSetup({}, { delivery: 'attempted' })
+    await dictate(t)
+    expect(t.controller.getState()).toMatchObject({ delivery: 'attempted', message: MESSAGES.pasteAttempted })
+    t.advance(RESULT_MS.refined)
+    expect(t.phase()).toBe('done')
+    t.advance(RESULT_MS.pasteNote)
+    expect(t.phase()).toBe('idle')
+  })
+
+  it('copies only, and points to Accessibility, when the permission is missing', async () => {
+    const t = pasteSetup({}, { delivery: 'skipped', reason: 'accessibility' })
+    await dictate(t)
+    expect(t.deps.copy).toHaveBeenCalledWith('Hello.')
+    expect(t.controller.getState()).toMatchObject({ outcome: 'refined', delivery: 'skipped', pasteReason: 'accessibility', code: 'accessibility' })
+    expect(t.controller.getState().message).toBe(`${MESSAGES.copied}. Not pasted: ${PASTE_SKIPPED.accessibility}`)
+  })
+
+  it('says why it did not paste when the app changed or the field was a password field', async () => {
+    for (const reason of ['app-changed', 'secure', 'no-target']) {
+      const t = pasteSetup({}, { delivery: 'skipped', reason })
+      await dictate(t)
+      expect(t.controller.getState().message).toBe(`${MESSAGES.copied}. Not pasted: ${PASTE_SKIPPED[reason]}`)
+      expect(t.controller.getState().code).toBeUndefined()
+    }
+  })
+
+  it('never pastes twice for one dictation', async () => {
+    const t = pasteSetup()
+    await t.press()
+    t.controller.recorderStarted()
+    await t.press()
+    await Promise.all([t.controller.recordingReady(recording), t.controller.recordingReady(recording)])
+    await t.controller.recordingReady(recording)
+    expect(t.autoPaste.paste).toHaveBeenCalledTimes(1)
+  })
+
+  it('pastes the raw transcript when refinement failed, and says so', async () => {
+    const t = pasteSetup({ transcribe: vi.fn(async () => ({ rawTranscript: 'um hello', polishedTranscript: null, refinementStatus: 'failed' })) })
+    await dictate(t)
+    expect(t.order).toEqual(['copy um hello', 'paste um hello'])
+    expect(t.controller.getState()).toMatchObject({ outcome: 'raw', message: MESSAGES.pastedRaw })
+  })
+
+  it('pastes for None, Light and Medium alike', async () => {
+    for (const level of ['none', 'light', 'medium']) {
+      const t = pasteSetup({ getLevel: () => level })
+      await dictate(t)
+      expect(t.deps.transcribe).toHaveBeenCalledWith(recording, level)
+      expect(t.autoPaste.paste).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('pastes nothing when transcription fails, finds no speech or cannot copy', async () => {
+    const failures = [
+      { transcribe: vi.fn(async () => Promise.reject(new Error('Could not reach the server.'))) },
+      { transcribe: vi.fn(async () => ({ rawTranscript: ' ', polishedTranscript: '', refinementStatus: 'success' })) },
+      { copy: vi.fn(async () => false) },
+    ]
+    for (const overrides of failures) {
+      const t = pasteSetup(overrides)
+      await dictate(t)
+      expect(t.autoPaste.paste).not.toHaveBeenCalled()
+      expect(t.controller.getState().outcome).not.toBe('refined')
+    }
+  })
+
+  it('uses the output behavior chosen when recording started', async () => {
+    let mode = 'copy'
+    const t = pasteSetup({ getOutputMode: () => mode })
+    await t.press()
+    mode = 'paste'
+    t.controller.recorderStarted()
+    await t.press()
+    await t.controller.recordingReady(recording)
+    expect(t.autoPaste.paste).not.toHaveBeenCalled()
+    expect(t.controller.getState().message).toBe(MESSAGES.copied)
   })
 })

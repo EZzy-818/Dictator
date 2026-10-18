@@ -4,7 +4,7 @@ import path from 'node:path'
 import { REFINEMENT_LEVEL_OPTIONS } from '@frontend/refinementLevels.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHotkey } from '../src/main/hotkey.js'
-import { CAPTURE_IDLE_MS, createPreferences } from '../src/main/preferences.js'
+import { CAPTURE_IDLE_MS, OUTPUT_OPTIONS, createPreferences } from '../src/main/preferences.js'
 import { createSettings } from '../src/main/settings.js'
 import { buildMenuTemplate } from '../src/main/menu.js'
 import { validateShortcut } from '../src/shared/shortcut.js'
@@ -24,7 +24,7 @@ const normalizeHotkey = (value) => {
 }
 
 // The main process's wiring (src/main/index.js) with fakes for globalShortcut and the dictation.
-function launch({ taken = [], shortcuts = fakeShortcuts(taken) } = {}) {
+function launch({ taken = [], shortcuts = fakeShortcuts(taken), accessibility } = {}) {
   const settings = createSettings(file, { defaults: { hotkey: 'Control+Alt+Space' }, normalizeHotkey })
   const toggle = vi.fn()
   const views = []
@@ -32,7 +32,7 @@ function launch({ taken = [], shortcuts = fakeShortcuts(taken) } = {}) {
   const hotkey = createHotkey(shortcuts, () => {
     if (!preferences.isCapturing()) toggle()
   })
-  preferences = createPreferences({ settings, hotkey, levels: REFINEMENT_LEVEL_OPTIONS, onChange: (view) => views.push(view) })
+  preferences = createPreferences({ settings, hotkey, levels: REFINEMENT_LEVEL_OPTIONS, accessibility, onChange: (view) => views.push(view) })
   preferences.start()
   const press = (accelerator) => shortcuts.registered.get(accelerator)?.()
   const key = (code, mods = {}, type = 'keyDown') => preferences.captureKey({ type, code, control: false, alt: false, shift: false, meta: false, ...mods })
@@ -212,9 +212,9 @@ describe('persistence', () => {
     expect(launch().last()).toMatchObject({ shortcut: 'Control+Alt+Space', level: 'light' })
   })
 
-  it('stores only the two preferences', () => {
+  it('stores only the three preferences', () => {
     launch().preferences.setShortcut('Control+Alt+K')
-    expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8'))).sort()).toEqual(['hotkey', 'refinementLevel'])
+    expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8'))).sort()).toEqual(['hotkey', 'outputMode', 'refinementLevel'])
   })
 })
 
@@ -275,5 +275,43 @@ describe('no dictation while recording a shortcut', () => {
     app.preferences.captureKey(null)
     app.preferences.captureKey({ type: 'char', code: 'KeyD', meta: true })
     expect(app.views.length).toBe(count + 1)
+  })
+})
+
+describe('output behavior', () => {
+  it('starts as Copy Only and keeps the menu bar and Settings in sync', () => {
+    const app = launch()
+    expect(app.last()).toMatchObject({ outputMode: 'copy', outputOptions: OUTPUT_OPTIONS })
+    const actions = { toggle() {}, copyLast() {}, openMicrophoneSettings() {}, openSettings() {}, quit() {}, setLevel() {}, setOutputMode: (mode) => app.preferences.setOutputMode(mode) }
+    const menuOutput = () => buildMenuTemplate({ phase: 'idle', outputOptions: OUTPUT_OPTIONS, outputMode: app.last().outputMode }, actions).find((item) => item.label === 'Output').submenu
+    expect(menuOutput().map((item) => [item.label, item.checked])).toEqual([['Copy Only', true], ['Auto-Paste (experimental)', false]])
+    // Chosen in the menu bar: Settings gets it.
+    menuOutput()[1].click()
+    expect(app.last().outputMode).toBe('paste')
+    // Chosen in Settings: the menu shows it.
+    app.preferences.setOutputMode('copy')
+    expect(menuOutput().map((item) => item.checked)).toEqual([true, false])
+  })
+
+  it('is kept across restarts and refuses unknown modes', () => {
+    launch().preferences.setOutputMode('paste')
+    const app = launch()
+    expect(app.last().outputMode).toBe('paste')
+    expect(app.preferences.setOutputMode('type')).toBe(false)
+    expect(app.settings.get().outputMode).toBe('paste')
+  })
+
+  it('shows whether Dictator has Accessibility access, read again on refresh', () => {
+    let trusted = false
+    const open = vi.fn()
+    const app = launch({ accessibility: { isSupported: () => true, isTrusted: () => trusted, open } })
+    expect(app.last().accessibility).toBe(false)
+    app.preferences.openAccessibilitySettings()
+    expect(open).toHaveBeenCalled()
+    trusted = true
+    app.preferences.refresh()
+    expect(app.last().accessibility).toBe(true)
+    // Not macOS: no status to show.
+    expect(launch().last().accessibility).toBe(null)
   })
 })

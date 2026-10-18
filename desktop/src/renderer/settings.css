@@ -191,3 +191,11 @@ input:focus-visible {
 .footnote {
   margin: 6px 4px 0;
 }
+
+.permission {
+  border-top: 1px solid var(--border);
+}
+
+.permission[data-accessibility='off'] .row-title {
+  color: var(--error);
+}

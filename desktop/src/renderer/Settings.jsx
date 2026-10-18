@@ -94,6 +94,56 @@ function LevelPicker({ view, bridge }) {
   )
 }
 
+function OutputPicker({ view, bridge }) {
+  const paste = view.outputMode === 'paste'
+  return (
+    <>
+      <fieldset className="levels">
+        <legend className="row-title">Output Behavior</legend>
+        {view.outputOptions.map((option) => (
+          <label key={option.value} className="row level">
+            <input
+              type="radio"
+              name="output"
+              value={option.value}
+              checked={option.value === view.outputMode}
+              onChange={() => bridge.setOutputMode(option.value)}
+            />
+            <span className="row-text">
+              <span className="row-title">{option.label}</span>
+              <span className="row-subtitle">{option.description}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+      {paste && view.accessibility !== null && (
+        <div className="row permission" data-accessibility={view.accessibility ? 'on' : 'off'}>
+          <div className="row-main">
+            <div className="row-text">
+              <span className="row-title">Accessibility access: {view.accessibility ? 'On' : 'Off'}</span>
+              <span className="row-subtitle">
+                {view.accessibility
+                  ? 'Dictator may send ⌘V to the app you are dictating into.'
+                  : 'Needed to paste. Until it is on, Dictator only copies. Turn on Dictator in System Settings › Privacy & Security › Accessibility, then come back here.'}
+              </span>
+            </div>
+            {!view.accessibility && (
+              <button type="button" data-action="open-accessibility" onClick={() => bridge.openAccessibilitySettings()}>
+                Open Accessibility Settings…
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {paste && view.accessibility === null && (
+        <div className="row">
+          <span className="row-subtitle">Auto-Paste is not available on this computer, so Dictator only copies.</span>
+        </div>
+      )}
+    </>
+  )
+}
+
 /**
  * The Settings window. Everything shown comes from the main process (src/main/preferences.js),
  * which also receives every change, so the menu bar and this window always agree.
@@ -126,6 +176,18 @@ export default function Settings({ bridge = window.dictatorSettings }) {
           <LevelPicker view={view} bridge={bridge} />
         </div>
         <p className="footnote">Saved automatically. Also in the menu bar under Refinement.</p>
+      </section>
+      <section aria-labelledby="output-heading">
+        <h2 id="output-heading">Output</h2>
+        <div className="group">
+          <OutputPicker view={view} bridge={bridge} />
+        </div>
+        <p className="footnote" data-limits>
+          Experimental. It pastes only if the app you started recording in is still in front with a text field focused. It
+          cannot tell whether that is the same field, so check where the cursor is before you stop. It never pastes into
+          password fields or switches apps, and only copies when unsure. The text always stays on the clipboard. Also in
+          the menu bar under Output.
+        </p>
       </section>
     </main>
   )

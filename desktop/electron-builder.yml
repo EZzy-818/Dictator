@@ -36,6 +36,11 @@ mac:
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  # The Auto-Paste helper (native/paste-helper.swift, compiled by scripts/build-helper.mjs).
+  # Signed with the app, and read from process.resourcesPath at runtime.
+  extraResources:
+    - from: out-native/dictator-paste
+      to: dictator-paste
   extendInfo:
     # Menu bar app: no Dock icon and no entry in the app switcher.
     LSUIElement: true

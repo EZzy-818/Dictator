@@ -4,8 +4,14 @@ import { DEFAULT_SHORTCUT, modifierLabel, shortcutFromKey, shortcutLabel, valida
 // for itself) ends on its own after this long without a key press, so the hotkey is never left off.
 export const CAPTURE_IDLE_MS = 30_000
 
+// The Output Behavior choices shown in the menu bar and in Settings.
+export const OUTPUT_OPTIONS = [
+  { value: 'copy', label: 'Copy Only', description: 'Copy the text. Paste it yourself with ⌘V.' },
+  { value: 'paste', label: 'Auto-Paste (experimental)', description: 'Copy the text, then paste it into the text field you were in.' },
+]
+
 /**
- * The recording shortcut and refinement level, shared by the menu bar, the Settings window and
+ * The recording shortcut, refinement level and output behavior, shared by the menu bar, the Settings window and
  * the hotkey. It owns no Electron objects, so it can be tested on its own. Every change from the
  * Settings window goes through here and is checked here.
  *
@@ -13,6 +19,7 @@ export const CAPTURE_IDLE_MS = 30_000
  *   settings: createSettings(...) (src/main/settings.js)
  *   hotkey: createHotkey(...) (src/main/hotkey.js)
  *   levels: [{ value, label, description }]
+ *   accessibility: { isSupported(), isTrusted(), open() }  for Auto-Paste (macAutomation.js)
  *   onChange(view)  called after every change, with view() below
  *   setTimeout, clearTimeout  injectable for tests
  *
@@ -26,6 +33,7 @@ export function createPreferences({
   settings,
   hotkey,
   levels,
+  accessibility = { isSupported: () => false, isTrusted: () => false, open: () => {} },
   onChange = () => {},
   setTimeout: setTimer = globalThis.setTimeout,
   clearTimeout: clearTimer = globalThis.clearTimeout,
@@ -50,6 +58,10 @@ export function createPreferences({
       message,
       level: settings.get().refinementLevel,
       levels,
+      outputMode: settings.get().outputMode,
+      outputOptions: OUTPUT_OPTIONS,
+      // Whether Dictator may send ⌘V: null where Auto-Paste is not available (not macOS).
+      accessibility: accessibility.isSupported() ? accessibility.isTrusted() : null,
     }
   }
 
@@ -167,6 +179,22 @@ export function createPreferences({
       endCapture()
       return setShortcut(DEFAULT_SHORTCUT)
     },
+
+    /** From the menu bar or the Settings window. Returns false for an unknown mode. */
+    setOutputMode(mode) {
+      if (!OUTPUT_OPTIONS.some((option) => option.value === mode)) return false
+      settings.set({ outputMode: mode })
+      changed()
+      return true
+    },
+
+    /** Opens System Settings at Accessibility, for Auto-Paste. */
+    openAccessibilitySettings() {
+      accessibility.open()
+    },
+
+    /** Reads the Accessibility status again (macOS sends no notice when it changes). */
+    refresh: changed,
 
     /** From the menu bar or the Settings window. Returns false for an unknown level. */
     setLevel(level) {

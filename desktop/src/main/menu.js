@@ -16,10 +16,12 @@ const STATUS_LABELS = {
 
 /**
  * view: { version, phase, outcome, message, code, serverState, level, levels, hasLastTranscript,
- *         hotkey, hotkeyOk }
+ *         hotkey, hotkeyOk, outputMode, outputOptions }
  *   levels: [{ value, label, description }] from the web app's refinementLevels.js
+ *   outputOptions: [{ value, label }] from preferences.js (Copy Only, Auto-Paste)
  *   hotkeyOk is false when another app owns the hotkey
- * actions: { toggle, setLevel(value), copyLast, openMicrophoneSettings, openSettings, quit }
+ * actions: { toggle, setLevel(value), setOutputMode(value), copyLast, openMicrophoneSettings,
+ *            openAccessibilitySettings, openSettings, quit }
  * The hotkey is chosen in the Settings window.
  */
 export function buildMenuTemplate(view, actions) {
@@ -52,8 +54,22 @@ export function buildMenuTemplate(view, actions) {
       })),
     })
   }
+  if (view.outputOptions) {
+    template.push({
+      label: 'Output',
+      submenu: view.outputOptions.map((option) => ({
+        label: option.label,
+        type: 'radio',
+        checked: option.value === view.outputMode,
+        click: () => actions.setOutputMode(option.value),
+      })),
+    })
+  }
   if (view.code === 'permission-denied') {
     template.push({ label: 'Open Microphone Settings…', click: actions.openMicrophoneSettings })
+  }
+  if (view.code === 'accessibility') {
+    template.push({ label: 'Open Accessibility Settings…', click: actions.openAccessibilitySettings })
   }
   template.push(
     { type: 'separator' },
