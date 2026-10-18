@@ -23,6 +23,7 @@ export const MESSAGES = {
   copied: 'Copied to clipboard',
   copiedRaw: 'Copied raw transcript (refinement failed)',
   noSpeech: 'No speech was detected. Nothing was copied.',
+  silent: 'No sound reached the microphone. Check the input in System Settings › Sound (a closed MacBook lid turns off the built-in microphone).',
   copyFailed: 'Could not copy to the clipboard. Use Copy Last Transcript in the menu bar.',
   recopied: 'Copied last transcript again',
 }

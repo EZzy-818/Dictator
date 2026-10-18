@@ -10,7 +10,7 @@ function subscribe(channel, callback) {
 // itself. The main process checks the sender and every payload (src/main/ipc.js).
 contextBridge.exposeInMainWorld('dictator', {
   platform: process.platform,
-  /** Commands from the main process: { type: 'start' | 'stop' | 'cancel', measure?: boolean }. */
+  /** Commands from the main process: { type: 'start' | 'stop' | 'cancel' }. */
   onCommand: (callback) => subscribe('recorder:command', callback),
   /** What the indicator should show (see src/main/controller.js). */
   onState: (callback) => subscribe('indicator:state', callback),

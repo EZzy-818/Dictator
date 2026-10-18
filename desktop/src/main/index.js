@@ -136,7 +136,7 @@ app.whenReady().then(async () => {
   controller = createController({
     recorder: {
       // A press right after launch waits for the recorder page to finish loading.
-      start: ({ measure }) => events.ready.then(() => controller.getState().phase === 'starting' && sendCommand({ type: 'start', measure })),
+      start: () => events.ready.then(() => controller.getState().phase === 'starting' && sendCommand({ type: 'start' })),
       stop: () => sendCommand({ type: 'stop' }),
       cancel: () => sendCommand({ type: 'cancel' }),
     },

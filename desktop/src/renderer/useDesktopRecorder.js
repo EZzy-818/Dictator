@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useAudioRecorder } from '@frontend/hooks/useAudioRecorder.js'
 
-/** Loudest sample in a recording, 0 to 1. Used by the --record-test check to prove real sound. */
+/** Loudest sample in a recording, 0 to 1. Lets the main process catch a silent microphone. */
 export async function measurePeak(arrayBuffer) {
   const context = new OfflineAudioContext(1, 1, 48_000)
   const audio = await context.decodeAudioData(arrayBuffer.slice(0))
@@ -19,15 +19,15 @@ export async function measurePeak(arrayBuffer) {
  */
 export function useDesktopRecorder(bridge = window.dictator) {
   const cancelledRef = useRef(false)
-  const measureRef = useRef(false)
 
   const handleComplete = useCallback(
     async ({ blob, mimeType, durationMs }) => {
       if (cancelledRef.current) return
       const bytes = await blob.arrayBuffer()
-      const recording = { bytes, mimeType, durationMs }
-      if (measureRef.current) recording.peak = await measurePeak(bytes).catch(() => -1)
-      bridge.submitRecording(recording)
+      // -1 when the audio cannot be decoded here; the backend still gets it and decides.
+      const peak = await measurePeak(bytes).catch(() => -1)
+      if (cancelledRef.current) return
+      bridge.submitRecording({ bytes, mimeType, durationMs, peak })
     },
     [bridge],
   )
@@ -40,7 +40,6 @@ export function useDesktopRecorder(bridge = window.dictator) {
       bridge.onCommand((command) => {
         if (command?.type === 'start') {
           cancelledRef.current = false
-          measureRef.current = Boolean(command.measure)
           start()
         } else if (command?.type === 'stop') {
           stop()

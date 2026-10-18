@@ -4,6 +4,9 @@ import { MESSAGES, recorderMessage } from './messages.js'
 export const RESULT_MS = { refined: 1500, raw: 4000, failed: 5000, copy_failed: 6000, notice: 1500 }
 // Presses closer together than this are one press (key repeat, a double tap).
 export const DEBOUNCE_MS = 300
+// A recording whose loudest sample is below this is digital silence (muted or disconnected
+// input, closed MacBook lid), not a quiet room; it is not sent to the server.
+export const SILENCE_PEAK = 1e-4
 // After this long transcribing, say the server may be waking up (Render's free plan sleeps).
 export const SLOW_MS = 10_000
 
@@ -17,7 +20,7 @@ export const SLOW_MS = 10_000
  *   failed: nothing copied, clipboard untouched. copy_failed: transcript ready, clipboard refused.
  *
  * deps:
- *   recorder: { start({ measure }), stop(), cancel() }  commands to the renderer
+ *   recorder: { start(), stop(), cancel() }  commands to the renderer
  *   microphone: { ensureAccess() }  → 'granted' | 'denied' | 'restricted'
  *   transcribe(recording, level) → { rawTranscript, polishedTranscript, refinementStatus }
  *   copy(text) → Promise<true> when the clipboard now holds text
@@ -88,7 +91,7 @@ export function createController({
     if (access !== 'granted') {
       return finish('failed', recorderMessage('permission-denied'), { code: 'permission-denied' })
     }
-    recorder.start({ measure: false })
+    recorder.start()
   }
 
   function startProcessing() {
@@ -163,6 +166,7 @@ export function createController({
       // The 2-minute limit stops the recorder on its own, without a second press.
       if (state.phase === 'recording') startProcessing()
       if (state.phase !== 'processing') return
+      if (recording.peak >= 0 && recording.peak < SILENCE_PEAK) return finish('failed', MESSAGES.silent, { code: 'silent' })
       const id = session
       const level = state.level ?? getLevel()
       let data

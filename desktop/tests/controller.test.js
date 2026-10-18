@@ -45,7 +45,7 @@ describe('controller', () => {
     const t = setup()
     await t.press()
     expect(t.deps.microphone.ensureAccess).toHaveBeenCalled()
-    expect(t.deps.recorder.start).toHaveBeenCalledWith({ measure: false })
+    expect(t.deps.recorder.start).toHaveBeenCalled()
     expect(t.phase()).toBe('starting')
     t.controller.recorderStarted()
     expect(t.phase()).toBe('recording')
@@ -226,6 +226,28 @@ describe('controller', () => {
     resolve({ rawTranscript: 'a', polishedTranscript: 'A.', refinementStatus: 'success' })
     await pending
     expect(t.controller.getState().outcome).toBe('refined')
+  })
+
+  it('does not send a silent recording and says why', async () => {
+    const t = setup()
+    await t.press()
+    t.controller.recorderStarted()
+    await t.press()
+    await t.controller.recordingReady({ ...recording, peak: 2e-34 })
+    expect(t.deps.transcribe).not.toHaveBeenCalled()
+    expect(t.deps.copy).not.toHaveBeenCalled()
+    expect(t.controller.getState()).toMatchObject({ outcome: 'failed', code: 'silent', message: MESSAGES.silent })
+  })
+
+  it('sends quiet and undecodable recordings', async () => {
+    const t = setup()
+    await dictate(t)
+    t.advance(RESULT_MS.refined)
+    await t.press()
+    t.controller.recorderStarted()
+    await t.press()
+    await t.controller.recordingReady({ ...recording, peak: -1 })
+    expect(t.deps.transcribe).toHaveBeenCalledTimes(2)
   })
 
   it('uses the level chosen when recording started', async () => {

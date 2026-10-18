@@ -65,7 +65,7 @@ export async function runRecordTest({ indicator, durationMs, ensureAccess, event
         peak: recording.peak ?? null,
       })
     }
-    sendCommand({ type: 'start', measure: true })
+    sendCommand({ type: 'start' })
   })
   report('DICTATOR_RECORD_TEST', {
     access: accessBefore,
