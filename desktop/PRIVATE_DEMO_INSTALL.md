@@ -4,7 +4,7 @@ Dictator is a menu bar app: press a shortcut, speak, press it again, and the cle
 
 ## What you need
 
-- macOS 12 Monterey or later.
+- macOS 13 Ventura or later.
 - Two installers, pick the one for your Mac (Apple menu › About This Mac):
   - **Chip: Apple M1/M2/M3/M4…** → `Dictator-0.1.0-arm64.dmg`
   - **Processor: Intel** → `Dictator-0.1.0.dmg` (the Intel build)
@@ -12,10 +12,10 @@ Dictator is a menu bar app: press a shortcut, speak, press it again, and the cle
 
 ## Install
 
-1. Open the dmg and drag **Dictator** onto **Applications**. Eject the dmg.
+1. Open the dmg and, in Finder, drag **Dictator** onto **Applications**. Eject the dmg. (Don't run it from the dmg or Downloads.)
 2. Open Applications and double-click Dictator. Because this preview is not signed with an Apple Developer ID or notarized, macOS blocks the first launch:
    - **macOS 15 Sequoia and later:** macOS says it can't verify Dictator. Click **Done**, open **System Settings › Privacy & Security**, scroll down to the message about Dictator, click **Open Anyway**, and confirm with your password.
-   - **macOS 12–14:** Control-click (or right-click) Dictator in Applications, choose **Open**, then **Open** again.
+   - **macOS 13–14:** Control-click (or right-click) Dictator in Applications, choose **Open**, then **Open** again.
    - If macOS says **"Dictator is damaged and can't be opened"**, the file was quarantined by the download. Open Terminal and run:
      ```sh
      xattr -dr com.apple.quarantine /Applications/Dictator.app
@@ -66,7 +66,7 @@ Settings are remembered after you quit and reopen Dictator. The same Refinement 
 
 ## Privacy
 
-Audio is sent to the Dictator server and on to OpenAI for transcription and clean-up. Dictator keeps no recordings or transcripts on the Mac; only your three settings are stored, in `~/Library/Application Support/Dictator/settings.json`. Usage is limited per network address (30 recordings a day) and in total per day, so you may see a "usage limit" message.
+Audio is sent to the Dictator server and on to OpenAI for transcription and clean-up. Dictator keeps no recordings or transcripts on the Mac; only your three settings are stored, in `~/Library/Application Support/dictator-desktop/settings.json`. Usage is limited per network address (30 recordings a day) and in total per day, so you may see a "usage limit" message.
 
 ## Uninstall
 
@@ -74,7 +74,7 @@ Audio is sent to the Dictator server and on to OpenAI for transcription and clea
 2. Drag **Dictator** from Applications to the Trash.
 3. Optional clean-up, in Terminal:
    ```sh
-   rm -rf ~/Library/Application\ Support/Dictator
+   rm -rf ~/Library/Application\ Support/dictator-desktop
    tccutil reset Microphone com.ezzy818.dictator
    tccutil reset Accessibility com.ezzy818.dictator
    ```
