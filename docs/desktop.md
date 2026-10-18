@@ -24,7 +24,7 @@ It lives in `desktop/` as its own npm package. The web frontend (`frontend/`, on
 - **Transcription › Refinement:** None, Light or Medium, saved as soon as it is chosen. It is the same setting as the menu bar's Refinement submenu; changing either updates the other.
 - **Output › Output Behavior:** Copy Only (the default) or Auto-Paste (experimental), the same setting as the menu bar's Output submenu. With Auto-Paste chosen it also shows whether Dictator has Accessibility access, with a button to the right place in System Settings.
 
-All three are saved in `settings.json` in Dictator's data folder (`~/Library/Application Support/Dictator`) and kept across restarts. Nothing else is stored there.
+All three are saved in `settings.json` in Dictator's data folder (`~/Library/Application Support/dictator-desktop`, named after the npm package and shared with development builds) and kept across restarts. Nothing else is stored there.
 
 ### Choosing a shortcut
 
