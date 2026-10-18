@@ -1,0 +1,34 @@
+{
+  "name": "dictator-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Dictator macOS menu bar app",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "lint": "oxlint",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:all": "vitest run",
+    "pack": "electron-vite build && electron-builder --dir",
+    "dist:mac": "electron-vite build && electron-builder --mac"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^6.0.0",
+    "jsdom": "^29.1.1",
+    "oxlint": "^1.81.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}
