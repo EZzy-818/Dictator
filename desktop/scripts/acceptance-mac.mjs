@@ -68,7 +68,18 @@ function startApp() {
       waiters.push({ match: (e) => e.name === name && predicate(e.value), resolve: (v) => (clearTimeout(timer), resolve(v)) })
     })
   const send = (text) => child.stdin.write(`${text}\n`)
-  return { child, waitFor, send, quit: () => (send('quit'), setTimeout(() => child.kill(), 3000), fs.rmSync(userData, { recursive: true, force: true })) }
+  // Removes the temporary profile only after the app has exited and let go of it.
+  const quit = () =>
+    new Promise((resolve) => {
+      const timer = setTimeout(() => child.kill(), 5000)
+      child.once('close', () => {
+        clearTimeout(timer)
+        fs.rmSync(userData, { recursive: true, force: true })
+        resolve()
+      })
+      send('quit')
+    })
+  return { child, waitFor, send, quit }
 }
 
 const app = startApp()
@@ -98,7 +109,7 @@ for (const level of levels) {
     await app.waitFor('DICTATOR_STATE', (s) => s.phase === 'idle' && !s.notice, 10_000).catch(() => {})
   }
 }
-app.quit()
+await app.quit()
 
 const escape = (text) => String(text ?? '').replaceAll('|', '\\|').replaceAll('\n', ' ')
 const table = [
